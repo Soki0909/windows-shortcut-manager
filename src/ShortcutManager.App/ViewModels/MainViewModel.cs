@@ -8,6 +8,7 @@ using ShortcutManager.Windows.Backup;
 using ShortcutManager.Windows.Inventory;
 using ShortcutManager.Windows.Launching;
 using ShortcutManager.Windows.Logging;
+using ShortcutManager.Windows.Shell;
 using ShortcutManager.Windows.Storage;
 
 namespace ShortcutManager.App;
@@ -25,13 +26,14 @@ public sealed class MainViewModel : ObservableObject
     private readonly ManagedShortcutApplier applier;
     private readonly RestoreService restore;
     private readonly FileLogger logger;
+    private readonly IExplorerShellReloader shellReloader;
     private ShortcutConfig candidate = new();
     private ShortcutRow? selected;
     private string status = "準備完了";
     private bool isBusy;
     private bool isDirty;
 
-    public MainViewModel(ApplicationPaths paths, ConfigRepository repository, ConfigValidator validator, LaunchSpecResolver resolver, ProcessLauncher launcher, ShortcutInventoryScanner scanner, ShortcutImporter importer, BackupService backups, ManagedShortcutApplier applier, RestoreService restore, FileLogger logger)
+    public MainViewModel(ApplicationPaths paths, ConfigRepository repository, ConfigValidator validator, LaunchSpecResolver resolver, ProcessLauncher launcher, ShortcutInventoryScanner scanner, ShortcutImporter importer, BackupService backups, ManagedShortcutApplier applier, RestoreService restore, FileLogger logger, IExplorerShellReloader shellReloader)
     {
         this.paths = paths;
         this.repository = repository;
@@ -44,6 +46,7 @@ public sealed class MainViewModel : ObservableObject
         this.applier = applier;
         this.restore = restore;
         this.logger = logger;
+        this.shellReloader = shellReloader;
         Load();
     }
 
@@ -129,7 +132,7 @@ public sealed class MainViewModel : ObservableObject
         Status = $"{item.DisplayName} を {key} にインポートしました。元ファイルは変更していません。";
     }
 
-    public async Task ApplyAsync()
+    public async Task<bool> ApplyAsync()
     {
         IsBusy = true;
         Status = "validate → scan → stage → backup → apply を実行しています…";
@@ -142,11 +145,31 @@ public sealed class MainViewModel : ObservableObject
             logger.Info($"Apply: success={result.Succeeded}, generated={result.GeneratedCount}, backup={result.BackupPath}");
             if (result.Succeeded) IsDirty = false;
             Refresh();
+            return result.Succeeded;
         }
         catch (Exception error)
         {
             Status = $"Apply に失敗しました: {error.Message}";
             logger.Error("Apply failed", error);
+            return false;
+        }
+        finally { IsBusy = false; }
+    }
+
+    public async Task ReloadShellAsync()
+    {
+        IsBusy = true;
+        Status = "Windows Shellを再読み込みしています…";
+        try
+        {
+            var result = await shellReloader.ReloadAsync();
+            Status = result.Message;
+            logger.Info($"Shell reload: success={result.Succeeded}, message={result.Message}");
+        }
+        catch (Exception error)
+        {
+            Status = $"Windows Shellの再読み込みに失敗しました: {error.Message}";
+            logger.Error("Shell reload failed", error);
         }
         finally { IsBusy = false; }
     }

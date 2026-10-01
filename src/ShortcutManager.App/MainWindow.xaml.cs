@@ -64,7 +64,23 @@ public partial class MainWindow : Window
 
     private void Test_Click(object sender, RoutedEventArgs e) { if (viewModel.Selected is not null) viewModel.Test(viewModel.Selected.Definition); }
     private void Reload_Click(object sender, RoutedEventArgs e) { if (!viewModel.IsDirty || MessageBox.Show(this, "未適用変更を破棄して再読み込みしますか？", "Reload", MessageBoxButton.YesNo) == MessageBoxResult.Yes) viewModel.Load(); }
-    private async void Apply_Click(object sender, RoutedEventArgs e) => await viewModel.ApplyAsync();
+    private async void Apply_Click(object sender, RoutedEventArgs e)
+    {
+        if (!await viewModel.ApplyAsync()) return;
+        if (ConfirmShellReload()) await viewModel.ReloadShellAsync();
+    }
+
+    private async void ShellReload_Click(object sender, RoutedEventArgs e)
+    {
+        if (ConfirmShellReload()) await viewModel.ReloadShellAsync();
+    }
+
+    private bool ConfirmShellReload() => MessageBox.Show(
+        this,
+        "HotKeyを再起動なしで反映するため、Windows Shell Explorerを再読み込みします。\n\nデスクトップとタスクバーが一瞬消え、開いているエクスプローラー画面が閉じる可能性があります。ファイルのコピーや移動中でないことを確認して続行してください。",
+        "Windows Shellを再読み込み",
+        MessageBoxButton.YesNo,
+        MessageBoxImage.Warning) == MessageBoxResult.Yes;
     private void About_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this, "Shortcut Manager v0.1.0\n非常駐 / local-only\nWindows .lnk HotKey + Chrome Dispatcher Protocol v1", "About");
 
     private void Window_Closing(object? sender, CancelEventArgs e)

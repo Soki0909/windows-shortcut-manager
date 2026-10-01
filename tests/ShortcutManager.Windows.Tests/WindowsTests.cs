@@ -174,6 +174,38 @@ public sealed class WindowsTests : IDisposable
         Assert.Contains("group=%E7%A0%94%E7%A9%B6", group.Arguments);
     }
 
+    [Fact]
+    public async Task ShellReload_RestartsOnlyCurrentSessionShell()
+    {
+        var host = new FakeExplorerShellProcessHost { Shell = new(42, 7), CurrentSessionId = 7 };
+        var result = await new ExplorerShellReloader(host).ReloadAsync();
+        Assert.True(result.Succeeded, result.Message);
+        Assert.Equal([42], host.TerminatedIds);
+        Assert.Equal([42], host.WaitedIds);
+        Assert.Equal(1, host.StartCount);
+        Assert.Equal(43, host.Shell?.Id);
+    }
+
+    [Fact]
+    public async Task ShellReload_RejectsAnotherSessionWithoutTerminatingIt()
+    {
+        var host = new FakeExplorerShellProcessHost { Shell = new(42, 8), CurrentSessionId = 7 };
+        var result = await new ExplorerShellReloader(host).ReloadAsync();
+        Assert.False(result.Succeeded);
+        Assert.Empty(host.TerminatedIds);
+        Assert.Equal(0, host.StartCount);
+    }
+
+    [Fact]
+    public async Task ShellReload_StopsSafelyWhenShellCannotBeIdentified()
+    {
+        var host = new FakeExplorerShellProcessHost { CurrentSessionId = 7 };
+        var result = await new ExplorerShellReloader(host).ReloadAsync();
+        Assert.False(result.Succeeded);
+        Assert.Empty(host.TerminatedIds);
+        Assert.Equal(0, host.StartCount);
+    }
+
     private Fixture CreateFixture(Action<string>? checkpoint = null)
     {
         var configPath = Path.Combine(root, "app", "config.json");
@@ -211,5 +243,19 @@ public sealed class WindowsTests : IDisposable
             if (!values.TryGetValue(path, out var value)) throw new InvalidDataException("Unknown fake shortcut.");
             return new(path, value.TargetPath, value.Arguments, value.WorkingDirectory, value.Hotkey, value.IconLocation, value.Description, value.WindowStyle);
         }
+    }
+
+    private sealed class FakeExplorerShellProcessHost : IExplorerShellProcessHost
+    {
+        public int CurrentSessionId { get; init; }
+        public ExplorerShellProcess? Shell { get; set; }
+        public List<int> TerminatedIds { get; } = [];
+        public List<int> WaitedIds { get; } = [];
+        public int StartCount { get; private set; }
+
+        public ExplorerShellProcess? GetShellProcess() => Shell;
+        public void Terminate(ExplorerShellProcess process) { TerminatedIds.Add(process.Id); Shell = null; }
+        public Task WaitForExitAsync(ExplorerShellProcess process, CancellationToken cancellationToken) { WaitedIds.Add(process.Id); return Task.CompletedTask; }
+        public void StartExplorer() { StartCount++; Shell = new(43, CurrentSessionId); }
     }
 }

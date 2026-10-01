@@ -27,7 +27,7 @@ public partial class App : Application
             Shutdown();
             return;
         }
-        var viewModel = new MainViewModel(paths, repository, validator, resolver, new ShortcutManager.Windows.Launching.ProcessLauncher(), scanner, new ShortcutManager.Windows.Inventory.ShortcutImporter(), backups, applier, restore, logger);
+        var viewModel = new MainViewModel(paths, repository, validator, resolver, new ShortcutManager.Windows.Launching.ProcessLauncher(), scanner, new ShortcutManager.Windows.Inventory.ShortcutImporter(), backups, applier, restore, logger, new ShortcutManager.Windows.Shell.ExplorerShellReloader());
         var window = new MainWindow(viewModel);
         MainWindow = window;
         window.Show();
