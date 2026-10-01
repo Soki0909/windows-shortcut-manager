@@ -14,7 +14,7 @@ Updated: 2026-10-01 (Asia/Tokyo)
 
 | Area | Command | Result |
 |---|---|---|
-| Core + Windows | `dotnet test ShortcutManager.sln -c Release --no-restore` | Core 14/14, Windows 11/11 passed |
+| Core + Windows | `dotnet test ShortcutManager.sln -c Release --no-restore` | Core 15/15, Windows 11/11 passed |
 | Extension | `node --test tests/ChromeExtension.Tests/protocol.test.js` | 10/10 passed |
 | Version/policy | `scripts/verify-version.ps1 -ExpectedVersion 0.1.0` | Passed; MV3, no commands/host_permissions/content_scripts/externally_connectable |
 | Release build | `dotnet build ShortcutManager.sln -c Release --no-restore` | Passed with 0 warnings / 0 errors |
@@ -22,6 +22,14 @@ Updated: 2026-10-01 (Asia/Tokyo)
 | Packaged GUI smoke | Start self-contained EXE, wait for window, request normal close | `Shortcut Manager` window appeared within 1 second; responding; clean exit; 0 remaining processes |
 
 Tests cover config roundtrip/polymorphism, Unicode, schema/URL/Extension ID validation, disabled invalid target behavior, GUID/HotKey conflicts, filename sanitation, Dispatcher percent encoding, real WScript `.lnk` roundtrip, `.url` numeric HotKey decoding (`1602 → CTRL+ALT+B`), scan root dedupe, managed ownership rejection, staging/read-back/backup/commit, idempotence, external conflict blocking, forced rollback, Restore through the Apply transaction, and Chrome protocol/group/tab selection.
+
+## 2026-10-01 live-refresh and UI follow-up
+
+- Apply now reports changed shortcut lifecycle events to Explorer synchronously: deletion for links moved out of service, then creation/update for committed links, plus the managed-directory update. Rollback emits the matching reverse lifecycle. Windows regression tests verify replacement, removal, and rollback notification order.
+- The packaged native GUI loaded the current host configuration and displayed three physical keyboard rows in `QWERTYUIOP / ASDFGHJKL / ZXCVBNM` order. The refreshed card, input, table, status, and action hierarchy were inspected in the running Windows application; opening the Q editor preserved the existing data.
+- The current configuration was reapplied from the packaged GUI. The application reported `変更を反映しました。Windows の再起動は不要です。` without requiring a Windows restart.
+- A temporary `F=一時メモ帳テスト` application entry targeting `C:\Windows\System32\notepad.exe` was added and applied successfully. The physical `CTRL+ALT+F` before-restart check remains pending owner confirmation. The entry will be removed and reapplied immediately after that confirmation; until then this is not recorded as a passed live HotKey gate.
+- Final automated follow-up results: Core 15/15, Windows 11/11, Chrome 10/10, Release build 0 warnings/errors, version/policy check passed, and both release packages were regenerated successfully.
 
 ## Current-machine evidence
 
@@ -61,7 +69,7 @@ After explicit owner authorization, the final conflict migration and full Apply 
 
 ## WPF GUI smoke
 
-Final audit initially found a real startup crash: the read-only DataGrid projection properties were being bound with the WPF default TwoWay mode. The columns now explicitly use `Mode=OneWay`. After rebuilding and repackaging, the self-contained `ShortcutManager.exe` displayed a responsive `Shortcut Manager` window within one second, accepted a normal window-close request, exited cleanly within five seconds, and left zero processes. The packaged command mode also completed a real scan of 259 shortcuts.
+Final audit initially found a real startup crash: the read-only DataGrid projection properties were being bound with the WPF default TwoWay mode. The columns now explicitly use `Mode=OneWay`. After rebuilding and repackaging, the self-contained `ShortcutManager.exe` displayed a responsive `Shortcut Manager` window within one second, accepted a normal window-close request, exited cleanly within five seconds, and left zero processes. The packaged command mode also completed a real scan of 259 shortcuts. The follow-up native inspection verified the modern UI, physical three-row key order, existing-config load, editor interaction, and successful Apply status.
 
 ## Full-layout conflict migration
 
@@ -76,14 +84,14 @@ Full evidence with exact paths is stored only in gitignored `local/inventory.jso
 - Passed after Windows restart: `G=GitHub`, `P=学生ポータル`, `R=研究`, `X=7脱`, `Z=作業開始`, and `A=LINE`.
 - Representative HotKeys continued to work with Shortcut Manager closed, confirming the Manager is non-resident and Windows `.lnk` HotKeys are the runtime trigger.
 - R/X focused their intended Chrome groups, brought Chrome forward, and left no Dispatcher tab behind.
-- Native WPF screenshot capture was unavailable because the current Computer Use connection exposed browser tabs but no native app surface. Automated packaged GUI launch, responsiveness, normal close, and zero-resident-process checks passed; this tooling limitation is not a product blocker.
+- Native Windows UI inspection now passes for the modern layout and edit flow. The remaining M9 manual gate is owner confirmation that the newly applied temporary `CTRL+ALT+F` opens Notepad before any restart, followed by removal of that temporary entry.
 
 ## Publication status
 
 Final local artifacts:
 
-- `artifacts/ShortcutManager-win-x64-v0.1.0.zip` — 65,239,629 bytes — SHA-256 `46578d781ffa8c640db408f62dca2031c1257e80a5ae569408f548423978577f`
-- `artifacts/ShortcutManager-TabBridge-v0.1.0.zip` — 9,689 bytes — SHA-256 `70aea18db3ebf534ade6e162f78312033e94e4b4e7b4329710d648f220c15796`
+- `artifacts/ShortcutManager-win-x64-v0.1.0.zip` — 63,191,398 bytes — SHA-256 `d35ee2507d7c83432dd7c4674136e1dc56b9eec723f8ca9bb95596b37572b8dc`
+- `artifacts/ShortcutManager-TabBridge-v0.1.0.zip` — 9,632 bytes — SHA-256 `4b911cff56d1023beb95b053e19461723291761ced775fb7967cec58798a949e`
 - `artifacts/SHA256SUMS.txt`
 
 ZIP inspection verified `ShortcutManager.exe` is present (and the old `ShortcutManager.App.exe` name is absent). Extension ZIP has 16 entries, `manifest.json` at root, and no development-only `package.json`.
