@@ -1,0 +1,10 @@
+prompt.md
+.work/
+local/
+artifacts/
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+TestResults/

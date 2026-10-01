@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/shortcut-manager/config.schema.json",
+  "title": "Shortcut Manager Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "dispatchProtocolVersion",
+    "settings",
+    "shortcuts"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "dispatchProtocolVersion": {
+      "const": 1
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chrome"
+      ],
+      "properties": {
+        "chrome": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "executablePath",
+            "extensionId"
+          ],
+          "properties": {
+            "executablePath": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "extensionId": {
+              "type": "string",
+              "pattern": "^[a-p]{32}$|^$"
+            }
+          }
+        },
+        "managedShortcutDirectory": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "shortcuts": {
+      "type": "array",
+      "maxItems": 26,
+      "items": {
+        "$ref": "#/$defs/shortcut"
+      }
+    }
+  },
+  "$defs": {
+    "hotkey": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "modifiers",
+        "key"
+      ],
+      "properties": {
+        "modifiers": {
+          "type": "array",
+          "const": [
+            "Ctrl",
+            "Alt"
+          ]
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[A-Z]$"
+        }
+      }
+    },
+    "shortcut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "enabled",
+        "hotkey",
+        "target"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "hotkey": {
+          "$ref": "#/$defs/hotkey"
+        },
+        "target": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/website"
+            },
+            {
+              "$ref": "#/$defs/application"
+            },
+            {
+              "$ref": "#/$defs/bat"
+            },
+            {
+              "$ref": "#/$defs/chromeGroup"
+            }
+          ]
+        }
+      }
+    },
+    "website": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "url"
+      ],
+      "properties": {
+        "kind": {
+          "const": "website"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "launchMode",
+        "value",
+        "arguments",
+        "workingDirectory"
+      ],
+      "properties": {
+        "kind": {
+          "const": "application"
+        },
+        "launchMode": {
+          "enum": [
+            "executable",
+            "shortcut",
+            "uri"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "arguments": {
+          "type": "string"
+        },
+        "workingDirectory": {
+          "type": "string"
+        }
+      }
+    },
+    "bat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "path",
+        "arguments",
+        "workingDirectory",
+        "windowMode"
+      ],
+      "properties": {
+        "kind": {
+          "const": "bat"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "arguments": {
+          "type": "string"
+        },
+        "workingDirectory": {
+          "type": "string"
+        },
+        "windowMode": {
+          "enum": [
+            "normal",
+            "minimized"
+          ]
+        }
+      }
+    },
+    "chromeGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "groupName"
+      ],
+      "properties": {
+        "kind": {
+          "const": "chromeTabGroup"
+        },
+        "groupName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    }
+  }
+}

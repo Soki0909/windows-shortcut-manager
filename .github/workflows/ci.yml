@@ -1,0 +1,29 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  dotnet:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore ShortcutManager.sln
+      - run: dotnet build ShortcutManager.sln -c Release --no-restore
+      - run: dotnet test ShortcutManager.sln -c Release --no-build
+      - shell: pwsh
+        run: ./scripts/package.ps1 -Configuration Release -Version 0.1.0
+  extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/ChromeExtension.Tests/protocol.test.js
+      - shell: pwsh
+        run: ./scripts/verify-version.ps1 -ExpectedVersion 0.1.0
+

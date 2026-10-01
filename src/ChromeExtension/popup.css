@@ -1,0 +1,14 @@
+:root { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color-scheme: light dark; }
+body { margin: 0; width: 370px; }
+main { padding: 16px; }
+h1 { margin: 0; font-size: 17px; }
+h2 { margin: 16px 0 8px; font-size: 14px; }
+#identity, #status { font-size: 11px; opacity: .78; word-break: break-all; }
+.setting { display: flex; gap: 8px; margin: 14px 0; font-size: 13px; align-items: start; }
+.toolbar { display: flex; gap: 8px; }
+button { border: 0; border-radius: 7px; padding: 8px 10px; color: white; background: #1a73e8; cursor: pointer; }
+button.secondary { background: #5f6368; }
+.groups { display: grid; gap: 7px; }
+.group { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px; border-radius: 7px; background: color-mix(in srgb, CanvasText 8%, Canvas); }
+.state { font-size: 11px; opacity: .7; }
+

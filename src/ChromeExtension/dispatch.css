@@ -1,0 +1,6 @@
+:root { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color-scheme: light dark; }
+body { margin: 0; }
+main { max-width: 42rem; margin: 4rem auto; padding: 1.5rem; }
+h1 { font-size: 1.25rem; }
+pre { overflow: auto; padding: 1rem; border-radius: .5rem; background: color-mix(in srgb, CanvasText 8%, Canvas); }
+
