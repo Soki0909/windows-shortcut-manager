@@ -14,7 +14,7 @@ Updated: 2026-10-01 (Asia/Tokyo)
 
 | Area | Command | Result |
 |---|---|---|
-| Core + Windows | `dotnet test ShortcutManager.sln -c Release --no-restore` | Core 15/15, Windows 11/11 passed |
+| Core + Windows | `dotnet test ShortcutManager.sln -c Release --no-restore` | Core 15/15, Windows 14/14 passed |
 | Extension | `node --test tests/ChromeExtension.Tests/protocol.test.js` | 10/10 passed |
 | Version/policy | `scripts/verify-version.ps1 -ExpectedVersion 0.1.0` | Passed; MV3, no commands/host_permissions/content_scripts/externally_connectable |
 | Release build | `dotnet build ShortcutManager.sln -c Release --no-restore` | Passed with 0 warnings / 0 errors |
@@ -25,11 +25,11 @@ Tests cover config roundtrip/polymorphism, Unicode, schema/URL/Extension ID vali
 
 ## 2026-10-01 live-refresh and UI follow-up
 
-- Apply now reports changed shortcut lifecycle events to Explorer synchronously: deletion for links moved out of service, then creation/update for committed links, plus the managed-directory update. Rollback emits the matching reverse lifecycle. Windows regression tests verify replacement, removal, and rollback notification order.
+- Apply reports changed shortcut lifecycle events to Explorer synchronously: deletion for links moved out of service, then creation/update for committed links, plus the managed-directory update. Rollback emits the matching reverse lifecycle. Windows regression tests verify replacement, removal, and rollback notification order. Live testing proved these notifications are necessary for Shell cache coherence but insufficient to rebuild Explorer's `.lnk` HotKey registration table.
 - The packaged native GUI loaded the current host configuration and displayed three physical keyboard rows in `QWERTYUIOP / ASDFGHJKL / ZXCVBNM` order. The refreshed card, input, table, status, and action hierarchy were inspected in the running Windows application; opening the Q editor preserved the existing data.
-- The current configuration was reapplied from the packaged GUI. The application reported `変更を反映しました。Windows の再起動は不要です。` without requiring a Windows restart.
-- A temporary `F=一時メモ帳テスト` application entry targeting `C:\Windows\System32\notepad.exe` was added and applied successfully. The physical `CTRL+ALT+F` before-restart check remains pending owner confirmation. The entry will be removed and reapplied immediately after that confirmation; until then this is not recorded as a passed live HotKey gate.
-- Final automated follow-up results: Core 15/15, Windows 11/11, Chrome 10/10, Release build 0 warnings/errors, version/policy check passed, and both release packages were regenerated successfully.
+- A temporary `F=一時メモ帳テスト` application entry targeting `C:\Windows\System32\notepad.exe` was added and applied successfully. Physical `CTRL+ALT+F` did not work in the existing Explorer session and worked after Explorer restarted. Explorer's start time changed while the Manager process remained alive, demonstrating that a Shell reload—not a full Windows reboot—is the missing registration step.
+- The GUI now offers a warned, consent-based reload of only the current session's Shell Explorer after Apply and as a separate recovery action. The implementation resolves the Shell PID through `GetShellWindow`, refuses another session, restarts Explorer, waits for the replacement Shell, and reports timeout/failure without claiming success.
+- Current automated follow-up results: Core 15/15, Windows 14/14, and Release build 0 warnings/errors. A self-contained verification build was published to `artifacts/publish/shell-refresh`; integrated native GUI and physical-HotKey retesting remain pending.
 
 ## Current-machine evidence
 
@@ -84,7 +84,7 @@ Full evidence with exact paths is stored only in gitignored `local/inventory.jso
 - Passed after Windows restart: `G=GitHub`, `P=学生ポータル`, `R=研究`, `X=7脱`, `Z=作業開始`, and `A=LINE`.
 - Representative HotKeys continued to work with Shortcut Manager closed, confirming the Manager is non-resident and Windows `.lnk` HotKeys are the runtime trigger.
 - R/X focused their intended Chrome groups, brought Chrome forward, and left no Dispatcher tab behind.
-- Native Windows UI inspection now passes for the modern layout and edit flow. The remaining M9 manual gate is owner confirmation that the newly applied temporary `CTRL+ALT+F` opens Notepad before any restart, followed by removal of that temporary entry.
+- Native Windows UI inspection passes for the modern layout and edit flow. The notification-only live gate failed as described above. The remaining M9 manual gate is the new integrated Apply → Shell reload flow followed by a physical HotKey check and cleanup of temporary entries.
 
 ## Publication status
 
