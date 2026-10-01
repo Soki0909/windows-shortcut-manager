@@ -28,6 +28,8 @@ Done requires:
 - [x] M6 Current-machine bootstrap + live usability verification (2026-10-01; 16 conflicts migrated with backup, full 19-key Apply/read-back passed, and post-restart R/X/Z/G/P/A live checks passed)
 - [x] M7 CI / packaging / release artifacts (2026-09-30)
 - [x] M8 Final documentation / verification / cleanup (2026-10-01; docs, artifacts, automated gates, packaged GUI smoke, and owner live verification complete)
+- [ ] M9 Live HotKey refresh hardening (2026-10-01; ensure changed/removed `.lnk` HotKeys are re-registered by Explorer without a Windows restart)
+- [ ] M10 Modern WPF UI + physical keyboard layout (2026-10-01; refresh the visual hierarchy and present keys as QWERTY rows)
 
 ## Discoveries
 
@@ -49,6 +51,8 @@ Done requires:
 - Apply the nonconflicting desired keys I/L/V first to prove real Start Menu ownership and rollback surfaces without touching unmanaged shortcuts. After owner approval, migrate the exact 16 conflicts with original-byte backup and then use the same product Apply engine for the full layout.
 - Preserve the public executable name as `ShortcutManager.exe` via `AssemblyName`; keep the internal project boundary named `ShortcutManager.App`.
 - Send `SHChangeNotify(SHCNE_UPDATEITEM/SHCNE_UPDATEDIR, SHCNF_PATHW | SHCNF_FLUSH)` for every generated/modified shortcut and its directory after migration, successful Apply, and Apply rollback so Explorer is explicitly told to invalidate shortcut state. This follows the Shell API contract and avoids relying solely on filesystem watchers.
+- Treat replacement as an explicit Shell lifecycle: notify deletion after moving each old managed shortcut away, then notify creation after moving each staged shortcut into place. This makes HotKey unregister/register observable without changing the non-resident `.lnk` architecture.
+- Keep WPF and the dependency-free UI stack. Modernization uses shared native WPF resources, while the A-Z overview follows the physical `QWERTYUIOP / ASDFGHJKL / ZXCVBNM` key order.
 
 ## Milestones
 
@@ -156,6 +160,26 @@ Deliver:
 - no leftover PoC-only hardcoding
 - no personal absolute path committed
 - Initial commit `b76312d` (`feat: complete Shortcut Manager v0.1.0`) was created and pushed to `origin/main` on 2026-10-01 after owner authorization. GitHub Release publication was not performed.
+
+### M9 — Live HotKey refresh
+Deliver:
+- explicit Shell delete/create/update notifications during Apply
+- matching rollback notifications
+- regression tests for replacement, removal, and rollback notification order
+Validation:
+- focused Windows tests
+- full Release test gate
+- live Apply on the owner machine without restarting Windows
+
+### M10 — Modern UI / keyboard layout
+Deliver:
+- shared WPF color, typography, input, card, and button styles
+- clearer header, status, action hierarchy, and shortcut table
+- physical three-row keyboard layout
+Validation:
+- key-order unit test
+- Release build
+- packaged/native GUI screenshot and interaction smoke
 
 ## Verification Evidence
 

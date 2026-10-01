@@ -75,13 +75,17 @@ public sealed class ManagedShortcutApplier(
             foreach (var path in Directory.EnumerateFiles(managedDirectory, "*", SearchOption.TopDirectoryOnly).Where(path => !System.IO.Path.GetFileName(path).Equals(OwnershipMarker, StringComparison.OrdinalIgnoreCase)))
             {
                 var destination = System.IO.Path.Combine(old, System.IO.Path.GetFileName(path));
-                File.Move(path, destination); movedOld.Add((destination, path));
+                File.Move(path, destination);
+                movedOld.Add((destination, path));
+                shellNotifier?.NotifyItemDeleted(path);
             }
             checkpoint?.Invoke("old-moved");
             foreach (var path in Directory.EnumerateFiles(stage, "*.lnk"))
             {
                 var destination = System.IO.Path.Combine(managedDirectory, System.IO.Path.GetFileName(path));
-                File.Move(path, destination); committedNew.Add(destination);
+                File.Move(path, destination);
+                committedNew.Add(destination);
+                shellNotifier?.NotifyItemCreated(destination);
             }
             File.WriteAllText(System.IO.Path.Combine(managedDirectory, OwnershipMarker), $"Shortcut Manager{Environment.NewLine}schemaVersion=1{Environment.NewLine}updatedAt={DateTimeOffset.Now:O}{Environment.NewLine}");
             checkpoint?.Invoke("new-moved");
@@ -95,8 +99,19 @@ public sealed class ManagedShortcutApplier(
         }
         catch (Exception error)
         {
-            foreach (var path in committedNew) if (File.Exists(path)) File.Delete(path);
-            foreach (var pair in movedOld.AsEnumerable().Reverse()) if (File.Exists(pair.Source)) File.Move(pair.Source, pair.Destination, true);
+            foreach (var path in committedNew)
+            {
+                if (!File.Exists(path)) continue;
+                File.Delete(path);
+                shellNotifier?.NotifyItemDeleted(path);
+            }
+            foreach (var pair in movedOld.AsEnumerable().Reverse())
+            {
+                if (!File.Exists(pair.Source)) continue;
+                File.Move(pair.Source, pair.Destination, true);
+                shellNotifier?.NotifyItemCreated(pair.Destination);
+                shellNotifier?.NotifyItemChanged(pair.Destination);
+            }
             RestoreConfig(priorConfig);
             if (Directory.Exists(managedDirectory)) shellNotifier?.NotifyDirectoryChanged(managedDirectory);
             return new(false, $"Apply に失敗し、以前の状態へロールバックしました: {error.Message}", backupPath);

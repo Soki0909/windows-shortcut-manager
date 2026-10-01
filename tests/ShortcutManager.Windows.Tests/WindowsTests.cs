@@ -89,8 +89,10 @@ public sealed class WindowsTests : IDisposable
         Assert.True(File.Exists(fixture.Config.Path));
         Assert.NotNull(result.BackupPath);
         Assert.Equal("apply", BackupService.Inspect(result.BackupPath!).Reason);
-        Assert.Single(fixture.Notifier.Items);
-        Assert.EndsWith(".lnk", fixture.Notifier.Items[0], StringComparison.OrdinalIgnoreCase);
+        Assert.Collection(
+            fixture.Notifier.Events,
+            item => Assert.Equal(("created", Path.Combine(fixture.Managed, "G - Entry G.lnk")), item),
+            item => Assert.Equal(("changed", Path.Combine(fixture.Managed, "G - Entry G.lnk")), item));
         Assert.Contains(Path.GetFullPath(fixture.Managed), fixture.Notifier.Directories);
     }
 
@@ -104,6 +106,9 @@ public sealed class WindowsTests : IDisposable
         Assert.True(first.Succeeded && second.Succeeded);
         Assert.Equal(first.ConfigSha256, second.ConfigSha256);
         Assert.Single(Directory.GetFiles(fixture.Managed, "*.lnk"));
+        Assert.Equal(
+            ["created", "changed", "deleted", "created", "changed"],
+            fixture.Notifier.Events.Select(item => item.Kind));
     }
 
     [Fact]
@@ -122,6 +127,9 @@ public sealed class WindowsTests : IDisposable
         Assert.Equal("old-content", File.ReadAllText(oldLink));
         Assert.Equal("old-config", File.ReadAllText(fixture.Config.Path));
         Assert.Single(Directory.GetFiles(fixture.Managed, "*.lnk"));
+        Assert.Equal(
+            ["deleted", "created", "deleted", "created", "changed"],
+            fixture.Notifier.Events.Select(item => item.Kind));
     }
 
     [Fact]
@@ -186,9 +194,11 @@ public sealed class WindowsTests : IDisposable
 
     private sealed class TrackingShellChangeNotifier : IShellChangeNotifier
     {
-        public List<string> Items { get; } = [];
+        public List<(string Kind, string Path)> Events { get; } = [];
         public List<string> Directories { get; } = [];
-        public void NotifyItemChanged(string path) => Items.Add(Path.GetFullPath(path));
+        public void NotifyItemCreated(string path) => Events.Add(("created", Path.GetFullPath(path)));
+        public void NotifyItemDeleted(string path) => Events.Add(("deleted", Path.GetFullPath(path)));
+        public void NotifyItemChanged(string path) => Events.Add(("changed", Path.GetFullPath(path)));
         public void NotifyDirectoryChanged(string path) => Directories.Add(Path.GetFullPath(path));
     }
 
