@@ -89,6 +89,14 @@ public sealed class CoreTests
         Assert.True(ManagedFilename.For(Entry("B", new string('長', 100), new WebsiteTarget { Url = "https://example.com" })).Length <= 88);
     }
 
+    [Fact]
+    public void KeyboardLayout_FollowsPhysicalQwertyRows()
+    {
+        Assert.Equal(["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"], KeyboardLayout.Rows);
+        Assert.Equal("QWERTYUIOPASDFGHJKLZXCVBNM", string.Concat(KeyboardLayout.Keys));
+        Assert.Equal(26, KeyboardLayout.Keys.Distinct().Count());
+    }
+
     private static ShortcutConfig SampleConfig(params ShortcutDefinition[] shortcuts) => new() { Settings = new() { Chrome = new() { ExtensionId = ExtensionId } }, Shortcuts = [.. shortcuts] };
     private static ShortcutDefinition Entry(string key, string name, ShortcutTarget target) => new() { Name = name, Hotkey = new() { Key = key }, Target = target };
 }

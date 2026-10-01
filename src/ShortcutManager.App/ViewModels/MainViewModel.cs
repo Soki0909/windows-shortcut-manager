@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using ShortcutManager.Core.Models;
 using ShortcutManager.Core.Validation;
+using ShortcutManager.Core.Utilities;
 using ShortcutManager.Windows.Apply;
 using ShortcutManager.Windows.Backup;
 using ShortcutManager.Windows.Inventory;
@@ -47,7 +48,9 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public ObservableCollection<ShortcutRow> Shortcuts { get; } = [];
-    public ObservableCollection<KeyTile> Keys { get; } = [];
+    public ObservableCollection<KeyTile> TopRowKeys { get; } = [];
+    public ObservableCollection<KeyTile> HomeRowKeys { get; } = [];
+    public ObservableCollection<KeyTile> BottomRowKeys { get; } = [];
     public ShortcutRow? Selected { get => selected; set => Set(ref selected, value); }
     public string Status { get => status; private set => Set(ref status, value); }
     public bool IsBusy { get => isBusy; private set => Set(ref isBusy, value); }
@@ -205,13 +208,23 @@ public sealed class MainViewModel : ObservableObject
             var issues = validation.Issues.Where(issue => issue.ShortcutId == definition.Id).ToArray();
             Shortcuts.Add(new(definition, TargetSummary(definition.Target), !definition.Enabled ? "Disabled" : issues.Length > 0 ? "Error" : IsDirty ? "Unapplied Changes" : "Ready", string.Join(" / ", issues.Select(issue => issue.Message))));
         }
-        Keys.Clear();
-        foreach (var key in Enumerable.Range('A', 26).Select(value => ((char)value).ToString()))
-        {
-            var row = Shortcuts.FirstOrDefault(item => item.Key == key);
-            Keys.Add(new(key, row?.Name ?? "空き", row?.Status ?? "Empty", row));
-        }
+        var tiles = KeyboardLayout.Keys.ToDictionary(
+            key => key,
+            key =>
+            {
+                var row = Shortcuts.FirstOrDefault(item => item.Key == key);
+                return new KeyTile(key, row?.Name ?? "空き", row?.Status ?? "Empty", row);
+            });
+        Replace(TopRowKeys, KeyboardLayout.Rows[0].Select(key => tiles[key.ToString()]));
+        Replace(HomeRowKeys, KeyboardLayout.Rows[1].Select(key => tiles[key.ToString()]));
+        Replace(BottomRowKeys, KeyboardLayout.Rows[2].Select(key => tiles[key.ToString()]));
         Raise(nameof(ManagedDirectory));
+    }
+
+    private static void Replace(ObservableCollection<KeyTile> target, IEnumerable<KeyTile> values)
+    {
+        target.Clear();
+        foreach (var value in values) target.Add(value);
     }
 
     private static string? ExtractKey(string hotkey)
@@ -240,4 +253,14 @@ public sealed record ShortcutRow(ShortcutDefinition Definition, string Target, s
     public string Type => Definition.Target switch { WebsiteTarget => "Website", ApplicationTarget => "Application", BatTarget => "BAT/CMD", ChromeTabGroupTarget => "Chrome Group", _ => "Unknown" };
 }
 
-public sealed record KeyTile(string Key, string Name, string Status, ShortcutRow? Row);
+public sealed record KeyTile(string Key, string Name, string Status, ShortcutRow? Row)
+{
+    public string StatusLabel => Status switch
+    {
+        "Ready" => "使用中",
+        "Disabled" => "無効",
+        "Error" => "要確認",
+        "Unapplied Changes" => "未反映",
+        _ => "空き",
+    };
+}

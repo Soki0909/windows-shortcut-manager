@@ -29,7 +29,7 @@ Done requires:
 - [x] M7 CI / packaging / release artifacts (2026-09-30)
 - [x] M8 Final documentation / verification / cleanup (2026-10-01; docs, artifacts, automated gates, packaged GUI smoke, and owner live verification complete)
 - [ ] M9 Live HotKey refresh hardening (2026-10-01; ensure changed/removed `.lnk` HotKeys are re-registered by Explorer without a Windows restart)
-- [ ] M10 Modern WPF UI + physical keyboard layout (2026-10-01; refresh the visual hierarchy and present keys as QWERTY rows)
+- [x] M10 Modern WPF UI + physical keyboard layout (2026-10-01; native screenshot and edit-dialog smoke passed with QWERTY rows)
 
 ## Discoveries
 
@@ -183,6 +183,8 @@ Validation:
 
 ## Verification Evidence
 
+- Modern UI verification: Release build completed with 0 warnings/errors; native Windows capture showed the three centered `QWERTYUIOP / ASDFGHJKL / ZXCVBNM` rows, modern card/action hierarchy, clipped long targets, and the Q tile opened the correct ChatGPT Web editor without changing data.
+- Keyboard layout regression test verifies all 26 unique letters in physical-row order; Core 15/15, Windows 11/11, and Chrome 10/10 passed after the UI work.
 - `dotnet test ShortcutManager.sln -c Release --no-restore`: Core 14/14 and Windows 11/11 passed (final gate).
 - `node --test tests/ChromeExtension.Tests/protocol.test.js`: 10/10 passed.
 - Real COM integration: `.lnk` target/arguments/HotKey roundtrip passed.

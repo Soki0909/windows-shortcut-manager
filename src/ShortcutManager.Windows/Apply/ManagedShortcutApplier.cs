@@ -95,7 +95,7 @@ public sealed class ManagedShortcutApplier(
             var configBytes = Encoding.UTF8.GetBytes(ConfigJson.Serialize(config));
             var hash = Convert.ToHexString(SHA256.HashData(configBytes)).ToLowerInvariant();
             File.WriteAllText(statePath, JsonSerializer.Serialize(new { lastSuccessfulApply = DateTimeOffset.Now, configSha256 = hash, managedDirectory }, new JsonSerializerOptions { WriteIndented = true }));
-            return new(true, "Apply が完了しました。", backupPath, committedNew.Count, hash);
+            return new(true, "変更を反映しました。Windows の再起動は不要です。", backupPath, committedNew.Count, hash);
         }
         catch (Exception error)
         {
