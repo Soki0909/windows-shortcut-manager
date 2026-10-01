@@ -155,7 +155,7 @@ Deliver:
 - VERIFICATION
 - no leftover PoC-only hardcoding
 - no personal absolute path committed
-- Git has no initial commit yet; all intended repository files are untracked. No commit, push, or release publication was performed.
+- Initial commit `b76312d` (`feat: complete Shortcut Manager v0.1.0`) was created and pushed to `origin/main` on 2026-10-01 after owner authorization. GitHub Release publication was not performed.
 
 ## Verification Evidence
 

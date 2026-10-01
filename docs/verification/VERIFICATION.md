@@ -89,9 +89,9 @@ Final local artifacts:
 ZIP inspection verified `ShortcutManager.exe` is present (and the old `ShortcutManager.App.exe` name is absent). Extension ZIP has 16 entries, `manifest.json` at root, and no development-only `package.json`.
 
 - GitHub Release artifacts: credential-free generation is implemented locally and in Actions.
-- Git remote is `https://github.com/Soki0909/windows-shortcut-manager.git`; `git ls-remote --heads origin` returned no branches. The local repository also has no commits yet, so all implemented files remain an uncommitted initial working tree and no push/release was claimed.
+- Git remote is `https://github.com/Soki0909/windows-shortcut-manager.git`. After explicit owner authorization, initial commit `b76312d` (`feat: complete Shortcut Manager v0.1.0`) was pushed to `origin/main` on 2026-10-01.
 - Chrome Web Store upload/publish: not performed; requires owner developer account, listing, consent, and review.
 - Microsoft Store/MSIX: not performed; requires owner account and packaging/signing decisions.
 - Authenticode signing: not performed; no certificate was supplied.
-- Public repository/release creation: not performed automatically; repository visibility and release publication remain owner-controlled.
+- GitHub repository push: completed to `origin/main`. Repository visibility was not changed and a GitHub Release was not created; both remain owner-controlled.
 - Final audit on 2026-10-01 reran all automated gates successfully, verified both artifact hashes against `SHA256SUMS.txt`, inspected both ZIP structures, matched the packaged scan's exact 19 managed HotKeys, and confirmed zero resident Manager processes.
