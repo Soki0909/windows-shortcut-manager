@@ -4,7 +4,7 @@ Windows の `Ctrl+Alt+A-Z` を、常駐プロセスなしで Website / Applicati
 
 ## クイックスタート
 
-1. GitHub Release の `ShortcutManager-win-x64-v0.1.0.zip` を展開し、`ShortcutManager.exe` を起動します。
+1. `ShortcutManager-Setup-win-x64-v0.1.0.exe` を実行してインストールし、スタートメニューの「Shortcut Manager」から起動します。従来のportable ZIPを展開して起動する方法も利用できます。
 2. Chromeを使う場合は `ShortcutManager-TabBridge-v0.1.0.zip` を展開し、`chrome://extensions` のデベロッパーモードからフォルダを読み込みます。
 3. Extension Popupに表示される32文字のIDをManagerの「設定」に入力します。
 4. 「既存をスキャン」から既存 `.lnk/.url` をインポートするか、「追加」で登録します。
@@ -15,6 +15,18 @@ Applyは、検証 → 外部競合scan → staging生成 → `.lnk` read-back検
 
 HotKeyの変更にはExplorerの登録更新が必要です。反映を後回しにした場合は「Explorerを再起動」から実行できます。タスクバーとデスクトップが一時的に消え、開いているExplorer画面が閉じる可能性があるため、ファイルのコピーや移動が終わってから実行してください。WindowsがShellを自動復帰するのを待つことで、余分なファイル管理ウィンドウの起動を避けます。
 
+## 起動時の自動監査・修復
+
+起動時に、保存済みconfig.jsonと管理対象の実際の `.lnk` を照合します。欠落、HotKey・起動先・引数などの改変、設定にない古い管理リンクを検出すると、自動バックアップを作成してから修復します。一致していれば書き込みは行いません。修復後に表示される確認からExplorerを再起動できます。
+
+管理外HotKeyの競合、管理フォルダの所有権異常、無効なconfig、想定外のファイルがある場合は、自動修復を中止して状態欄に理由を表示します。監査はファイル上の設定を対象とし、ほかの常駐アプリが取得するキーやExplorer内部の現在の登録表までは列挙できません。
+
+## インストール・更新・アンインストール
+
+インストール先は `%LOCALAPPDATA%\Programs\Shortcut Manager`。管理者権限や別途.NET Runtimeの導入は不要です。同じインストーラーを再実行するとアプリを更新でき、設定とバックアップを引き継ぎます。デスクトップアイコンは任意です。
+
+Windowsの「インストールされているアプリ」からアンインストールできます。設定・バックアップ・管理HotKeyは保持するため、アンインストール後も登録済みキーは動き、再インストールすれば設定を再利用できます。Chrome拡張機能の導入は別途必要です。配布EXEは現時点で未署名です。
+
 ## 開発
 
 要件: Windows、.NET 10 SDK、Node.js 22。
@@ -23,6 +35,9 @@ HotKeyの変更にはExplorerの登録更新が必要です。反映を後回し
 ./scripts/build.ps1
 ./scripts/test.ps1
 ./scripts/package.ps1 -Version 0.1.0
+# インストーラーを生成する場合（Inno Setupはビルド用のみ）
+./scripts/prepare-installer-tools.ps1
+./scripts/package-installer.ps1 -Version 0.1.0 -SkipPublish
 ```
 
 成果物は `artifacts/` に生成されます。Chrome Extensionはbuild stepを持たないMV3/Vanilla JavaScriptです。

@@ -14,7 +14,7 @@ Updated: 2026-10-27 (Asia/Tokyo)
 
 | Area | Command | Result |
 |---|---|---|
-| Core + Windows | `dotnet test ShortcutManager.sln -c Release --no-restore` | Core 15/15, Windows 17/17 passed |
+| Core + Windows | `dotnet test ShortcutManager.sln -c Release --no-restore` | Core 15/15, Windows 20/20 passed |
 | Extension | `node --test tests/ChromeExtension.Tests/protocol.test.js` | 10/10 passed |
 | Version/policy | `scripts/verify-version.ps1 -ExpectedVersion 0.1.0` | Passed; MV3, no commands/host_permissions/content_scripts/externally_connectable |
 | Release build | `dotnet build ShortcutManager.sln -c Release --no-restore` | Passed with 0 warnings / 0 errors |
@@ -22,6 +22,16 @@ Updated: 2026-10-27 (Asia/Tokyo)
 | Packaged GUI smoke | Start self-contained EXE, wait for window, request normal close | `Shortcut Manager` window appeared within 1 second; responding; clean exit; 0 remaining processes |
 
 Tests cover config roundtrip/polymorphism, Unicode, schema/URL/Extension ID validation, disabled invalid target behavior, GUID/HotKey conflicts, filename sanitation, Dispatcher percent encoding, real WScript `.lnk` roundtrip, `.url` numeric HotKey decoding (`1602 → CTRL+ALT+B`), scan root dedupe, managed ownership rejection, staging/read-back/backup/commit, idempotence, external conflict blocking, forced rollback, Restore through the Apply transaction, and Chrome protocol/group/tab selection.
+
+## 2026-10-27 startup audit and installation
+
+- GUI startup now compares persisted config with the actual owned links: existence, resolved target, arguments, working directory, canonical HotKey, icon, description and window style. Extra obsolete links are detected. COM's equivalent icon forms (`exe` / `exe,0`) are normalized to avoid repeated false repairs.
+- Differences are repaired through the existing backup/stage/rollback transaction, followed by an offer to restart Explorer. Healthy startup does not write or create a backup. First launch without config and invalid-config load do not auto-apply an empty configuration. Unexpected files/subfolders, missing ownership, invalid configuration or external conflicts stop automatic repair.
+- Real COM tests modified target arguments/HotKey, added an obsolete link and removed an expected link, then verified repaired equality and backup existence. The exact startup reconciliation service also passed healthy no-write and external-conflict no-write cases. Windows tests: 20/20; Core: 15/15; Chrome: 10/10.
+- `scripts/package-installer.ps1 -Version 0.1.0` generated self-contained portable and extension ZIPs plus `ShortcutManager-Setup-win-x64-v0.1.0.exe`. Build tool: Inno Setup 6.7.3, downloaded from its official repository, SHA-256/signature checked. No application dependency was added. CI/release workflows now build and publish the Setup artifact alongside ZIPs.
+- Actual per-user installation, same-version update/reinstall, uninstall and final reinstall all exited 0. Windows uninstall registration and Start-menu launcher were verified. All 404 installed payload files matched the published files by SHA-256. Config plus all 20 managed-folder files (19 links and marker) remained byte-identical through the lifecycle. User data/backups and managed runtime links are deliberately preserved on uninstall.
+- Installed app startup logged `repaired=False, differences=0` for the real saved configuration. Launching from the installed Start-menu shortcut opened the expected executable; native accessibility inspection confirmed the visible status `起動時監査: 保存済み設定とショートカットは一致しています。`. Normal close passed.
+- Installer is unsigned; Authenticode signing and Store publication remain separate owner-credential work. No additional manual gate remains for these features. Audit verifies persisted link data, not Explorer's private active HotKey table or other processes' runtime key registrations.
 
 ## 2026-10-01 live-refresh and UI follow-up
 
@@ -95,8 +105,9 @@ Full evidence with exact paths is stored only in gitignored `local/inventory.jso
 
 Final local artifacts:
 
-- `artifacts/ShortcutManager-win-x64-v0.1.0.zip` — 63,232,042 bytes — SHA-256 `7899e0e11d351f9b2c49dfdff27fae66ed762cc5b4dbeb4ed91df7430cfdd455`
+- `artifacts/ShortcutManager-win-x64-v0.1.0.zip` — 63,237,908 bytes — SHA-256 `459ec99bae72f000d9344c786630617e32cd2d51a8bf240e00141f05d99f627f`
 - `artifacts/ShortcutManager-TabBridge-v0.1.0.zip` — 9,632 bytes — SHA-256 `4b911cff56d1023beb95b053e19461723291761ced775fb7967cec58798a949e`
+- `artifacts/ShortcutManager-Setup-win-x64-v0.1.0.exe` — 46,570,164 bytes — SHA-256 `ce1d40d3560697f200b6a396f753cfaafd080bd5464abe7ee9c767ff66e3cee0`
 - `artifacts/SHA256SUMS.txt`
 
 ZIP inspection verified `ShortcutManager.exe` is present (and the old `ShortcutManager.App.exe` name is absent). Extension ZIP has 16 entries, `manifest.json` at root, and no development-only `package.json`.

@@ -4,6 +4,8 @@
 
 ### Added
 
+- 起動時の管理ショートカット監査と、バックアップ付き自動修復
+- ユーザー単位のSetup EXE、スタートメニュー登録、更新・アンインストール
 - 非常駐の.NET 10/WPF Shortcut Manager
 - Website / Application / BAT・CMD / Chrome Tab Group target
 - A-Z overview、key capture、直接テスト起動、既存 `.lnk/.url` scan/import

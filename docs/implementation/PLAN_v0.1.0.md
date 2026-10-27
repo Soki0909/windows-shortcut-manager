@@ -19,6 +19,8 @@ Done requires:
 
 ## Progress
 
+- [x] M11 Startup persisted-shortcut audit and automatic transactional repair (2026-10-27; real COM drift/repair, no-op, ownership and external-conflict tests passed; installed GUI displayed matching audit for all 19 links)
+- [x] M12 Per-user installer, lifecycle verification and reproducible packaging (2026-10-27; installation, reinstall, uninstall and final reinstall passed; 404 installed file hashes matched; config and all managed files preserved)
 - [x] M0 Repository scaffold + docs imported (2026-09-30)
 - [x] M1 Core domain/config/validation/protocol (2026-09-30)
 - [x] M2 Windows shortcut engine + scan + transactional Apply (2026-09-30)
@@ -33,6 +35,8 @@ Done requires:
 
 ## Discoveries
 
+- Startup previously only loaded config; it never compared existing links with resolved launch specifications. The new startup audit repairs missing/changed/obsolete managed links only, and reports external conflicts without modifying them. See ADR-006.
+- Installer binaries remain separate from config and managed links. Uninstall preserves both so existing runtime HotKeys keep working and reinstall reuses owner configuration.
 - Target machine initially had .NET 6 runtime only. Microsoft .NET SDK 10.0.401 was installed for the required WPF build/test/package workflow.
 - Initial inventory implementation enumerated every Desktop file and was too slow; it now searches only `.lnk`/`.url`, skips reparse points, and ignores inaccessible directories. The product scan completes with 243 items after managed Apply.
 - WScript.Shell returns modifier text as `ALT+CTRL+R` on this machine. The adapter canonicalizes modifier order to `CTRL+ALT+R` before staged read-back comparison.
@@ -192,6 +196,7 @@ Validation:
 
 ## Verification Evidence
 
+- M11/M12 (2026-10-27): Core 15/15, Windows 20/20, Chrome 10/10. Real COM audit covers missing, modified and obsolete links; reconciliation covers backup-backed repair, a no-write healthy start, and no-write external-conflict rejection. Inno Setup 6.7.3 generated the Setup EXE. Actual per-user install/reinstall/uninstall/reinstall all exited 0; config and 19 managed links plus ownership marker remained byte-identical. Installed GUI launched from its Start-menu launcher and displayed the matching-audit status. All 404 installed payload files and all three artifact SHA-256 values matched.
 - Final M9/M10 audit (2026-10-27): Core 15/15, Windows 17/17, Chrome 10/10; package regeneration and independent SHA-256/ZIP checks passed. Final packaged GUI displayed a responsive window and closed normally. Owner confirmed new physical U activation without restarting Windows, U removal, and no extra foreground Explorer window after automatic Shell recovery. All changes are committed and pushed to `codex/live-refresh-modern-ui`.
 - Modern UI verification: Release build completed with 0 warnings/errors; native Windows capture showed the three centered `QWERTYUIOP / ASDFGHJKL / ZXCVBNM` rows, modern card/action hierarchy, clipped long targets, and the Q tile opened the correct ChatGPT Web editor without changing data.
 - Keyboard layout regression test verifies all 26 unique letters in physical-row order; Core 15/15, Windows 11/11, and Chrome 10/10 passed after the UI work.

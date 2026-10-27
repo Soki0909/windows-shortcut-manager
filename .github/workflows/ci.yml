@@ -16,6 +16,10 @@ jobs:
       - run: dotnet test ShortcutManager.sln -c Release --no-build
       - shell: pwsh
         run: ./scripts/package.ps1 -Configuration Release -Version 0.1.0
+      - shell: pwsh
+        run: |
+          ./scripts/prepare-installer-tools.ps1
+          ./scripts/package-installer.ps1 -Version 0.1.0 -SkipPublish
   extension:
     runs-on: ubuntu-latest
     steps:
