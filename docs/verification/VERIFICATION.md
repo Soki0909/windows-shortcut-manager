@@ -5,7 +5,7 @@ Updated: 2026-10-27 (Asia/Tokyo)
 ## Environment
 
 - Windows x64 target machine
-- .NET SDK `10.0.401`
+- .NET SDK `10.0.403` (2026-10-27 follow-up)
 - Node.js `v22.15.0`
 - Chrome: `C:\Program Files\Google\Chrome\Application\chrome.exe`
 - Product version / config schema / Dispatcher protocol: `0.1.0 / 1 / 1`
@@ -34,7 +34,7 @@ Tests cover config roundtrip/polymorphism, Unicode, schema/URL/Extension ID vali
 - The first reporting fix covered termination, but the next integrated run still reported failure while Explorer successfully changed `27160 → 26816`. The remaining exception came from resolving or waiting on a stale Shell-window PID after process exit. `GetShellProcess`, `Terminate`, and `WaitForExitAsync` now all treat an already-exited process as an expected race; session mismatch and failure to observe a different replacement PID remain hard failures.
 - The fully race-tolerant rerun succeeded and logged Explorer PID `26816 → 27328`. After removing the temporary U through the product transaction (backup `20261027-113726005_13d0087eb0454aa78eca3ab09c77fe80.zip`), another successful reload logged `27328 → 32368`; the owner physically confirmed `CTRL+ALT+U` no longer did anything. Product scan found exactly 19 managed links, zero U entries, and the persisted config returned to 19 enabled shortcuts with its original SHA-256 `283db1121cfd85e2fb4fe9538a5bb51f922f5bc085d5e63d3dbb71ab4a0dc936`.
 - The owner also observed an unnecessary foreground Explorer window during Shell recovery. The reloader now gives Windows' automatic Shell restart a five-second grace period and calls `explorer.exe` only if no replacement Shell appears. Unit coverage distinguishes the auto-restart path (no explicit launch) from the recovery fallback.
-- Current automated follow-up results: Core 15/15, Windows 17/17, Chrome 10/10, and Release build 0 warnings/errors. The self-contained verification build is published to `artifacts/publish/shell-refresh`; the final no-foreground-window Shell-reload smoke remains.
+- Current automated follow-up results: Core 15/15, Windows 17/17, Chrome 10/10, and Release build 0 warnings/errors. The final automatic-recovery run logged `success=True`, Explorer PID `32368 → 45204`, and completed in about 0.9 seconds. The owner confirmed that no additional file-manager window appeared in front. The physical activation, physical removal, success-reporting, and no-foreground-window live gates all passed.
 
 ## Current-machine evidence
 
@@ -89,13 +89,13 @@ Full evidence with exact paths is stored only in gitignored `local/inventory.jso
 - Passed after Windows restart: `G=GitHub`, `P=学生ポータル`, `R=研究`, `X=7脱`, `Z=作業開始`, and `A=LINE`.
 - Representative HotKeys continued to work with Shortcut Manager closed, confirming the Manager is non-resident and Windows `.lnk` HotKeys are the runtime trigger.
 - R/X focused their intended Chrome groups, brought Chrome forward, and left no Dispatcher tab behind.
-- Native Windows UI inspection passes for the modern layout and edit flow. Notification-only activation failed, while the integrated Apply → consent prompt → Explorer PID change → physical HotKey check passed. Remaining manual work is the corrected success-reporting rerun and cleanup of the temporary U entry.
+- Native Windows UI inspection passes for the modern layout and edit flow. The integrated Apply → consent prompt → Explorer PID change → physical HotKey check passed without restarting Windows. Corrected success reporting, temporary U removal, and automatic Shell recovery without an extra foreground window also passed. No manual gates remain for M9/M10.
 
 ## Publication status
 
 Final local artifacts:
 
-- `artifacts/ShortcutManager-win-x64-v0.1.0.zip` — 63,191,398 bytes — SHA-256 `d35ee2507d7c83432dd7c4674136e1dc56b9eec723f8ca9bb95596b37572b8dc`
+- `artifacts/ShortcutManager-win-x64-v0.1.0.zip` — 63,232,042 bytes — SHA-256 `7899e0e11d351f9b2c49dfdff27fae66ed762cc5b4dbeb4ed91df7430cfdd455`
 - `artifacts/ShortcutManager-TabBridge-v0.1.0.zip` — 9,632 bytes — SHA-256 `4b911cff56d1023beb95b053e19461723291761ced775fb7967cec58798a949e`
 - `artifacts/SHA256SUMS.txt`
 
@@ -108,3 +108,4 @@ ZIP inspection verified `ShortcutManager.exe` is present (and the old `ShortcutM
 - Authenticode signing: not performed; no certificate was supplied.
 - GitHub repository push: completed to `origin/main`. Repository visibility was not changed and a GitHub Release was not created; both remain owner-controlled.
 - Final audit on 2026-10-01 reran all automated gates successfully, verified both artifact hashes against `SHA256SUMS.txt`, inspected both ZIP structures, matched the packaged scan's exact 19 managed HotKeys, and confirmed zero resident Manager processes.
+- Final follow-up audit on 2026-10-27 regenerated both packages from the completed M9/M10 code, independently matched both SHA-256 values, inspected the 404-entry Windows ZIP and 16-entry extension ZIP, and launched the final self-contained GUI. It displayed `Shortcut Manager`, responded, and exited normally within five seconds. All M9/M10 implementation and live gates are complete; commits are pushed to `origin/codex/live-refresh-modern-ui`.

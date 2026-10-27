@@ -8,12 +8,12 @@ Windows の `Ctrl+Alt+A-Z` を、常駐プロセスなしで Website / Applicati
 2. Chromeを使う場合は `ShortcutManager-TabBridge-v0.1.0.zip` を展開し、`chrome://extensions` のデベロッパーモードからフォルダを読み込みます。
 3. Extension Popupに表示される32文字のIDをManagerの「設定」に入力します。
 4. 「既存をスキャン」から既存 `.lnk/.url` をインポートするか、「追加」で登録します。
-5. 「テスト起動」でtargetを確認し、「Apply」を実行します。
+5. 「テスト起動」でtargetを確認し、「変更を反映」を実行します。続く確認でExplorerの再起動を選ぶと、Windowsを再起動せず新しいHotKeyが有効になります。
 6. Managerを閉じ、登録した `Ctrl+Alt+キー` を使用します。
 
 Applyは、検証 → 外部競合scan → staging生成 → `.lnk` read-back検証 → 自動backup → ownership確認 → commit の順に動作し、失敗時は以前のconfigと管理 `.lnk` を復元します。Markerのない非空フォルダや管理外shortcutは変更しません。
 
-既存shortcutからHotKeyを移行した直後に旧targetが起動し続ける場合は、Explorerがセッション内に以前の登録を保持しています。Windowsへサインアウトするか再起動してから新しい割当を確認してください。
+HotKeyの変更にはExplorerの登録更新が必要です。反映を後回しにした場合は「Explorerを再起動」から実行できます。タスクバーとデスクトップが一時的に消え、開いているExplorer画面が閉じる可能性があるため、ファイルのコピーや移動が終わってから実行してください。WindowsがShellを自動復帰するのを待つことで、余分なファイル管理ウィンドウの起動を避けます。
 
 ## 開発
 

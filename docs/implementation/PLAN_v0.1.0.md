@@ -28,7 +28,7 @@ Done requires:
 - [x] M6 Current-machine bootstrap + live usability verification (2026-10-01; 16 conflicts migrated with backup, full 19-key Apply/read-back passed, and post-restart R/X/Z/G/P/A live checks passed)
 - [x] M7 CI / packaging / release artifacts (2026-09-30)
 - [x] M8 Final documentation / verification / cleanup (2026-10-01; docs, artifacts, automated gates, packaged GUI smoke, and owner live verification complete)
-- [ ] M9 Live HotKey refresh hardening (2026-10-27; Explorer-only restart activated a new physical HotKey without restarting Windows; PID-race fix rerun and temporary-entry cleanup pending)
+- [x] M9 Live HotKey refresh hardening (2026-10-27; new physical HotKey activated without restarting Windows, success reporting verified, temporary U removed, and no extra foreground Explorer window confirmed)
 - [x] M10 Modern WPF UI + physical keyboard layout (2026-10-01; native screenshot and edit-dialog smoke passed with QWERTY rows)
 
 ## Discoveries
@@ -192,6 +192,7 @@ Validation:
 
 ## Verification Evidence
 
+- Final M9/M10 audit (2026-10-27): Core 15/15, Windows 17/17, Chrome 10/10; package regeneration and independent SHA-256/ZIP checks passed. Final packaged GUI displayed a responsive window and closed normally. Owner confirmed new physical U activation without restarting Windows, U removal, and no extra foreground Explorer window after automatic Shell recovery. All changes are committed and pushed to `codex/live-refresh-modern-ui`.
 - Modern UI verification: Release build completed with 0 warnings/errors; native Windows capture showed the three centered `QWERTYUIOP / ASDFGHJKL / ZXCVBNM` rows, modern card/action hierarchy, clipped long targets, and the Q tile opened the correct ChatGPT Web editor without changing data.
 - Keyboard layout regression test verifies all 26 unique letters in physical-row order; Core 15/15, Windows 11/11, and Chrome 10/10 passed after the UI work.
 - Packaged `ShortcutManager.exe` loaded the current host configuration and displayed the modern UI. A temporary `F=一時メモ帳テスト` entry was applied successfully, but physical `CTRL+ALT+F` did not work until Windows restarted. The result disproved the notification-only approach and now serves as the regression scenario for the consent-based Shell reload flow.
@@ -216,6 +217,6 @@ Validation:
 
 ## Blockers
 
-- M9's physical live gate passed: Apply created `U=一時メモ帳テスト`, Explorer changed PID `12764 → 27160`, and physical `CTRL+ALT+U` opened Notepad without restarting Windows. A second run also restarted Explorer (`27160 → 26816`) and exposed a second stale-PID observation race. The remaining gate is one rerun with all process-boundary races covered, followed by removal of the temporary U entry and confirmation that the managed layout returned to 19 enabled shortcuts.
+- No remaining blockers for M9/M10. Physical U activation and removal passed; corrected reload success was logged; the managed configuration returned to 19 enabled shortcuts. The final automatic-recovery run changed Explorer PID `32368 → 45204` in about 0.9 seconds, and the owner confirmed no extra file-manager window appeared in front.
 - Native ChatGPT App and Slack are absent; their final-layout entries remain disabled until installed or an owner-approved launch target is supplied.
 - Chrome Web Store/Microsoft Store publication and code signing require owner credentials/accounts and are not v0.1.0 package blockers.
