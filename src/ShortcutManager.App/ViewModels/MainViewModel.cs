@@ -32,6 +32,7 @@ public sealed class MainViewModel : ObservableObject
     private string status = "準備完了";
     private bool isBusy;
     private bool isDirty;
+    private bool configLoaded;
 
     public MainViewModel(ApplicationPaths paths, ConfigRepository repository, ConfigValidator validator, LaunchSpecResolver resolver, ProcessLauncher launcher, ShortcutInventoryScanner scanner, ShortcutImporter importer, BackupService backups, ManagedShortcutApplier applier, RestoreService restore, FileLogger logger, IExplorerShellReloader shellReloader)
     {
@@ -64,11 +65,13 @@ public sealed class MainViewModel : ObservableObject
 
     public void Load()
     {
+        configLoaded = false;
         try
         {
             candidate = repository.Load();
             Refresh();
             IsDirty = false;
+            configLoaded = File.Exists(paths.ConfigPath);
             Status = File.Exists(paths.ConfigPath) ? "config.json を読み込みました。" : "初回起動: ショートカットを追加するか既存をスキャンしてください。";
         }
         catch (Exception error)
@@ -79,6 +82,27 @@ public sealed class MainViewModel : ObservableObject
             Status = $"config.json を読み込めません。既存ショートカットは変更していません: {error.Message}";
             logger.Error("Config load failed", error);
         }
+    }
+
+    public async Task<bool> AuditStartupAsync(ManagedShortcutAuditor auditor)
+    {
+        if (!configLoaded || IsDirty || IsBusy) return false;
+        IsBusy = true;
+        Status = "起動時監査: 保存済み設定とショートカットを照合しています…";
+        try
+        {
+            var result = await new StartupShortcutReconciler(auditor, applier).ReconcileAsync(candidate, ManagedDirectory, () => scanner.ScanDefaultAsync(ManagedDirectory));
+            logger.Info($"Startup audit: repaired={result.Repaired}, differences={result.Differences}, backup={result.BackupPath}, message={result.Message}");
+            Status = result.Message;
+            return result.Repaired;
+        }
+        catch (Exception error)
+        {
+            Status = $"起動時監査: 自動修復を中止しました。{error.Message}";
+            logger.Error("Startup audit failed", error);
+            return false;
+        }
+        finally { IsBusy = false; }
     }
 
     public void Upsert(ShortcutDefinition definition)

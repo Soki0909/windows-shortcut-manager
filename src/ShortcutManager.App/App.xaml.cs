@@ -30,6 +30,14 @@ public partial class App : Application
         var viewModel = new MainViewModel(paths, repository, validator, resolver, new ShortcutManager.Windows.Launching.ProcessLauncher(), scanner, new ShortcutManager.Windows.Inventory.ShortcutImporter(), backups, applier, restore, logger, new ShortcutManager.Windows.Shell.ExplorerShellReloader());
         var window = new MainWindow(viewModel);
         MainWindow = window;
+        window.Loaded += async (_, _) =>
+        {
+            window.IsEnabled = false;
+            bool repaired;
+            try { repaired = await viewModel.AuditStartupAsync(new ShortcutManager.Windows.Apply.ManagedShortcutAuditor(validator, resolver, shellLinks)); }
+            finally { window.IsEnabled = true; }
+            if (repaired) await window.OfferShellReloadAsync();
+        };
         window.Show();
     }
 

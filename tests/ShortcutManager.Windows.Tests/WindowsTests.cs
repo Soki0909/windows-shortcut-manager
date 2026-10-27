@@ -262,6 +262,88 @@ public sealed class WindowsTests : IDisposable
         return new(repo, managed, applier, backup, statePath, notifier);
     }
 
+    [Fact]
+    public void StartupAudit_RepairsMissingChangedAndObsoleteLinksThroughBackupTransaction()
+    {
+        var links = new ShellLinkService();
+        var validator = new ConfigValidator();
+        var resolver = new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder());
+        var repository = new ConfigRepository(Path.Combine(root, "audit", "config.json"));
+        var managed = Path.Combine(root, "audit-managed");
+        var backups = new BackupService(Path.Combine(root, "audit-backups"), "0.1.0");
+        var applier = new ManagedShortcutApplier(repository, validator, resolver, links, backups, Path.Combine(root, "audit-stage"), Path.Combine(root, "audit-state.json"));
+        var auditor = new ManagedShortcutAuditor(validator, resolver, links);
+        var config = SampleConfig();
+        Assert.False(auditor.Audit(config, managed).Matches);
+        Assert.True(applier.Apply(config, managed).Succeeded);
+        var path = Directory.GetFiles(managed, "*.lnk").Single();
+        var original = File.ReadAllBytes(path);
+        Assert.True(auditor.Audit(config, managed).Matches);
+        Assert.Equal(original, File.ReadAllBytes(path));
+
+        var expected = resolver.Resolve(config, config.Shortcuts.Single());
+        links.Write(path, new(expected.TargetPath, "\"https://wrong.example/\"", expected.WorkingDirectory, "CTRL+ALT+H", expected.IconLocation, expected.Description));
+        File.Copy(path, Path.Combine(managed, "obsolete.lnk"));
+        Assert.Equal(2, auditor.Audit(config, managed).Differences.Count);
+        var repair = applier.Apply(config, managed);
+        Assert.True(repair.Succeeded, repair.Message);
+        Assert.True(File.Exists(repair.BackupPath));
+        Assert.True(auditor.Audit(config, managed).Matches);
+        Assert.Single(Directory.GetFiles(managed, "*.lnk"));
+
+        File.Delete(path);
+        Assert.False(auditor.Audit(config, managed).Matches);
+        Assert.True(applier.Apply(config, managed).Succeeded);
+        Assert.True(auditor.Audit(config, managed).Matches);
+    }
+
+    [Fact]
+    public void StartupAudit_RefusesUnownedAndUnexpectedFilesWithoutWriting()
+    {
+        var managed = Path.Combine(root, "audit-unsafe");
+        Directory.CreateDirectory(managed);
+        var userFile = Path.Combine(managed, "keep.txt");
+        File.WriteAllText(userFile, "user data");
+        var auditor = new ManagedShortcutAuditor(new ConfigValidator(), new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder()), new ShellLinkService());
+        Assert.Throws<InvalidOperationException>(() => auditor.Audit(SampleConfig(), managed));
+        File.WriteAllText(Path.Combine(managed, ManagedShortcutApplier.OwnershipMarker), "owned");
+        Assert.Throws<InvalidOperationException>(() => auditor.Audit(SampleConfig(), managed));
+        Assert.Equal("user data", File.ReadAllText(userFile));
+    }
+
+    [Fact]
+    public async Task StartupReconcile_RepairsOnlyDriftAndStopsOnExternalConflict()
+    {
+        var links = new ShellLinkService();
+        var validator = new ConfigValidator();
+        var resolver = new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder());
+        var repository = new ConfigRepository(Path.Combine(root, "startup", "config.json"));
+        var managed = Path.Combine(root, "startup-managed");
+        var backupDirectory = Path.Combine(root, "startup-backups");
+        var backups = new BackupService(backupDirectory, "0.1.0");
+        var applier = new ManagedShortcutApplier(repository, validator, resolver, links, backups, Path.Combine(root, "startup-stage"), Path.Combine(root, "startup-state.json"));
+        var service = new StartupShortcutReconciler(new ManagedShortcutAuditor(validator, resolver, links), applier);
+        var config = SampleConfig();
+        Task<IReadOnlyList<ShortcutInventoryItem>> EmptyScan() => Task.FromResult<IReadOnlyList<ShortcutInventoryItem>>([]);
+        var repaired = await service.ReconcileAsync(config, managed, EmptyScan);
+        Assert.True(repaired.Repaired, repaired.Message);
+        Assert.True(File.Exists(repaired.BackupPath));
+        var backupCount = Directory.GetFiles(backupDirectory).Length;
+        var clean = await service.ReconcileAsync(config, managed, EmptyScan);
+        Assert.False(clean.Repaired);
+        Assert.Equal(0, clean.Differences);
+        Assert.Equal(backupCount, Directory.GetFiles(backupDirectory).Length);
+        var link = Directory.GetFiles(managed, "*.lnk").Single();
+        File.Delete(link);
+        var conflicts = new ShortcutInventoryItem[] { new("external.lnk", ".lnk", "external", "CTRL+ALT+G", "target", "", "", "", false) };
+        var blocked = await service.ReconcileAsync(config, managed, () => Task.FromResult<IReadOnlyList<ShortcutInventoryItem>>(conflicts));
+        Assert.False(blocked.Repaired);
+        Assert.Contains("競合", blocked.Message);
+        Assert.False(File.Exists(link));
+        Assert.Equal(backupCount, Directory.GetFiles(backupDirectory).Length);
+        Assert.True((await service.ReconcileAsync(config, managed, EmptyScan)).Repaired);
+    }
+
     private static ShortcutConfig SampleConfig() => new() { Settings = new() { Chrome = new() { ExtensionId = ExtensionId } }, Shortcuts = [Entry("G", new WebsiteTarget { Url = "https://github.com/" })] };
     private static ShortcutDefinition Entry(string key, ShortcutTarget target) => new() { Name = $"Entry {key}", Hotkey = new() { Key = key }, Target = target };
     private const string ExtensionId = "abcdefghijklmnopabcdefghijklmnop";

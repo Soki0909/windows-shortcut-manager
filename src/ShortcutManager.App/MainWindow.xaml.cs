@@ -75,6 +75,11 @@ public partial class MainWindow : Window
         if (ConfirmShellReload()) await viewModel.ReloadShellAsync();
     }
 
+    public async Task OfferShellReloadAsync()
+    {
+        if (ConfirmShellReload()) await viewModel.ReloadShellAsync();
+    }
+
     private bool ConfirmShellReload() => MessageBox.Show(
         this,
         "新規・変更したHotKeyの有効化を試すため、Windows Explorerを再起動します。\n\n公開APIではHotKeyの即時反映は保証されないため、反映されない場合はWindowsの再起動が必要です。デスクトップとタスクバーが一瞬消え、開いているエクスプローラー画面が閉じる可能性があります。ファイルのコピーや移動中でないことを確認して続行してください。",
