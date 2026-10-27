@@ -3,12 +3,21 @@ using System.Runtime.InteropServices;
 
 namespace ShortcutManager.Windows.Shell;
 
-public sealed class ExplorerShellReloader(IExplorerShellProcessHost processHost) : IExplorerShellReloader
+public sealed class ExplorerShellReloader : IExplorerShellReloader
 {
     private static readonly TimeSpan ExitTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan DefaultAutoRestartGrace = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(15);
+    private readonly IExplorerShellProcessHost processHost;
+    private readonly TimeSpan autoRestartGrace;
 
-    public ExplorerShellReloader() : this(new ExplorerShellProcessHost()) { }
+    public ExplorerShellReloader() : this(new ExplorerShellProcessHost(), DefaultAutoRestartGrace) { }
+
+    public ExplorerShellReloader(IExplorerShellProcessHost processHost, TimeSpan? autoRestartGrace = null)
+    {
+        this.processHost = processHost;
+        this.autoRestartGrace = autoRestartGrace ?? DefaultAutoRestartGrace;
+    }
 
     public async Task<ExplorerShellReloadResult> ReloadAsync(CancellationToken cancellationToken = default)
     {
@@ -27,18 +36,16 @@ public sealed class ExplorerShellReloader(IExplorerShellProcessHost processHost)
                 await processHost.WaitForExitAsync(shell, exitTimeout.Token);
             }
 
-            processHost.StartExplorer();
-            using var startTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            startTimeout.CancelAfter(StartTimeout);
-            while (true)
+            var restarted = await WaitForReplacementAsync(shell, autoRestartGrace, cancellationToken);
+            if (restarted is null)
             {
-                var restarted = processHost.GetShellProcess();
-                if (restarted is { SessionId: var sessionId }
-                    && sessionId == processHost.CurrentSessionId
-                    && restarted.Id != shell.Id)
-                    return new(true, "Windows Shellを再読み込みしました。新規・変更したHotKeyを確認してください。", shell.Id, restarted.Id);
-                await Task.Delay(150, startTimeout.Token);
+                processHost.StartExplorer();
+                restarted = await WaitForReplacementAsync(shell, StartTimeout, cancellationToken);
             }
+            if (restarted is null)
+                return new(false, "Windows Shellの再読み込みが時間内に完了しませんでした。タスク マネージャーからWindows Explorerを再起動してください。", shell.Id);
+
+            return new(true, "Windows Shellを再読み込みしました。新規・変更したHotKeyを確認してください。", shell.Id, restarted.Id);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -53,6 +60,23 @@ public sealed class ExplorerShellReloader(IExplorerShellProcessHost processHost)
             catch { }
             return new(false, $"Windows Shellの再読み込みに失敗しました: {error.Message}", shell.Id);
         }
+    }
+
+    private async Task<ExplorerShellProcess?> WaitForReplacementAsync(ExplorerShellProcess previous, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        do
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var current = processHost.GetShellProcess();
+            if (current is { SessionId: var sessionId }
+                && sessionId == processHost.CurrentSessionId
+                && current.Id != previous.Id)
+                return current;
+            if (DateTime.UtcNow >= deadline) return null;
+            await Task.Delay(150, cancellationToken);
+        }
+        while (true);
     }
 }
 

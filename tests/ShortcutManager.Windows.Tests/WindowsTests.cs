@@ -178,13 +178,30 @@ public sealed class WindowsTests : IDisposable
     public async Task ShellReload_RestartsOnlyCurrentSessionShell()
     {
         var host = new FakeExplorerShellProcessHost { Shell = new(42, 7), CurrentSessionId = 7 };
-        var result = await new ExplorerShellReloader(host).ReloadAsync();
+        var result = await new ExplorerShellReloader(host, TimeSpan.Zero).ReloadAsync();
         Assert.True(result.Succeeded, result.Message);
         Assert.Equal([42], host.TerminatedIds);
         Assert.Equal([42], host.WaitedIds);
         Assert.Equal(1, host.StartCount);
         Assert.Equal(43, host.Shell?.Id);
         Assert.Equal(42, result.PreviousProcessId);
+        Assert.Equal(43, result.CurrentProcessId);
+    }
+
+    [Fact]
+    public async Task ShellReload_UsesWindowsAutoRestartWithoutLaunchingAnotherExplorer()
+    {
+        var host = new FakeExplorerShellProcessHost
+        {
+            Shell = new(42, 7),
+            CurrentSessionId = 7,
+            ReplacementOnWait = new(43, 7),
+        };
+
+        var result = await new ExplorerShellReloader(host, TimeSpan.FromMilliseconds(50)).ReloadAsync();
+
+        Assert.True(result.Succeeded, result.Message);
+        Assert.Equal(0, host.StartCount);
         Assert.Equal(43, result.CurrentProcessId);
     }
 
@@ -277,11 +294,12 @@ public sealed class WindowsTests : IDisposable
         public ExplorerShellProcess? Shell { get; set; }
         public List<int> TerminatedIds { get; } = [];
         public List<int> WaitedIds { get; } = [];
+        public ExplorerShellProcess? ReplacementOnWait { get; init; }
         public int StartCount { get; private set; }
 
         public ExplorerShellProcess? GetShellProcess() => Shell;
         public void Terminate(ExplorerShellProcess process) { TerminatedIds.Add(process.Id); Shell = null; }
-        public Task WaitForExitAsync(ExplorerShellProcess process, CancellationToken cancellationToken) { WaitedIds.Add(process.Id); return Task.CompletedTask; }
+        public Task WaitForExitAsync(ExplorerShellProcess process, CancellationToken cancellationToken) { WaitedIds.Add(process.Id); Shell = ReplacementOnWait; return Task.CompletedTask; }
         public void StartExplorer() { StartCount++; Shell = new(43, CurrentSessionId); }
     }
 }
