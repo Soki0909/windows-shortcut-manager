@@ -77,8 +77,8 @@ public partial class MainWindow : Window
 
     private bool ConfirmShellReload() => MessageBox.Show(
         this,
-        "HotKeyを再起動なしで反映するため、Windows Shell Explorerを再読み込みします。\n\nデスクトップとタスクバーが一瞬消え、開いているエクスプローラー画面が閉じる可能性があります。ファイルのコピーや移動中でないことを確認して続行してください。",
-        "Windows Shellを再読み込み",
+        "新規・変更したHotKeyの有効化を試すため、Windows Explorerを再起動します。\n\n公開APIではHotKeyの即時反映は保証されないため、反映されない場合はWindowsの再起動が必要です。デスクトップとタスクバーが一瞬消え、開いているエクスプローラー画面が閉じる可能性があります。ファイルのコピーや移動中でないことを確認して続行してください。",
+        "Windows Explorerを再起動",
         MessageBoxButton.YesNo,
         MessageBoxImage.Warning) == MessageBoxResult.Yes;
     private void About_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this, "Shortcut Manager v0.1.0\n非常駐 / local-only\nWindows .lnk HotKey + Chrome Dispatcher Protocol v1", "About");

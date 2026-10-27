@@ -184,6 +184,8 @@ public sealed class WindowsTests : IDisposable
         Assert.Equal([42], host.WaitedIds);
         Assert.Equal(1, host.StartCount);
         Assert.Equal(43, host.Shell?.Id);
+        Assert.Equal(42, result.PreviousProcessId);
+        Assert.Equal(43, result.CurrentProcessId);
     }
 
     [Fact]
@@ -192,6 +194,8 @@ public sealed class WindowsTests : IDisposable
         var host = new FakeExplorerShellProcessHost { Shell = new(42, 8), CurrentSessionId = 7 };
         var result = await new ExplorerShellReloader(host).ReloadAsync();
         Assert.False(result.Succeeded);
+        Assert.Equal(42, result.PreviousProcessId);
+        Assert.Null(result.CurrentProcessId);
         Assert.Empty(host.TerminatedIds);
         Assert.Equal(0, host.StartCount);
     }

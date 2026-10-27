@@ -1,6 +1,6 @@
 # v0.1.0 Verification
 
-Updated: 2026-10-01 (Asia/Tokyo)
+Updated: 2026-10-27 (Asia/Tokyo)
 
 ## Environment
 
@@ -27,8 +27,10 @@ Tests cover config roundtrip/polymorphism, Unicode, schema/URL/Extension ID vali
 
 - Apply reports changed shortcut lifecycle events to Explorer synchronously: deletion for links moved out of service, then creation/update for committed links, plus the managed-directory update. Rollback emits the matching reverse lifecycle. Windows regression tests verify replacement, removal, and rollback notification order. Live testing proved these notifications are necessary for Shell cache coherence but insufficient to rebuild Explorer's `.lnk` HotKey registration table.
 - The packaged native GUI loaded the current host configuration and displayed three physical keyboard rows in `QWERTYUIOP / ASDFGHJKL / ZXCVBNM` order. The refreshed card, input, table, status, and action hierarchy were inspected in the running Windows application; opening the Q editor preserved the existing data.
-- A temporary `F=一時メモ帳テスト` application entry targeting `C:\Windows\System32\notepad.exe` was added and applied successfully. Physical `CTRL+ALT+F` did not work in the existing Explorer session and worked after Explorer restarted. Explorer's start time changed while the Manager process remained alive, demonstrating that a Shell reload—not a full Windows reboot—is the missing registration step.
-- The GUI now offers a warned, consent-based reload of only the current session's Shell Explorer after Apply and as a separate recovery action. The implementation resolves the Shell PID through `GetShellWindow`, refuses another session, restarts Explorer, waits for the replacement Shell, and reports timeout/failure without claiming success.
+- A temporary `F=一時メモ帳テスト` application entry targeting `C:\Windows\System32\notepad.exe` was added and applied successfully. Physical `CTRL+ALT+F` did not work in the existing Explorer session and worked after Windows restarted. This proves the `.lnk` was persisted correctly and the notification-only approach is insufficient, but does not by itself prove that restarting Explorer alone is sufficient.
+- The GUI now offers a warned, consent-based reload of only the current session's Shell Explorer after Apply and as a separate recovery action. The implementation resolves the Shell PID through `GetShellWindow`, refuses another session, restarts Explorer, waits for the replacement Shell, and reports the old/new PIDs. It deliberately says only that Shell was reloaded and asks the owner to verify the HotKey; it does not claim activation before that physical check.
+- Public API research found no documented command equivalent to the shortcut Properties dialog's HotKey Apply behavior. `IShellLink::SetHotkey` and `IPersistFile::Save` persist the `.lnk`; `SHChangeNotify` provides file/directory lifecycle notifications; neither documents rebuilding Explorer's active HotKey table. `RegisterHotKey` would require the registering window/thread to remain alive, which conflicts with the product's non-resident requirement. See [IShellLinkW::SetHotkey](https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishelllinkw-sethotkey), [Shell Links](https://learn.microsoft.com/windows/win32/shell/links), [SHChangeNotify](https://learn.microsoft.com/windows/win32/api/shlobj_core/nf-shlobj_core-shchangenotify), and [RegisterHotKey](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-registerhotkey).
+- Existing application logs contain successful Apply records but no Shell reload request/completion record. Therefore the current evidence is “notification-only failed; Windows restart succeeded”; the integrated Explorer-only reload remains an unexecuted live gate.
 - Current automated follow-up results: Core 15/15, Windows 14/14, and Release build 0 warnings/errors. A self-contained verification build was published to `artifacts/publish/shell-refresh`; integrated native GUI and physical-HotKey retesting remain pending.
 
 ## Current-machine evidence
@@ -84,7 +86,7 @@ Full evidence with exact paths is stored only in gitignored `local/inventory.jso
 - Passed after Windows restart: `G=GitHub`, `P=学生ポータル`, `R=研究`, `X=7脱`, `Z=作業開始`, and `A=LINE`.
 - Representative HotKeys continued to work with Shortcut Manager closed, confirming the Manager is non-resident and Windows `.lnk` HotKeys are the runtime trigger.
 - R/X focused their intended Chrome groups, brought Chrome forward, and left no Dispatcher tab behind.
-- Native Windows UI inspection passes for the modern layout and edit flow. The notification-only live gate failed as described above. The remaining M9 manual gate is the new integrated Apply → Shell reload flow followed by a physical HotKey check and cleanup of temporary entries.
+- Native Windows UI inspection passes for the modern layout and edit flow. The notification-only live gate failed as described above. The remaining M9 manual gate is the new integrated Apply → consent prompt → Shell reload (confirmed by old/new PID log and visible taskbar return) → physical HotKey check, followed by cleanup of temporary entries.
 
 ## Publication status
 

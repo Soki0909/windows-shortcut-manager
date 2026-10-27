@@ -28,7 +28,7 @@ Done requires:
 - [x] M6 Current-machine bootstrap + live usability verification (2026-10-01; 16 conflicts migrated with backup, full 19-key Apply/read-back passed, and post-restart R/X/Z/G/P/A live checks passed)
 - [x] M7 CI / packaging / release artifacts (2026-09-30)
 - [x] M8 Final documentation / verification / cleanup (2026-10-01; docs, artifacts, automated gates, packaged GUI smoke, and owner live verification complete)
-- [ ] M9 Live HotKey refresh hardening (2026-10-01; per-item Shell notifications proved insufficient, consent-based Explorer Shell reload implemented; integrated live retest pending)
+- [ ] M9 Live HotKey refresh hardening (2026-10-27; public API limitation documented, consent-based Explorer Shell reload implemented; integrated live retest pending)
 - [x] M10 Modern WPF UI + physical keyboard layout (2026-10-01; native screenshot and edit-dialog smoke passed with QWERTY rows)
 
 ## Discoveries
@@ -43,7 +43,9 @@ Done requires:
 - The final product Apply generated all 19 enabled shortcuts. Product scan read back the exact 19 desired `CTRL+ALT` keys; only external C/K HotKeys remain and neither conflicts with the desired layout.
 - Final GUI smoke exposed a startup crash caused by DataGrid columns defaulting to TwoWay binding against read-only `ShortcutRow` projection properties. All read-only columns now explicitly use `Mode=OneWay`; the rebuilt self-contained EXE displayed the `Shortcut Manager` window, responded, accepted normal close, and left zero processes.
 - Post-migration live use showed `CTRL+ALT+G` still opening the former 学生ポータル target even though both old `.url` files read back with empty HotKeys and managed `G=GitHub` / `P=学生ポータル` links were correct. This identified stale Explorer shortcut-HotKey state: Apply and migration had changed files without an explicit Shell notification.
-- Owner live testing of a newly added `F=一時メモ帳テスト` link proved that synchronous `SHCNE_DELETE/CREATE/UPDATEITEM/UPDATEDIR` notifications still do not make Explorer register a new `.lnk` HotKey during the current Shell session. `CTRL+ALT+F` began working only after Explorer restarted. The Manager process remained alive while Explorer's process start time changed, isolating the required refresh to the Shell rather than a full Windows reboot.
+- Owner live testing of a newly added `F=一時メモ帳テスト` link proved that synchronous `SHCNE_DELETE/CREATE/UPDATEITEM/UPDATEDIR` notifications still do not make Explorer register a new `.lnk` HotKey during the current Shell session. `CTRL+ALT+F` began working only after Windows restarted. This proves that the persisted link is correct and that notification-only refresh is insufficient; it does not yet prove that restarting Explorer alone is sufficient.
+- Microsoft documents `IShellLink::SetHotkey` as setting the shortcut value on a Shell link and `IPersistFile::Save` as persisting the link, but publishes no companion API to rebuild Explorer's active Start-menu HotKey table. `SHChangeNotify` publishes item/directory change events, not a HotKey-registration refresh event. `RegisterHotKey` registrations belong to the calling window or thread, so using it would require a resident owner and violate the non-resident architecture. References: [IShellLinkW::SetHotkey](https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishelllinkw-sethotkey), [Shell Links](https://learn.microsoft.com/windows/win32/shell/links), [SHChangeNotify](https://learn.microsoft.com/windows/win32/api/shlobj_core/nf-shlobj_core-shchangenotify), [RegisterHotKey](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-registerhotkey).
+- The Windows SDK headers installed on the development machine contain link setters and unrelated window/process HotKey APIs, but no documented Explorer HotKey-table refresh operation. Explorer is the component that tracks Start-menu/Desktop shortcut HotKeys, as described by Microsoft in [The Old New Thing](https://devblogs.microsoft.com/oldnewthing/20130528-00/?p=4233).
 
 ## Decision Log
 
@@ -54,6 +56,7 @@ Done requires:
 - Send `SHChangeNotify(SHCNE_UPDATEITEM/SHCNE_UPDATEDIR, SHCNF_PATHW | SHCNF_FLUSH)` for every generated/modified shortcut and its directory after migration, successful Apply, and Apply rollback so Explorer is explicitly told to invalidate shortcut state. This follows the Shell API contract and avoids relying solely on filesystem watchers.
 - Treat replacement as an explicit Shell lifecycle: notify deletion after moving each old managed shortcut away, then notify creation after moving each staged shortcut into place. This makes HotKey unregister/register observable without changing the non-resident `.lnk` architecture.
 - Shell notifications remain useful for filesystem/UI cache coherence but are not a HotKey registration guarantee. After successful Apply, offer an explicit, warned restart of only the current session's Shell Explorer process; identify it through `GetShellWindow`, never target another session, and relaunch Explorer before reporting success. Keep a separate `Shellを再読込` recovery action.
+- Do not emulate the shortcut Properties dialog or call undocumented Shell messages. Those approaches depend on private implementation details and are too brittle for a safety-focused release. If the explicit Explorer reload is not confirmed by the live gate, state that sign-out/Windows restart is required instead of claiming immediate activation.
 - Keep WPF and the dependency-free UI stack. Modernization uses shared native WPF resources, while the A-Z overview follows the physical `QWERTYUIOP / ASDFGHJKL / ZXCVBNM` key order.
 
 ## Milestones
@@ -187,7 +190,7 @@ Validation:
 
 - Modern UI verification: Release build completed with 0 warnings/errors; native Windows capture showed the three centered `QWERTYUIOP / ASDFGHJKL / ZXCVBNM` rows, modern card/action hierarchy, clipped long targets, and the Q tile opened the correct ChatGPT Web editor without changing data.
 - Keyboard layout regression test verifies all 26 unique letters in physical-row order; Core 15/15, Windows 11/11, and Chrome 10/10 passed after the UI work.
-- Packaged `ShortcutManager.exe` loaded the current host configuration and displayed the modern UI. A temporary `F=一時メモ帳テスト` entry was applied successfully, but physical `CTRL+ALT+F` did not work until Explorer restarted. The result disproved the notification-only approach and now serves as the regression scenario for the consent-based Shell reload flow.
+- Packaged `ShortcutManager.exe` loaded the current host configuration and displayed the modern UI. A temporary `F=一時メモ帳テスト` entry was applied successfully, but physical `CTRL+ALT+F` did not work until Windows restarted. The result disproved the notification-only approach and now serves as the regression scenario for the consent-based Shell reload flow.
 - The post-change package gate completed and produced both ZIPs plus checksums. Windows PowerShell 5 compatibility required reading the UTF-8 extension manifest explicitly rather than through its ANSI-default `Get-Content` behavior.
 - `dotnet test ShortcutManager.sln -c Release --no-restore`: Core 15/15 and Windows 11/11 passed (follow-up gate).
 - `node --test tests/ChromeExtension.Tests/protocol.test.js`: 10/10 passed.
@@ -209,6 +212,6 @@ Validation:
 
 ## Blockers
 
-- M9's Explorer Shell reload implementation and unit tests are complete. The remaining gate is an integrated GUI Apply → warned Shell reload → new physical HotKey test without restarting Windows, followed by removal of temporary test entries. Synthetic input is not accepted as proof of a Windows Shell global HotKey.
+- M9's Explorer Shell reload implementation and unit tests are complete. Existing application logs contain successful Apply records but no `Shell reload requested/completed` record, so the user-authorized Explorer reload path has not yet been exercised. The remaining gate is an integrated GUI Apply → warned Shell reload → visible taskbar return → new physical HotKey test without restarting Windows, followed by removal of temporary test entries. Synthetic input is not accepted as proof of a Windows Shell global HotKey.
 - Native ChatGPT App and Slack are absent; their final-layout entries remain disabled until installed or an owner-approved launch target is supplied.
 - Chrome Web Store/Microsoft Store publication and code signing require owner credentials/accounts and are not v0.1.0 package blockers.

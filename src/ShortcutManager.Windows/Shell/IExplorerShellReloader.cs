@@ -1,6 +1,10 @@
 namespace ShortcutManager.Windows.Shell;
 
-public sealed record ExplorerShellReloadResult(bool Succeeded, string Message);
+public sealed record ExplorerShellReloadResult(
+    bool Succeeded,
+    string Message,
+    int? PreviousProcessId = null,
+    int? CurrentProcessId = null);
 
 public interface IExplorerShellReloader
 {

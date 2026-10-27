@@ -95,7 +95,7 @@ public sealed class ManagedShortcutApplier(
             var configBytes = Encoding.UTF8.GetBytes(ConfigJson.Serialize(config));
             var hash = Convert.ToHexString(SHA256.HashData(configBytes)).ToLowerInvariant();
             File.WriteAllText(statePath, JsonSerializer.Serialize(new { lastSuccessfulApply = DateTimeOffset.Now, configSha256 = hash, managedDirectory }, new JsonSerializerOptions { WriteIndented = true }));
-            return new(true, "変更を書き込みました。HotKeyを再起動なしで反映するにはWindows Shellを再読み込みしてください。", backupPath, committedNew.Count, hash);
+            return new(true, "変更を書き込みました。新規・変更したHotKeyは、Windows Shellの再読み込みまたはWindows再起動後に有効になります。", backupPath, committedNew.Count, hash);
         }
         catch (Exception error)
         {

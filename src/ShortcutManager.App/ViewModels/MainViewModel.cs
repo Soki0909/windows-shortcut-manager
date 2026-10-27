@@ -160,11 +160,12 @@ public sealed class MainViewModel : ObservableObject
     {
         IsBusy = true;
         Status = "Windows Shellを再読み込みしています…";
+        logger.Info("Shell reload requested by user.");
         try
         {
             var result = await shellReloader.ReloadAsync();
             Status = result.Message;
-            logger.Info($"Shell reload: success={result.Succeeded}, message={result.Message}");
+            logger.Info($"Shell reload completed: success={result.Succeeded}, previousPid={result.PreviousProcessId?.ToString() ?? "unknown"}, currentPid={result.CurrentProcessId?.ToString() ?? "unknown"}, message={result.Message}");
         }
         catch (Exception error)
         {

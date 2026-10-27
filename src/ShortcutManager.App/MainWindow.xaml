@@ -88,7 +88,7 @@
           <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
             <TextBlock Text="ショートカット" FontSize="16" FontWeight="SemiBold"/>
-            <TextBlock Text="  ·  Apply後にShellを再読み込みすると再起動なしで反映" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
+            <TextBlock Text="  ·  HotKeyの有効化にはShellまたはWindowsの再起動が必要" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal">
             <Button Content="追加" Click="Add_Click"/>
@@ -96,7 +96,7 @@
             <Button Content="削除" Click="Delete_Click"/>
             <Button Content="テスト起動" Click="Test_Click"/>
             <Button Content="再読込" Click="Reload_Click"/>
-            <Button Content="Shellを再読込" Click="ShellReload_Click"/>
+            <Button Content="Explorerを再起動" Click="ShellReload_Click"/>
             <Button Content="変更を反映" Style="{StaticResource PrimaryButtonStyle}" Click="Apply_Click" Padding="18,8"/>
           </StackPanel>
         </Grid>

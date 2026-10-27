@@ -16,7 +16,7 @@ public sealed class ExplorerShellReloader(IExplorerShellProcessHost processHost)
         if (shell is null)
             return new(false, "Windows Shell Explorer を特定できなかったため、再読み込みを中止しました。");
         if (shell.SessionId != processHost.CurrentSessionId)
-            return new(false, "別セッションの Explorer は変更しません。現在のWindowsセッションで再実行してください。");
+            return new(false, "別セッションの Explorer は変更しません。現在のWindowsセッションで再実行してください。", shell.Id);
 
         try
         {
@@ -34,13 +34,13 @@ public sealed class ExplorerShellReloader(IExplorerShellProcessHost processHost)
             {
                 var restarted = processHost.GetShellProcess();
                 if (restarted is { SessionId: var sessionId } && sessionId == processHost.CurrentSessionId)
-                    return new(true, "Windows Shellを再読み込みし、HotKeyを再起動なしで反映しました。");
+                    return new(true, "Windows Shellを再読み込みしました。新規・変更したHotKeyを確認してください。", shell.Id, restarted.Id);
                 await Task.Delay(150, startTimeout.Token);
             }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return new(false, "Windows Shellの再読み込みが時間内に完了しませんでした。タスク マネージャーからWindows Explorerを再起動してください。");
+            return new(false, "Windows Shellの再読み込みが時間内に完了しませんでした。タスク マネージャーからWindows Explorerを再起動してください。", shell.Id);
         }
         catch (Exception error)
         {
@@ -49,7 +49,7 @@ public sealed class ExplorerShellReloader(IExplorerShellProcessHost processHost)
                 if (processHost.GetShellProcess() is null) processHost.StartExplorer();
             }
             catch { }
-            return new(false, $"Windows Shellの再読み込みに失敗しました: {error.Message}");
+            return new(false, $"Windows Shellの再読み込みに失敗しました: {error.Message}", shell.Id);
         }
     }
 }
