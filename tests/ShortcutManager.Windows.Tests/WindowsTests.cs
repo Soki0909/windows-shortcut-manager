@@ -210,6 +210,17 @@ public sealed class WindowsTests : IDisposable
         Assert.Equal(0, host.StartCount);
     }
 
+    [Fact]
+    public void ShellProcessHost_TerminateIsIdempotentWhenExplorerAlreadyExited()
+    {
+        var host = new ExplorerShellProcessHost();
+        var missingProcess = new ExplorerShellProcess(int.MaxValue, host.CurrentSessionId);
+
+        var error = Record.Exception(() => host.Terminate(missingProcess));
+
+        Assert.Null(error);
+    }
+
     private Fixture CreateFixture(Action<string>? checkpoint = null)
     {
         var configPath = Path.Combine(root, "app", "config.json");

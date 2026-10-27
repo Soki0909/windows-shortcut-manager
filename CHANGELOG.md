@@ -11,10 +11,13 @@
 - 汎用Dispatcher Protocol v1対応のManifest V3 Chrome Extension
 - remembered tab、startup collapse option、popup診断
 - Windows self-contained ZIP / CWS-ready ZIP / SHA-256 package workflow
+- モダンなWPFカードUIと物理キー配列 `QWERTYUIOP / ASDFGHJKL / ZXCVBNM`
+- Apply後の同意付きWindows Explorer再起動による、新規・変更HotKeyのWindows再起動なし反映
 
 ### Known limitations
 
 - Windows配布物は未署名です。
 - Store公開・自動更新は含みません。
 - 閉じたChrome保存グループの復元は対象外です。
+- `.lnk` HotKeyの即時再登録用公開APIがないため、Apply後はWindows Explorerの再起動が必要です。
 

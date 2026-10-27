@@ -28,7 +28,7 @@ Done requires:
 - [x] M6 Current-machine bootstrap + live usability verification (2026-10-01; 16 conflicts migrated with backup, full 19-key Apply/read-back passed, and post-restart R/X/Z/G/P/A live checks passed)
 - [x] M7 CI / packaging / release artifacts (2026-09-30)
 - [x] M8 Final documentation / verification / cleanup (2026-10-01; docs, artifacts, automated gates, packaged GUI smoke, and owner live verification complete)
-- [ ] M9 Live HotKey refresh hardening (2026-10-27; public API limitation documented, consent-based Explorer Shell reload implemented; integrated live retest pending)
+- [ ] M9 Live HotKey refresh hardening (2026-10-27; Explorer-only restart activated a new physical HotKey without restarting Windows; PID-race fix rerun and temporary-entry cleanup pending)
 - [x] M10 Modern WPF UI + physical keyboard layout (2026-10-01; native screenshot and edit-dialog smoke passed with QWERTY rows)
 
 ## Discoveries
@@ -46,6 +46,8 @@ Done requires:
 - Owner live testing of a newly added `F=一時メモ帳テスト` link proved that synchronous `SHCNE_DELETE/CREATE/UPDATEITEM/UPDATEDIR` notifications still do not make Explorer register a new `.lnk` HotKey during the current Shell session. `CTRL+ALT+F` began working only after Windows restarted. This proves that the persisted link is correct and that notification-only refresh is insufficient; it does not yet prove that restarting Explorer alone is sufficient.
 - Microsoft documents `IShellLink::SetHotkey` as setting the shortcut value on a Shell link and `IPersistFile::Save` as persisting the link, but publishes no companion API to rebuild Explorer's active Start-menu HotKey table. `SHChangeNotify` publishes item/directory change events, not a HotKey-registration refresh event. `RegisterHotKey` registrations belong to the calling window or thread, so using it would require a resident owner and violate the non-resident architecture. References: [IShellLinkW::SetHotkey](https://learn.microsoft.com/windows/win32/api/shobjidl_core/nf-shobjidl_core-ishelllinkw-sethotkey), [Shell Links](https://learn.microsoft.com/windows/win32/shell/links), [SHChangeNotify](https://learn.microsoft.com/windows/win32/api/shlobj_core/nf-shlobj_core-shchangenotify), [RegisterHotKey](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-registerhotkey).
 - The Windows SDK headers installed on the development machine contain link setters and unrelated window/process HotKey APIs, but no documented Explorer HotKey-table refresh operation. Explorer is the component that tracks Start-menu/Desktop shortcut HotKeys, as described by Microsoft in [The Old New Thing](https://devblogs.microsoft.com/oldnewthing/20130528-00/?p=4233).
+- The first instrumented Explorer-only live run on 2026-10-27 changed the Shell PID from `12764` to `27160`, proving the taskbar/Desktop Shell actually restarted without restarting Windows. The app nevertheless reported failure because the old process disappeared between Shell discovery and a subsequent `Process` metadata access. Treat that already-exited race as idempotent, but require observation of a different current-session Shell PID before reporting success.
+- After that Explorer-only restart, the owner physically pressed `CTRL+ALT+U` and the newly configured Notepad target opened. This passes the product-level requirement that an Apply can activate a new `.lnk` HotKey without restarting Windows while the Manager remains non-resident afterward.
 
 ## Decision Log
 
@@ -212,6 +214,6 @@ Validation:
 
 ## Blockers
 
-- M9's Explorer Shell reload implementation and unit tests are complete. Existing application logs contain successful Apply records but no `Shell reload requested/completed` record, so the user-authorized Explorer reload path has not yet been exercised. The remaining gate is an integrated GUI Apply → warned Shell reload → visible taskbar return → new physical HotKey test without restarting Windows, followed by removal of temporary test entries. Synthetic input is not accepted as proof of a Windows Shell global HotKey.
+- M9's physical live gate passed: Apply created `U=一時メモ帳テスト`, Explorer changed PID `12764 → 27160`, and physical `CTRL+ALT+U` opened Notepad without restarting Windows. The remaining gate is one rerun with the corrected success reporting, followed by removal of the temporary U entry and confirmation that the managed layout returned to 19 enabled shortcuts.
 - Native ChatGPT App and Slack are absent; their final-layout entries remain disabled until installed or an owner-approved launch target is supplied.
 - Chrome Web Store/Microsoft Store publication and code signing require owner credentials/accounts and are not v0.1.0 package blockers.

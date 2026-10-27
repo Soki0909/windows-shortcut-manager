@@ -33,7 +33,9 @@ public sealed class ExplorerShellReloader(IExplorerShellProcessHost processHost)
             while (true)
             {
                 var restarted = processHost.GetShellProcess();
-                if (restarted is { SessionId: var sessionId } && sessionId == processHost.CurrentSessionId)
+                if (restarted is { SessionId: var sessionId }
+                    && sessionId == processHost.CurrentSessionId
+                    && restarted.Id != shell.Id)
                     return new(true, "Windows Shellを再読み込みしました。新規・変更したHotKeyを確認してください。", shell.Id, restarted.Id);
                 await Task.Delay(150, startTimeout.Token);
             }
@@ -70,9 +72,21 @@ public sealed class ExplorerShellProcessHost : IExplorerShellProcessHost
 
     public void Terminate(ExplorerShellProcess process)
     {
-        using var target = Process.GetProcessById(process.Id);
-        if (target.SessionId != CurrentSessionId) throw new InvalidOperationException("Explorer session changed before reload.");
-        target.Kill(entireProcessTree: false);
+        try
+        {
+            using var target = Process.GetProcessById(process.Id);
+            int targetSessionId;
+            try { targetSessionId = target.SessionId; }
+            catch (InvalidOperationException) { return; }
+            if (targetSessionId != CurrentSessionId) throw new InvalidOperationException("Explorer session changed before reload.");
+            try { target.Kill(entireProcessTree: false); }
+            catch (InvalidOperationException) { }
+        }
+        catch (ArgumentException)
+        {
+            // Explorer can exit and be replaced between GetShellWindow and opening the process.
+            // The caller still waits for a different current-session Shell PID before success.
+        }
     }
 
     public async Task WaitForExitAsync(ExplorerShellProcess process, CancellationToken cancellationToken)
