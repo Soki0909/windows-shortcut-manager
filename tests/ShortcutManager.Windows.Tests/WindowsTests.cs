@@ -221,6 +221,17 @@ public sealed class WindowsTests : IDisposable
         Assert.Null(error);
     }
 
+    [Fact]
+    public async Task ShellProcessHost_WaitIsIdempotentWhenExplorerAlreadyExited()
+    {
+        var host = new ExplorerShellProcessHost();
+        var missingProcess = new ExplorerShellProcess(int.MaxValue, host.CurrentSessionId);
+
+        var error = await Record.ExceptionAsync(() => host.WaitForExitAsync(missingProcess, CancellationToken.None));
+
+        Assert.Null(error);
+    }
+
     private Fixture CreateFixture(Action<string>? checkpoint = null)
     {
         var configPath = Path.Combine(root, "app", "config.json");

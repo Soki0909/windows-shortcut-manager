@@ -48,6 +48,7 @@ Done requires:
 - The Windows SDK headers installed on the development machine contain link setters and unrelated window/process HotKey APIs, but no documented Explorer HotKey-table refresh operation. Explorer is the component that tracks Start-menu/Desktop shortcut HotKeys, as described by Microsoft in [The Old New Thing](https://devblogs.microsoft.com/oldnewthing/20130528-00/?p=4233).
 - The first instrumented Explorer-only live run on 2026-10-27 changed the Shell PID from `12764` to `27160`, proving the taskbar/Desktop Shell actually restarted without restarting Windows. The app nevertheless reported failure because the old process disappeared between Shell discovery and a subsequent `Process` metadata access. Treat that already-exited race as idempotent, but require observation of a different current-session Shell PID before reporting success.
 - After that Explorer-only restart, the owner physically pressed `CTRL+ALT+U` and the newly configured Notepad target opened. This passes the product-level requirement that an Apply can activate a new `.lnk` HotKey without restarting Windows while the Manager remains non-resident afterward.
+- A first race fix covered termination, but the instrumented rerun still changed Explorer PID `27160 → 26816` while reporting failure. The remaining race was the stale Shell-window PID disappearing inside `GetShellProcess` or `WaitForExitAsync`; both discovery and wait are now idempotent for an already-exited process, while the final success condition still requires a different current-session PID.
 
 ## Decision Log
 
@@ -214,6 +215,6 @@ Validation:
 
 ## Blockers
 
-- M9's physical live gate passed: Apply created `U=一時メモ帳テスト`, Explorer changed PID `12764 → 27160`, and physical `CTRL+ALT+U` opened Notepad without restarting Windows. The remaining gate is one rerun with the corrected success reporting, followed by removal of the temporary U entry and confirmation that the managed layout returned to 19 enabled shortcuts.
+- M9's physical live gate passed: Apply created `U=一時メモ帳テスト`, Explorer changed PID `12764 → 27160`, and physical `CTRL+ALT+U` opened Notepad without restarting Windows. A second run also restarted Explorer (`27160 → 26816`) and exposed a second stale-PID observation race. The remaining gate is one rerun with all process-boundary races covered, followed by removal of the temporary U entry and confirmation that the managed layout returned to 19 enabled shortcuts.
 - Native ChatGPT App and Slack are absent; their final-layout entries remain disabled until installed or an owner-approved launch target is supplied.
 - Chrome Web Store/Microsoft Store publication and code signing require owner credentials/accounts and are not v0.1.0 package blockers.

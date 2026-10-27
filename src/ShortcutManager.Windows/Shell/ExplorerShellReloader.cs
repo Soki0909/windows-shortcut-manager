@@ -62,12 +62,17 @@ public sealed class ExplorerShellProcessHost : IExplorerShellProcessHost
 
     public ExplorerShellProcess? GetShellProcess()
     {
-        var shellWindow = GetShellWindow();
-        if (shellWindow == IntPtr.Zero) return null;
-        GetWindowThreadProcessId(shellWindow, out var processId);
-        if (processId == 0) return null;
-        using var process = Process.GetProcessById((int)processId);
-        return new(process.Id, process.SessionId);
+        try
+        {
+            var shellWindow = GetShellWindow();
+            if (shellWindow == IntPtr.Zero) return null;
+            GetWindowThreadProcessId(shellWindow, out var processId);
+            if (processId == 0) return null;
+            using var process = Process.GetProcessById((int)processId);
+            return new(process.Id, process.SessionId);
+        }
+        catch (ArgumentException) { return null; }
+        catch (InvalidOperationException) { return null; }
     }
 
     public void Terminate(ExplorerShellProcess process)
@@ -97,6 +102,7 @@ public sealed class ExplorerShellProcessHost : IExplorerShellProcessHost
             await target.WaitForExitAsync(cancellationToken);
         }
         catch (ArgumentException) { }
+        catch (InvalidOperationException) { }
     }
 
     public void StartExplorer()
