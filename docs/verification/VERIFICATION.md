@@ -103,6 +103,20 @@ Full evidence with exact paths is stored only in gitignored `local/inventory.jso
 
 ## Publication status
 
+### GitHub Release v0.1.0 — published 2026-10-27
+
+- Release: [Shortcut Manager v0.1.0](https://github.com/Soki0909/windows-shortcut-manager/releases/tag/v0.1.0), published at 12:50 JST, normal release (not draft/prerelease).
+- Tag source: `7f0201ef875ec3edfcd14c26fd9cb0b7c652e805`, fast-forwarded onto `main` before tagging.
+- [CI run 40446133147](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/40446133147) and [Release run 40446184352](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/40446184352) succeeded. Release runner passed Core 15/15, Windows 20/20 and Chrome 10/10, then built ZIPs and the installer with Inno Setup 6.7.3.
+- Published attachments: Setup EXE, portable ZIP, TabBridge ZIP and `SHA256SUMS.txt`. Public artifacts were rebuilt on GitHub and have their own hashes; the local-build hashes below are historical local verification evidence.
+- Downloaded all four public attachments independently, matched all three payload SHA-256 values against the public checksum file and GitHub asset digests, and verified the Windows executable and extension root manifest are present in their ZIPs.
+
+| Published artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `ShortcutManager-Setup-win-x64-v0.1.0.exe` | 46,556,702 | `181a39fe1d7a32d5bacc9d6aeba8e4c2aea023231e8a2034cb9204b3323dff20` |
+| `ShortcutManager-win-x64-v0.1.0.zip` | 65,293,356 | `08452e8e51e2bb80c3afb8ec126d031fefb5533f9207b54a74864d62263eabd1` |
+| `ShortcutManager-TabBridge-v0.1.0.zip` | 9,767 | `968072e14ca2e3931cf14bc9a6b70e4d6e1a8eb85cd4e0e9d76593322badaad0` |
+
 Final local artifacts:
 
 - `artifacts/ShortcutManager-win-x64-v0.1.0.zip` — 63,237,908 bytes — SHA-256 `459ec99bae72f000d9344c786630617e32cd2d51a8bf240e00141f05d99f627f`
@@ -117,6 +131,6 @@ ZIP inspection verified `ShortcutManager.exe` is present (and the old `ShortcutM
 - Chrome Web Store upload/publish: not performed; requires owner developer account, listing, consent, and review.
 - Microsoft Store/MSIX: not performed; requires owner account and packaging/signing decisions.
 - Authenticode signing: not performed; no certificate was supplied.
-- GitHub repository push: completed to `origin/main`. Repository visibility was not changed and a GitHub Release was not created; both remain owner-controlled.
+- GitHub repository push: completed to `origin/main`. Repository visibility was not changed. GitHub Release v0.1.0 was subsequently published on 2026-10-27 at the owner's explicit request, as recorded above.
 - Final audit on 2026-10-01 reran all automated gates successfully, verified both artifact hashes against `SHA256SUMS.txt`, inspected both ZIP structures, matched the packaged scan's exact 19 managed HotKeys, and confirmed zero resident Manager processes.
 - Final follow-up audit on 2026-10-27 regenerated both packages from the completed M9/M10 code, independently matched both SHA-256 values, inspected the 404-entry Windows ZIP and 16-entry extension ZIP, and launched the final self-contained GUI. It displayed `Shortcut Manager`, responded, and exited normally within five seconds. All M9/M10 implementation and live gates are complete; commits are pushed to `origin/codex/live-refresh-modern-ui`.
