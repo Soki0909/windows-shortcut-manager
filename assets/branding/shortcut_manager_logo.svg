@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512" role="img" aria-label="Shortcut Manager icon">
+  <defs>
+    <linearGradient id="rear" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7787FE"/>
+      <stop offset="0.45" stop-color="#4843B4"/>
+      <stop offset="1" stop-color="#242757"/>
+    </linearGradient>
+    <linearGradient id="side" x1="0" y1="0" x2="0.87" y2="1">
+      <stop offset="0" stop-color="#26285A"/>
+      <stop offset="0.55" stop-color="#26265D"/>
+      <stop offset="1" stop-color="#171837"/>
+    </linearGradient>
+    <linearGradient id="face" x1="0.05" y1="0.04" x2="0.93" y2="0.96">
+      <stop offset="0" stop-color="#6A65EF"/>
+      <stop offset="0.34" stop-color="#5149D6"/>
+      <stop offset="0.68" stop-color="#4034AE"/>
+      <stop offset="1" stop-color="#26246A"/>
+    </linearGradient>
+    <linearGradient id="arrow" x1="0" y1="0.7" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.45" stop-color="#F3F4FF"/>
+      <stop offset="1" stop-color="#BCEAFF"/>
+    </linearGradient>
+    <linearGradient id="border" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C5C8FF" stop-opacity="0.86"/>
+      <stop offset="0.42" stop-color="#9EA0FF" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#786CF5" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+  <!-- Modifier key behind main shortcut key. Everything outside keys is transparent. -->
+  <rect x="77" y="120" width="313" height="313" rx="76" fill="url(#side)"/>
+  <rect x="78.5" y="120.5" width="309" height="305" rx="74" fill="none" stroke="#7E85ED" stroke-width="5" opacity="0.72"/>
+  <path d="M 106 151 C 106 133 120 120 140 120 H 302" fill="none" stroke="#B2B9FF" stroke-width="7" stroke-linecap="round" opacity="0.5"/>
+  <!-- Lower bevel lends native Windows desktop app dimension -->
+  <rect x="116" y="105" width="321" height="307" rx="76" fill="#18193F"/>
+  <rect x="116" y="80" width="321" height="316" rx="76" fill="url(#face)"/>
+  <rect x="119.5" y="83.5" width="314" height="309" rx="72" fill="none" stroke="url(#border)" stroke-width="7"/>
+  <path d="M 151 119 C 167 100 190 99 213 99 H 355" fill="none" stroke="#E2E3FF" stroke-linecap="round" stroke-width="9" opacity="0.32"/>
+  <!-- The single rising action arrow symbolizes assigning a shortcut to an action -->
+  <path d="M 202 314 L 335 181 M 262 180 H 335 V 253" fill="none" stroke="#161D57" stroke-width="48" stroke-linecap="round" stroke-linejoin="round" opacity="0.23" transform="translate(0 6)"/>
+  <path d="M 202 314 L 335 181 M 262 181 H 335 V 254" fill="none" stroke="url(#arrow)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

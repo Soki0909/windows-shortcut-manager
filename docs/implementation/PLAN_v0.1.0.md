@@ -19,6 +19,8 @@ Done requires:
 
 ## Progress
 
+- [x] Issue #8 release preparation (2026-10-28): diagnosed installed old EXE without icon resources; v0.1.1 version alignment and release notes prepared; Core 15/15, Windows 20/20, Chrome 10/10, Release build and package/resource/checksum gates passed. PR review, merge and publication follow the owner's explicit authorization.
+- [x] Issue #8 implementation (2026-10-28): owner-supplied logo source/exports preserved; EXE/WPF Window/header/Setup wired; Release build, packages, seven-frame binary comparison, checksums and packaged GUI title/header passed. Shell surfaces and DPI visual matrix remain manual follow-up (see VERIFICATION).
 - [x] M11 Startup persisted-shortcut audit and automatic transactional repair (2026-10-27; real COM drift/repair, no-op, ownership and external-conflict tests passed; installed GUI displayed matching audit for all 19 links)
 - [x] M12 Per-user installer, lifecycle verification and reproducible packaging (2026-10-27; installation, reinstall, uninstall and final reinstall passed; 404 installed file hashes matched; config and all managed files preserved)
 - [x] M0 Repository scaffold + docs imported (2026-09-30)
@@ -35,6 +37,7 @@ Done requires:
 
 ## Discoveries
 
+- Issue #8: application had no ApplicationIcon and used a text glyph in its header. The supplied ICO already contains all seven Windows sizes (16/24/32/48/64/128/256); no conversion or dependency is necessary.
 - Startup previously only loaded config; it never compared existing links with resolved launch specifications. The new startup audit repairs missing/changed/obsolete managed links only, and reports external conflicts without modifying them. See ADR-006.
 - Installer binaries remain separate from config and managed links. Uninstall preserves both so existing runtime HotKeys keep working and reinstall reuses owner configuration.
 - Target machine initially had .NET 6 runtime only. Microsoft .NET SDK 10.0.401 was installed for the required WPF build/test/package workflow.
@@ -57,6 +60,8 @@ Done requires:
 
 ## Decision Log
 
+- Owner authorized push, PR review, main merge and release on 2026-10-28. Publish the logo update as v0.1.1 rather than replacing v0.1.0 artifacts or moving an existing tag. Preserve the historical v0.1.0 verification evidence.
+- Issue #8: retain owner-supplied artwork unchanged, embed the ICO in EXE and WPF resources, and use it in Setup. Existing Start-menu/desktop launchers and uninstall metadata resolve the EXE icon. Record owner-provided provenance without asserting an independently verified copyright license. Add a read-only native-resource check to CI/Release; do not reinstall or replace an already published release during this change.
 - Use an optional noninteractive command mode (`--scan`, `--validate-config`, `--apply-config`, `--restore-backup`, each with `--result`) in the same WPF executable. This supports reproducible local verification while using the identical composition root and Apply/Restore services as the GUI.
 - Use source `.lnk` fallback mode for user-scoped installed apps because COM expansion under the managed execution identity can resolve per-user environment variables differently; launching the existing `.lnk` preserves its original app semantics.
 - Apply the nonconflicting desired keys I/L/V first to prove real Start Menu ownership and rollback surfaces without touching unmanaged shortcuts. After owner approval, migrate the exact 16 conflicts with original-byte backup and then use the same product Apply engine for the full layout.
@@ -196,6 +201,7 @@ Validation:
 
 ## Verification Evidence
 
+- Issue #8 (2026-10-28): `dotnet build ShortcutManager.sln -c Release --no-restore --nologo` passed with zero warnings/errors; `scripts/package.ps1`, `scripts/package-installer.ps1 -SkipPublish`, and `scripts/verify-branding.ps1` passed. All seven EXE/Setup icon frames are byte-identical to the supplied ICO and all three artifact SHA-256 values match. Computer Use inspection of the newly packaged local executable showed the logo in the title bar and header and a healthy startup audit.
 - M11/M12 (2026-10-27): Core 15/15, Windows 20/20, Chrome 10/10. Real COM audit covers missing, modified and obsolete links; reconciliation covers backup-backed repair, a no-write healthy start, and no-write external-conflict rejection. Inno Setup 6.7.3 generated the Setup EXE. Actual per-user install/reinstall/uninstall/reinstall all exited 0; config and 19 managed links plus ownership marker remained byte-identical. Installed GUI launched from its Start-menu launcher and displayed the matching-audit status. All 404 installed payload files and all three artifact SHA-256 values matched.
 - Final M9/M10 audit (2026-10-27): Core 15/15, Windows 17/17, Chrome 10/10; package regeneration and independent SHA-256/ZIP checks passed. Final packaged GUI displayed a responsive window and closed normally. Owner confirmed new physical U activation without restarting Windows, U removal, and no extra foreground Explorer window after automatic Shell recovery. All changes are committed and pushed to `codex/live-refresh-modern-ui`.
 - Modern UI verification: Release build completed with 0 warnings/errors; native Windows capture showed the three centered `QWERTYUIOP / ASDFGHJKL / ZXCVBNM` rows, modern card/action hierarchy, clipped long targets, and the Q tile opened the correct ChatGPT Web editor without changing data.

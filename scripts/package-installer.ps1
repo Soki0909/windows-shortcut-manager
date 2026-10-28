@@ -1,4 +1,4 @@
-param([string]$Version = '0.1.0', [string]$CompilerPath, [switch]$SkipPublish)
+param([string]$Version = '0.1.1', [string]$CompilerPath, [switch]$SkipPublish)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path "$PSScriptRoot\..").Path
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Version must be X.Y.Z.' }

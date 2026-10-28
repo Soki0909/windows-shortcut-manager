@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "0.1.1"
 #endif
 #ifndef PublishDir
   #define PublishDir "..\artifacts\publish\win-x64"
@@ -18,6 +18,7 @@ MinVersion=10.0
 DisableProgramGroupPage=yes
 DisableDirPage=yes
 UninstallDisplayIcon={app}\ShortcutManager.exe
+SetupIconFile=..\src\ShortcutManager.App\Assets\shortcut_manager_logo.ico
 OutputDir=..\artifacts
 OutputBaseFilename=ShortcutManager-Setup-win-x64-v{#AppVersion}
 Compression=lzma2
