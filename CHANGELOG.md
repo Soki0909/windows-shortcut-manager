@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- インストール済み製品版とDebug版のEXE名、表示、タスクバー識別、設定・管理ショートカット保存先を分離。
+- 専用の `scripts/run-debug.ps1` と、Releaseのみを受け付ける配布パッケージ生成。
+- Restoreでも他方の版が使うHotKeyとの競合を検証。
+
 ## [0.1.1] - 2026-10-28
 
 ### Added

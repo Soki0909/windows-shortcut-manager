@@ -39,6 +39,13 @@ Honor the managed-folder ownership marker.
 Backup before destructive Apply/Restore.
 Do not commit secrets, signing keys, Store credentials, or user-specific absolute paths.
 
+## Development and installed product
+
+- The owner uses the installed product for daily work. Use `scripts/run-debug.ps1` for development UI checks; do not launch repository Release/publish outputs as the ordinary development app.
+- Debug must keep its separate executable name, `[DEBUG]` title, D badge, taskbar identity, LocalAppData and managed-shortcut directory. Never automatically load or copy installed-product config into Debug. A copied config must not redirect Debug writes into the product's managed folder.
+- Treat the other edition's HotKeys as external conflicts for Apply, startup audit and Restore. Never clear or overwrite them to make a debug test work.
+- Building/debugging does not authorize replacing the installed product. Update it with a release installer only when the owner requests an installed-product update. Package only Release builds.
+
 ## Completion
 Do not claim v0.1.0 complete until `docs/verification/VERIFICATION.md`
 contains the executed build/test/package evidence and the remaining manual/live checks are either passed or explicitly blocked by an external prerequisite.

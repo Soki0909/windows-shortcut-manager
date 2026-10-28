@@ -29,6 +29,16 @@ Windowsの「インストールされているアプリ」からアンインス�
 
 ## 開発
 
+普段はスタートメニューの「Shortcut Manager」（インストール済み製品版）を使います。開発確認はリポジトリから次を実行してください。
+
+```powershell
+./scripts/run-debug.ps1
+```
+
+`ShortcutManager.Debug.exe` が起動し、タイトルに `[DEBUG]`、ロゴにオレンジ色の D が表示されます。設定・バックアップは `%LOCALAPPDATA%\ShortcutManager.Debug`、管理ショートカットはスタートメニュー配下の `Shortcut Manager Debug` に分離します。初回は空の設定で起動し、製品版の設定を自動では読み込みません。コピーした設定に製品版の管理フォルダ指定があっても、Debug版は専用フォルダを使います。
+
+WindowsのHotKey自体は共通なので、製品版で使用中のキーはDebug版では競合として拒否されます。`run-debug.ps1 -NoLaunch` はビルドのみを行います。製品版の更新はリリースのSetupで行い、開発ビルドではインストール先を上書きしません。配布用 `package.ps1` はReleaseのみを受け付けます。
+
 要件: Windows、.NET 10 SDK、Node.js 22。
 
 ```powershell

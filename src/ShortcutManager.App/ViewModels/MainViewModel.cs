@@ -61,7 +61,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsDirty { get => isDirty; private set => Set(ref isDirty, value); }
     public ShortcutConfig Candidate => candidate;
     public string ConfigPath => paths.ConfigPath;
-    public string ManagedDirectory => candidate.Settings.ManagedShortcutDirectory ?? paths.ManagedShortcutDirectory;
+    public string ManagedDirectory => paths.ResolveManagedDirectory(candidate.Settings.ManagedShortcutDirectory);
 
     public void Load()
     {
@@ -234,7 +234,9 @@ public sealed class MainViewModel : ObservableObject
         Status = "バックアップを検証して復元しています…";
         try
         {
-            var result = await Task.Run(() => restore.Restore(path, ManagedDirectory));
+            var inventory = await scanner.ScanDefaultAsync(ManagedDirectory);
+            var external = inventory.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
+            var result = await Task.Run(() => restore.Restore(path, ManagedDirectory, external));
             Status = result.Message;
             logger.Info($"Restore: success={result.Succeeded}, source={path}");
             if (result.Succeeded) Load();

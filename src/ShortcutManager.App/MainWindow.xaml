@@ -44,12 +44,14 @@
       <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel Orientation="Horizontal">
-          <Image Source="Assets/shortcut_manager_logo_64.png" Width="40" Height="40"
+          <Image x:Name="ProductLogo" Source="Assets/shortcut_manager_logo_64.png" Width="40" Height="40"
                  Margin="0,0,11,0" VerticalAlignment="Center"
                  RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Shortcut Manager ロゴ"/>
           <StackPanel>
-            <TextBlock Text="Shortcut Manager" FontSize="22" FontWeight="SemiBold"/>
+            <TextBlock x:Name="ProductTitle" Text="Shortcut Manager" FontSize="22" FontWeight="SemiBold"/>
             <TextBlock Text="Ctrl + Alt + A–Z · ローカルで安全に管理" Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
+            <TextBlock x:Name="DevelopmentNotice" Text="デバッグ版 · 設定とHotKeyは製品版と別に保存"
+                       Visibility="Collapsed" Foreground="#9A3412" FontSize="11" FontWeight="SemiBold"/>
           </StackPanel>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

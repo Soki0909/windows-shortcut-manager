@@ -159,6 +159,40 @@ public sealed class WindowsTests : IDisposable
     }
 
     [Fact]
+    public void DevelopmentApplyAndRestore_KeepProductFilesUntouchedWithCopiedOverride()
+    {
+        var fixture = CreateFixture();
+        var product = Path.Combine(root, "product");
+        Directory.CreateDirectory(product);
+        var productConfig = Path.Combine(product, "config.json");
+        var productLink = Path.Combine(product, "product.lnk");
+        File.WriteAllText(productConfig, "production config sentinel");
+        File.WriteAllText(productLink, "production shortcut sentinel");
+        var debug = new ApplicationPaths(root, fixture.Config.Path, fixture.StatePath,
+            Path.Combine(root, "debug.log"), Path.Combine(root, "backups"), Path.Combine(root, "stage"), fixture.Managed, IsDevelopment: true);
+        var copied = SampleConfig() with { Settings = new() { ManagedShortcutDirectory = product } };
+        var managed = debug.ResolveManagedDirectory(copied.Settings.ManagedShortcutDirectory);
+        Assert.True(fixture.Applier.Apply(copied, managed).Succeeded);
+        var backup = fixture.Backups.Create("manual", fixture.Config.Path, managed, fixture.StatePath);
+        var edited = copied with { Shortcuts = [Entry("H", new WebsiteTarget { Url = "https://example.org/" })] };
+        Assert.True(fixture.Applier.Apply(edited, managed).Succeeded);
+        var priorConfig = File.ReadAllBytes(fixture.Config.Path);
+        var priorLinkPath = Directory.GetFiles(managed, "*.lnk").Single();
+        var priorLink = File.ReadAllBytes(priorLinkPath);
+        var restore = new RestoreService(fixture.Config, new ConfigValidator(), fixture.Backups, fixture.Applier, fixture.StatePath);
+        var blocked = restore.Restore(backup, managed, ["CTRL+ALT+G"]);
+        Assert.False(blocked.Succeeded);
+        Assert.Contains("競合", blocked.Message);
+        Assert.Equal(priorConfig, File.ReadAllBytes(fixture.Config.Path));
+        Assert.Equal(priorLink, File.ReadAllBytes(priorLinkPath));
+        Assert.True(restore.Restore(backup, managed).Succeeded);
+        Assert.Equal("G", fixture.Config.Load().Shortcuts.Single().Hotkey.Key);
+        Assert.Equal("production config sentinel", File.ReadAllText(productConfig));
+        Assert.Equal("production shortcut sentinel", File.ReadAllText(productLink));
+        Assert.Equal(2, Directory.GetFiles(product).Length);
+    }
+
+    [Fact]
     public void LaunchResolver_MapsWebsiteBatAndChrome()
     {
         var chrome = Path.Combine(root, "chrome.exe"); File.WriteAllText(chrome, "fake");
