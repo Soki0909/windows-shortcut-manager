@@ -23,7 +23,7 @@ Start-menu/desktop launchers and the uninstall entry use the EXE's icon.
 Keep the original exports intact. Changing the artwork requires replacing the
 runtime copies as well. No image-generation or conversion dependency is needed.
 
-After packaging, run `./scripts/verify-branding.ps1 -Version 0.1.0` on Windows.
+After packaging, run `./scripts/verify-branding.ps1 -Version 0.1.1` on Windows.
 It reads EXE and Setup resources without executing either binary, checks every
 embedded icon frame against the original ICO, and verifies artifact checksums.
 CI and Release run this check after building the installer.

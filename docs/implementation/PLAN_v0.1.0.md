@@ -19,6 +19,7 @@ Done requires:
 
 ## Progress
 
+- [x] Issue #8 release preparation (2026-10-28): diagnosed installed old EXE without icon resources; v0.1.1 version alignment and release notes prepared; Core 15/15, Windows 20/20, Chrome 10/10, Release build and package/resource/checksum gates passed. PR review, merge and publication follow the owner's explicit authorization.
 - [x] Issue #8 implementation (2026-10-28): owner-supplied logo source/exports preserved; EXE/WPF Window/header/Setup wired; Release build, packages, seven-frame binary comparison, checksums and packaged GUI title/header passed. Shell surfaces and DPI visual matrix remain manual follow-up (see VERIFICATION).
 - [x] M11 Startup persisted-shortcut audit and automatic transactional repair (2026-10-27; real COM drift/repair, no-op, ownership and external-conflict tests passed; installed GUI displayed matching audit for all 19 links)
 - [x] M12 Per-user installer, lifecycle verification and reproducible packaging (2026-10-27; installation, reinstall, uninstall and final reinstall passed; 404 installed file hashes matched; config and all managed files preserved)
@@ -59,6 +60,7 @@ Done requires:
 
 ## Decision Log
 
+- Owner authorized push, PR review, main merge and release on 2026-10-28. Publish the logo update as v0.1.1 rather than replacing v0.1.0 artifacts or moving an existing tag. Preserve the historical v0.1.0 verification evidence.
 - Issue #8: retain owner-supplied artwork unchanged, embed the ICO in EXE and WPF resources, and use it in Setup. Existing Start-menu/desktop launchers and uninstall metadata resolve the EXE icon. Record owner-provided provenance without asserting an independently verified copyright license. Add a read-only native-resource check to CI/Release; do not reinstall or replace an already published release during this change.
 - Use an optional noninteractive command mode (`--scan`, `--validate-config`, `--apply-config`, `--restore-backup`, each with `--result`) in the same WPF executable. This supports reproducible local verification while using the identical composition root and Apply/Restore services as the GUI.
 - Use source `.lnk` fallback mode for user-scoped installed apps because COM expansion under the managed execution identity can resolve per-user environment variables differently; launching the existing `.lnk` preserves its original app semantics.

@@ -4,8 +4,8 @@ Windows の `Ctrl+Alt+A-Z` を、常駐プロセスなしで Website / Applicati
 
 ## クイックスタート
 
-1. `ShortcutManager-Setup-win-x64-v0.1.0.exe` を実行してインストールし、スタートメニューの「Shortcut Manager」から起動します。従来のportable ZIPを展開して起動する方法も利用できます。
-2. Chromeを使う場合は `ShortcutManager-TabBridge-v0.1.0.zip` を展開し、`chrome://extensions` のデベロッパーモードからフォルダを読み込みます。
+1. `ShortcutManager-Setup-win-x64-v0.1.1.exe` を実行してインストールし、スタートメニューの「Shortcut Manager」から起動します。従来のportable ZIPを展開して起動する方法も利用できます。
+2. Chromeを使う場合は `ShortcutManager-TabBridge-v0.1.1.zip` を展開し、`chrome://extensions` のデベロッパーモードからフォルダを読み込みます。
 3. Extension Popupに表示される32文字のIDをManagerの「設定」に入力します。
 4. 「既存をスキャン」から既存 `.lnk/.url` をインポートするか、「追加」で登録します。
 5. 「テスト起動」でtargetを確認し、「変更を反映」を実行します。続く確認でExplorerの再起動を選ぶと、Windowsを再起動せず新しいHotKeyが有効になります。
@@ -34,10 +34,10 @@ Windowsの「インストールされているアプリ」からアンインス�
 ```powershell
 ./scripts/build.ps1
 ./scripts/test.ps1
-./scripts/package.ps1 -Version 0.1.0
+./scripts/package.ps1 -Version 0.1.1
 # インストーラーを生成する場合（Inno Setupはビルド用のみ）
 ./scripts/prepare-installer-tools.ps1
-./scripts/package-installer.ps1 -Version 0.1.0 -SkipPublish
+./scripts/package-installer.ps1 -Version 0.1.1 -SkipPublish
 ```
 
 成果物は `artifacts/` に生成されます。Chrome Extensionはbuild stepを持たないMV3/Vanilla JavaScriptです。
@@ -55,7 +55,7 @@ Windowsの「インストールされているアプリ」からアンインス�
 
 - 実行中プロセスが `RegisterHotKey` で取得した全HotKeyは静的列挙できません。Apply後の実機テストが必要です。
 - Chromeで保存済みでも閉じているタブグループはChrome公開APIから再オープンできません。
-- v0.1.0のWindows ZIPは未署名です。SmartScreenの警告対象になり得ます。
+- v0.1.1のWindows ZIPは未署名です。SmartScreenの警告対象になり得ます。
 - Chrome Web Store / Microsoft Storeへの公開とコード署名は、所有者アカウント・credentialが必要な別工程です。
 
 詳細は [要件](docs/requirements/shortcut-manager-requirements-v1.0.md)、[設計](docs/design/02_SYSTEM_ARCHITECTURE.md)、[検証記録](docs/verification/VERIFICATION.md) を参照してください。

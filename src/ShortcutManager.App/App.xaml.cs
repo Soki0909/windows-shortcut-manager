@@ -1,4 +1,4 @@
-﻿using System.Configuration;
+using System.Configuration;
 using System.Data;
 using System.Windows;
 using System.Text.Json;
@@ -17,7 +17,7 @@ public partial class App : Application
         var validator = new ShortcutManager.Core.Validation.ConfigValidator();
         var shellLinks = new ShortcutManager.Windows.ShellLinks.ShellLinkService();
         var resolver = new ShortcutManager.Windows.Launching.LaunchSpecResolver(new ShortcutManager.Windows.Chrome.ChromeLocator(), new ShortcutManager.Core.Protocol.DispatcherUriBuilder());
-        var backups = new ShortcutManager.Windows.Backup.BackupService(paths.BackupDirectory, "0.1.0");
+        var backups = new ShortcutManager.Windows.Backup.BackupService(paths.BackupDirectory, "0.1.1");
         var applier = new ShortcutManager.Windows.Apply.ManagedShortcutApplier(repository, validator, resolver, shellLinks, backups, paths.StagingDirectory, paths.StatePath, shellNotifier: new ShortcutManager.Windows.Shell.ShellChangeNotifier());
         var scanner = new ShortcutManager.Windows.Inventory.ShortcutInventoryScanner(shellLinks, new ShortcutManager.Windows.Inventory.UrlShortcutReader());
         var logger = new ShortcutManager.Windows.Logging.FileLogger(paths.LogPath);

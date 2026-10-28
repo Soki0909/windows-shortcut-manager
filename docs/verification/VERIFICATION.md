@@ -4,6 +4,8 @@ Updated: 2026-10-28 (Asia/Tokyo)
 
 ## Issue #8 — product logo (2026-10-28)
 
+- Follow-up for v0.1.1: the installed v0.1.0 EXE has no RT_GROUP_ICON resources (0 matching logo frames), and the Start-menu launcher points to that installed EXE with the default icon reference. This explains the old taskbar appearance before installing an update; the packaged build is a separate executable. No cache reset or Explorer restart was needed to establish the cause.
+- v0.1.1 candidate: Core 15/15, Windows 20/20, Chrome 10/10 passed; Release solution build passed with zero warnings/errors; package and installer generation passed. All seven new EXE/Setup frames and all three artifact checksums passed `scripts/verify-branding.ps1 -Version 0.1.1`. Application, backup metadata, About, extension and packaging versions are aligned to 0.1.1; protocol/schema remain 1.
 - Owner supplied the SVG, transparent PNG exports and multi-resolution ICO and requested integration. Originals are retained under `assets/branding/` and application `Assets/`; provenance is documented without asserting a separate third-party license or independent rights clearance.
 - Release solution build passed with zero warnings/errors. Initial sandbox build was interrupted; the normal-host retry passed.
 - `scripts/package.ps1 -Version 0.1.0` and `scripts/package-installer.ps1 -Version 0.1.0 -SkipPublish` passed with Inno Setup 6.7.3.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Shortcut Manager Tab Bridge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Windows Shortcut Manager から現在開いている Chrome タブグループへ移動します。",
   "permissions": [
     "tabGroups",
