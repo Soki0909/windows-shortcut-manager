@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- 提供された製品ロゴをWindows EXE、ウィンドウ、ヘッダー、Setupへ適用（#8）。
+
 ## [0.1.0] - 2026-09-30
 
 ### Added

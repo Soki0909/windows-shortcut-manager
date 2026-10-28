@@ -8,7 +8,13 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>ShortcutManager</AssemblyName>
     <RootNamespace>ShortcutManager.App</RootNamespace>
+    <ApplicationIcon>Assets\shortcut_manager_logo.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\shortcut_manager_logo.ico" />
+    <Resource Include="Assets\shortcut_manager_logo_64.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ShortcutManager.Core\ShortcutManager.Core.csproj" />

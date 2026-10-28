@@ -1,6 +1,16 @@
 # v0.1.0 Verification
 
-Updated: 2026-10-27 (Asia/Tokyo)
+Updated: 2026-10-28 (Asia/Tokyo)
+
+## Issue #8 — product logo (2026-10-28)
+
+- Owner supplied the SVG, transparent PNG exports and multi-resolution ICO and requested integration. Originals are retained under `assets/branding/` and application `Assets/`; provenance is documented without asserting a separate third-party license or independent rights clearance.
+- Release solution build passed with zero warnings/errors. Initial sandbox build was interrupted; the normal-host retry passed.
+- `scripts/package.ps1 -Version 0.1.0` and `scripts/package-installer.ps1 -Version 0.1.0 -SkipPublish` passed with Inno Setup 6.7.3.
+- `scripts/verify-branding.ps1 -Version 0.1.0` reads native RT_GROUP_ICON/RT_ICON resources as data: EXE and Setup each contain byte-identical copies of all supplied 16/24/32/48/64/128/256px ICO frames. All three generated artifact SHA-256 values match `SHA256SUMS.txt`. CI and Release now run this verification.
+- Computer Use inspection of the executable under `artifacts/publish/win-x64/` confirmed the logo in the title bar and header, an intact layout and a matching startup audit. The installed older executable was distinguished from the new build by its full returned process path.
+- Existing installer Start-menu/desktop launchers and `UninstallDisplayIcon` use `ShortcutManager.exe`, which now embeds the logo. No installation, release publication, or Explorer icon-cache reset was performed for this change.
+- Remaining manual checks: taskbar and Alt+Tab at multiple DPI settings, and installed Start-menu/uninstall-list rendering after an upgrade. These require desktop switching/scaling and a local installation lifecycle outside the completed build/resource check; do not treat resource validation as a passed visual matrix. Independent legal clearance is not established by the supplied asset metadata.
 
 ## Environment
 

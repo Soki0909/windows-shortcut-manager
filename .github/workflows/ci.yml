@@ -20,6 +20,7 @@ jobs:
         run: |
           ./scripts/prepare-installer-tools.ps1
           ./scripts/package-installer.ps1 -Version 0.1.0 -SkipPublish
+          ./scripts/verify-branding.ps1 -Version 0.1.0
   extension:
     runs-on: ubuntu-latest
     steps:
