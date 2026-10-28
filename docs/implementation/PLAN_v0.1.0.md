@@ -19,6 +19,7 @@ Done requires:
 
 ## Progress
 
+- [x] Issue #8 publication (2026-10-28): PR #107 reviewed, CI passed and merged to main at b838d06; v0.1.1 published by Release run 40621230598; downloaded public EXE/ZIPs/checksums passed independent digest, ZIP-layout, version and seven-frame icon checks; owner confirmed taskbar logo. See VERIFICATION for public hashes.
 - [x] Issue #8 release preparation (2026-10-28): diagnosed installed old EXE without icon resources; v0.1.1 version alignment and release notes prepared; Core 15/15, Windows 20/20, Chrome 10/10, Release build and package/resource/checksum gates passed. PR review, merge and publication follow the owner's explicit authorization.
 - [x] Issue #8 implementation (2026-10-28): owner-supplied logo source/exports preserved; EXE/WPF Window/header/Setup wired; Release build, packages, seven-frame binary comparison, checksums and packaged GUI title/header passed. Shell surfaces and DPI visual matrix remain manual follow-up (see VERIFICATION).
 - [x] M11 Startup persisted-shortcut audit and automatic transactional repair (2026-10-27; real COM drift/repair, no-op, ownership and external-conflict tests passed; installed GUI displayed matching audit for all 19 links)
@@ -201,6 +202,7 @@ Validation:
 
 ## Verification Evidence
 
+- Owner confirmed the new v0.1.1 taskbar logo on 2026-10-28. Installed v0.1.0 had no native icon resources; its Start-menu launcher points to that older EXE. No product fix beyond the new icon-bearing build or icon-cache reset was necessary for the taskbar check.
 - Issue #8 (2026-10-28): `dotnet build ShortcutManager.sln -c Release --no-restore --nologo` passed with zero warnings/errors; `scripts/package.ps1`, `scripts/package-installer.ps1 -SkipPublish`, and `scripts/verify-branding.ps1` passed. All seven EXE/Setup icon frames are byte-identical to the supplied ICO and all three artifact SHA-256 values match. Computer Use inspection of the newly packaged local executable showed the logo in the title bar and header and a healthy startup audit.
 - M11/M12 (2026-10-27): Core 15/15, Windows 20/20, Chrome 10/10. Real COM audit covers missing, modified and obsolete links; reconciliation covers backup-backed repair, a no-write healthy start, and no-write external-conflict rejection. Inno Setup 6.7.3 generated the Setup EXE. Actual per-user install/reinstall/uninstall/reinstall all exited 0; config and 19 managed links plus ownership marker remained byte-identical. Installed GUI launched from its Start-menu launcher and displayed the matching-audit status. All 404 installed payload files and all three artifact SHA-256 values matched.
 - Final M9/M10 audit (2026-10-27): Core 15/15, Windows 17/17, Chrome 10/10; package regeneration and independent SHA-256/ZIP checks passed. Final packaged GUI displayed a responsive window and closed normally. Owner confirmed new physical U activation without restarting Windows, U removal, and no extra foreground Explorer window after automatic Shell recovery. All changes are committed and pushed to `codex/live-refresh-modern-ui`.

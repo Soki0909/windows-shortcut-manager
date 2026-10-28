@@ -1,9 +1,10 @@
-# v0.1.0 Verification
+# Shortcut Manager Verification
 
 Updated: 2026-10-28 (Asia/Tokyo)
 
 ## Issue #8 — product logo (2026-10-28)
 
+- Owner confirmed the newly packaged v0.1.1 displays the new logo in the taskbar on 2026-10-28. This passes the requested taskbar check; the installed old EXE remains unchanged until the owner runs the update installer.
 - Follow-up for v0.1.1: the installed v0.1.0 EXE has no RT_GROUP_ICON resources (0 matching logo frames), and the Start-menu launcher points to that installed EXE with the default icon reference. This explains the old taskbar appearance before installing an update; the packaged build is a separate executable. No cache reset or Explorer restart was needed to establish the cause.
 - v0.1.1 candidate: Core 15/15, Windows 20/20, Chrome 10/10 passed; Release solution build passed with zero warnings/errors; package and installer generation passed. All seven new EXE/Setup frames and all three artifact checksums passed `scripts/verify-branding.ps1 -Version 0.1.1`. Application, backup metadata, About, extension and packaging versions are aligned to 0.1.1; protocol/schema remain 1.
 - Owner supplied the SVG, transparent PNG exports and multi-resolution ICO and requested integration. Originals are retained under `assets/branding/` and application `Assets/`; provenance is documented without asserting a separate third-party license or independent rights clearance.
@@ -11,8 +12,8 @@ Updated: 2026-10-28 (Asia/Tokyo)
 - `scripts/package.ps1 -Version 0.1.0` and `scripts/package-installer.ps1 -Version 0.1.0 -SkipPublish` passed with Inno Setup 6.7.3.
 - `scripts/verify-branding.ps1 -Version 0.1.0` reads native RT_GROUP_ICON/RT_ICON resources as data: EXE and Setup each contain byte-identical copies of all supplied 16/24/32/48/64/128/256px ICO frames. All three generated artifact SHA-256 values match `SHA256SUMS.txt`. CI and Release now run this verification.
 - Computer Use inspection of the executable under `artifacts/publish/win-x64/` confirmed the logo in the title bar and header, an intact layout and a matching startup audit. The installed older executable was distinguished from the new build by its full returned process path.
-- Existing installer Start-menu/desktop launchers and `UninstallDisplayIcon` use `ShortcutManager.exe`, which now embeds the logo. No installation, release publication, or Explorer icon-cache reset was performed for this change.
-- Remaining manual checks: taskbar and Alt+Tab at multiple DPI settings, and installed Start-menu/uninstall-list rendering after an upgrade. These require desktop switching/scaling and a local installation lifecycle outside the completed build/resource check; do not treat resource validation as a passed visual matrix. Independent legal clearance is not established by the supplied asset metadata.
+- Existing installer Start-menu/desktop launchers and `UninstallDisplayIcon` use `ShortcutManager.exe`, which now embeds the logo. The initial local implementation did not install or publish an update. No Explorer icon-cache reset was performed.
+- Remaining manual checks: Alt+Tab and the visual matrix across multiple DPI settings, and installed Start-menu/uninstall-list rendering after an upgrade. The owner limited the follow-up visual check to the taskbar, which passed. Do not treat native-resource validation as a passed full visual matrix.
 
 ## Environment
 
@@ -114,6 +115,20 @@ Full evidence with exact paths is stored only in gitignored `local/inventory.jso
 - Native Windows UI inspection passes for the modern layout and edit flow. The integrated Apply → consent prompt → Explorer PID change → physical HotKey check passed without restarting Windows. Corrected success reporting, temporary U removal, and automatic Shell recovery without an extra foreground window also passed. No manual gates remain for M9/M10.
 
 ## Publication status
+
+### GitHub Release v0.1.1 — published 2026-10-28
+
+- [PR #107](https://github.com/Soki0909/windows-shortcut-manager/pull/107) was reviewed with no blocking findings and merged into main after [PR CI 40620906065](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/40620906065) succeeded. Issue #8 closed on merge.
+- Source/tag commit: `b838d0692002c42857725eaf740c000ef9f3c6be`. [Main CI 40621198679](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/40621198679) and [Release 40621230598](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/40621230598) succeeded. Release passed Core 15/15, Windows 20/20, Chrome 10/10, ZIP/Setup generation and the seven-frame icon verification.
+- [Shortcut Manager v0.1.1](https://github.com/Soki0909/windows-shortcut-manager/releases/tag/v0.1.1) published at 11:31 JST as a normal release. v0.1.0 artifacts/tag were preserved.
+- Independently downloaded all four published attachments, matched all three payload hashes against both the published checksum file and GitHub asset digests, verified the Windows ZIP contains the expected EXE/DLL and the extension ZIP has a root manifest with version 0.1.1, then confirmed every downloaded EXE/Setup icon frame matches the original ICO.
+- Owner confirmed the v0.1.1 taskbar logo on the local packaged build. Local installed v0.1.0 was not upgraded as part of publication; use the new Setup EXE to update it.
+
+| Published artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `ShortcutManager-Setup-win-x64-v0.1.1.exe` | 46,626,544 | `fc5888e86fd3e9b293a39c8edc153e401bc8762b46357c99f5851dad3c868d54` |
+| `ShortcutManager-win-x64-v0.1.1.zip` | 65,424,881 | `a8c3579c72e8500b2403074d96886b29285d87df290eafa5c51c2f5dca1fb977` |
+| `ShortcutManager-TabBridge-v0.1.1.zip` | 9,767 | `41078aebd2feac3a5a656b13ac1c5b262f805a1b7b12d4e46d2fdc8de34d0567` |
 
 ### GitHub Release v0.1.0 — published 2026-10-27
 
