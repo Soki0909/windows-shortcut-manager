@@ -9,7 +9,7 @@ namespace ShortcutManager.Windows.Backup;
 
 public sealed class RestoreService(ConfigRepository repository, ConfigValidator validator, BackupService backups, ManagedShortcutApplier applier, string statePath)
 {
-    public ApplyResult Restore(string backupPath, string managedDirectory)
+    public ApplyResult Restore(string backupPath, string managedDirectory, IReadOnlyCollection<string>? externalConflictHotkeys = null)
     {
         var manifest = BackupService.Inspect(backupPath);
         if (manifest.FormatVersion != 1) return new(false, "未対応の backup format です。");
@@ -20,6 +20,6 @@ public sealed class RestoreService(ConfigRepository repository, ConfigValidator 
         var validation = validator.Validate(config);
         if (!validation.IsValid) return new(false, "Backup内のconfigが無効です: " + string.Join(" / ", validation.Issues.Select(issue => issue.Message)));
         backups.Create("restore", repository.Path, managedDirectory, statePath);
-        return applier.Apply(config, managedDirectory);
+        return applier.Apply(config, managedDirectory, externalConflictHotkeys);
     }
 }

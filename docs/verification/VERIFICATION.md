@@ -2,6 +2,14 @@
 
 Updated: 2026-10-28 (Asia/Tokyo)
 
+## Development/product isolation (2026-10-28, unreleased)
+
+- `scripts/run-debug.ps1` builds and launches the exact `ShortcutManager.Debug.exe`; observed process title `Shortcut Manager [DEBUG]`, responsive process. Release solution build succeeds with the original `ShortcutManager.exe` name. Both builds report zero warnings/errors.
+- Debug uses `ShortcutManager.Debug` LocalAppData and `Shortcut Manager Debug` managed links. A copied config's managed-folder override cannot redirect Debug writes. Unit/real-COM regression coverage verifies independent paths, unchanged Release path overrides, Apply/Restore preserving product sentinels, and conflict rejection preserving prior debug config/link bytes.
+- Windows tests: 24/24 passed in Release and Debug. Debug Core 15/15 and Chrome 10/10 passed. `package.ps1 -Configuration Debug` rejected its parameter before touching publish output.
+- Real Debug launch preserved all 22 SHA-256 values covering the installed EXE, product config and managed files. It did not load the installed config automatically or update the installation. The owner-requested workflow is persisted in AGENTS.md and ADR-007.
+- GUI screenshot/interaction verification was interrupted by the owner's physical Escape. No further Computer Use input was issued. D-badge rendering and simultaneous taskbar-group appearance remain visual checks; process identity/title and storage isolation are verified automatically. The previously owner-confirmed v0.1.1 product logo taskbar check remains passed.
+
 ## Issue #8 — product logo (2026-10-28)
 
 - Owner confirmed the newly packaged v0.1.1 displays the new logo in the taskbar on 2026-10-28. This passes the requested taskbar check; the installed old EXE remains unchanged until the owner runs the update installer.

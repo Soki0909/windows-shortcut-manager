@@ -12,6 +12,14 @@ public partial class MainWindow : Window
     public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
+        Title = BuildIdentity.DisplayName;
+        ProductTitle.Text = BuildIdentity.DisplayName;
+        if (BuildIdentity.IsDevelopment)
+        {
+            DevelopmentNotice.Visibility = Visibility.Visible;
+            Icon = BuildIdentity.CreateDevelopmentIcon();
+            ProductLogo.Source = Icon;
+        }
         this.viewModel = viewModel;
         DataContext = viewModel;
     }
@@ -86,7 +94,7 @@ public partial class MainWindow : Window
         "Windows Explorerを再起動",
         MessageBoxButton.YesNo,
         MessageBoxImage.Warning) == MessageBoxResult.Yes;
-    private void About_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this, "Shortcut Manager v0.1.1\n非常駐 / local-only\nWindows .lnk HotKey + Chrome Dispatcher Protocol v1", "About");
+    private void About_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this, $"{BuildIdentity.DisplayName} v{BuildIdentity.Version}\n{(BuildIdentity.IsDevelopment ? "デバッグ版" : "製品版")} / 非常駐 / local-only\nWindows .lnk HotKey + Chrome Dispatcher Protocol v1", "About");
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {

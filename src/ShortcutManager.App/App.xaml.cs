@@ -12,12 +12,13 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        var paths = ShortcutManager.Windows.Storage.ApplicationPaths.ForCurrentUser();
+        BuildIdentity.ConfigureTaskbar();
+        var paths = ShortcutManager.Windows.Storage.ApplicationPaths.ForCurrentUser(BuildIdentity.IsDevelopment);
         var repository = new ShortcutManager.Windows.Storage.ConfigRepository(paths.ConfigPath);
         var validator = new ShortcutManager.Core.Validation.ConfigValidator();
         var shellLinks = new ShortcutManager.Windows.ShellLinks.ShellLinkService();
         var resolver = new ShortcutManager.Windows.Launching.LaunchSpecResolver(new ShortcutManager.Windows.Chrome.ChromeLocator(), new ShortcutManager.Core.Protocol.DispatcherUriBuilder());
-        var backups = new ShortcutManager.Windows.Backup.BackupService(paths.BackupDirectory, "0.1.1");
+        var backups = new ShortcutManager.Windows.Backup.BackupService(paths.BackupDirectory, BuildIdentity.Version);
         var applier = new ShortcutManager.Windows.Apply.ManagedShortcutApplier(repository, validator, resolver, shellLinks, backups, paths.StagingDirectory, paths.StatePath, shellNotifier: new ShortcutManager.Windows.Shell.ShellChangeNotifier());
         var scanner = new ShortcutManager.Windows.Inventory.ShortcutInventoryScanner(shellLinks, new ShortcutManager.Windows.Inventory.UrlShortcutReader());
         var logger = new ShortcutManager.Windows.Logging.FileLogger(paths.LogPath);
@@ -56,7 +57,9 @@ public partial class App : Application
         {
             if (restorePath is not null)
             {
-                result = restore.Restore(restorePath, paths.ManagedShortcutDirectory);
+                var inventory = scanner.ScanDefaultAsync(paths.ManagedShortcutDirectory).GetAwaiter().GetResult();
+                var external = inventory.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
+                result = restore.Restore(restorePath, paths.ManagedShortcutDirectory, external);
             }
             else if (scanRequested)
             {
@@ -72,7 +75,7 @@ public partial class App : Application
                 else if (!validation.IsValid) result = new { ok = false, message = "Validation failed.", issues = validation.Issues };
                 else
                 {
-                    var managed = config.Settings.ManagedShortcutDirectory ?? paths.ManagedShortcutDirectory;
+                    var managed = paths.ResolveManagedDirectory(config.Settings.ManagedShortcutDirectory);
                     var inventory = scanner.ScanDefaultAsync(managed).GetAwaiter().GetResult();
                     var external = inventory.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
                     result = applier.Apply(config, managed, external);
