@@ -11,26 +11,13 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
-        if (e.Args.FirstOrDefault() == "--dispatch-group")
-        {
-            // Do this before configuring Shell identity, loading config or creating any UI.
-            try
-            {
-                if (e.Args.Length != 4) throw new ArgumentException("--dispatch-group requires chrome.exe, extension ID and group name.");
-                var foreground = ShortcutManager.Windows.Launching.ChromeGroupDispatch.WasChromeForeground(e.Args[1]);
-                ShortcutManager.Windows.Launching.ChromeGroupDispatch.Launch(e.Args[1], e.Args[2], e.Args[3], foreground);
-                Shutdown(0);
-            }
-            catch { Shutdown(1); }
-            return;
-        }
         base.OnStartup(e);
         BuildIdentity.ConfigureTaskbar();
         var paths = ShortcutManager.Windows.Storage.ApplicationPaths.ForCurrentUser(BuildIdentity.IsDevelopment);
         var repository = new ShortcutManager.Windows.Storage.ConfigRepository(paths.ConfigPath);
         var validator = new ShortcutManager.Core.Validation.ConfigValidator();
         var shellLinks = new ShortcutManager.Windows.ShellLinks.ShellLinkService();
-        var resolver = new ShortcutManager.Windows.Launching.LaunchSpecResolver(new ShortcutManager.Windows.Chrome.ChromeLocator(), new ShortcutManager.Core.Protocol.DispatcherUriBuilder(), Environment.ProcessPath);
+        var resolver = new ShortcutManager.Windows.Launching.LaunchSpecResolver(new ShortcutManager.Windows.Chrome.ChromeLocator(), new ShortcutManager.Core.Protocol.DispatcherUriBuilder(), BuildIdentity.IsDevelopment ? ValueAfter(e.Args, "--chrome-test-profile") : null);
         var backups = new ShortcutManager.Windows.Backup.BackupService(paths.BackupDirectory, BuildIdentity.Version);
         var applier = new ShortcutManager.Windows.Apply.ManagedShortcutApplier(repository, validator, resolver, shellLinks, backups, paths.StagingDirectory, paths.StatePath, shellNotifier: new ShortcutManager.Windows.Shell.ShellChangeNotifier());
         var scanner = new ShortcutManager.Windows.Inventory.ShortcutInventoryScanner(shellLinks, new ShortcutManager.Windows.Inventory.UrlShortcutReader());

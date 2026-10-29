@@ -56,7 +56,7 @@ async function notifyNotFound(groupName) {
   });
 }
 
-async function focusGroup(groupName, notify = true, action = FOCUS_GROUP_ACTION, chromeWasForeground = false, dispatcherTabId = null) {
+async function focusGroup(groupName, notify = true, action = FOCUS_GROUP_ACTION, dispatcherTabId = null) {
   let groups;
   try { groups = await chrome.tabGroups.query({}); }
   catch { return failure("group-query-failed", "タブグループ一覧を取得できませんでした。"); }
@@ -67,7 +67,7 @@ async function focusGroup(groupName, notify = true, action = FOCUS_GROUP_ACTION,
     return failure("group-not-found", `「${groupName}」は現在開かれていません。`);
   }
 
-  if (shouldCollapse(action, chromeWasForeground, group.collapsed)) {
+  if (shouldCollapse(action, group.collapsed)) {
     try {
       await chrome.windows.update(group.windowId, { focused: true });
       // Closing the active Dispatcher can otherwise reactivate a member and undo collapse.
@@ -128,10 +128,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "dispatch") {
     if (message.protocolVersion !== DISPATCH_PROTOCOL_VERSION) { sendResponse(failure("invalid-protocol", "Dispatcher protocol v1 が必要です。")); return false; }
     if (![FOCUS_GROUP_ACTION, TOGGLE_GROUP_ACTION].includes(message.action)) { sendResponse(failure("invalid-action", "未対応の action です。")); return false; }
-    if (message.action === TOGGLE_GROUP_ACTION && typeof message.payload?.chromeWasForeground !== "boolean") { sendResponse(failure("invalid-foreground", "呼出し前の状態が必要です。")); return false; }
     const groupName = normalizeGroupTitle(message.payload?.groupName);
     if (!groupName) { sendResponse(failure("empty-group-name", "タブグループ名が空です。")); return false; }
-    queueDispatch(() => focusGroup(groupName, true, message.action, message.payload.chromeWasForeground, _sender.tab?.id)).then(sendResponse).catch(() => sendResponse(failure("internal-error", "予期しないエラーが発生しました。")));
+    queueDispatch(() => focusGroup(groupName, true, message.action, _sender.tab?.id)).then(sendResponse).catch(() => sendResponse(failure("internal-error", "予期しないエラーが発生しました。")));
     return true;
   }
   if (message?.type === "focus-group") { focusGroup(normalizeGroupTitle(message.groupName), message.notify !== false).then(sendResponse); return true; }

@@ -9,6 +9,7 @@ public sealed class ConfigSafetyTests
 {
     [Theory]
     [InlineData("{\"settings\":null}", "$.settings")]
+    [InlineData("{}", "$.schemaVersion")]
     [InlineData("{\"shortcuts\":null}", "$.shortcuts")]
     [InlineData("{\"shortcuts\":[null]}", "$.shortcuts[0]")]
     [InlineData("{\"shortcuts\":[{\"name\":null}]}", ".name")]
@@ -36,5 +37,15 @@ public sealed class ConfigSafetyTests
         var config = new ShortcutConfig { Shortcuts = [new() { Name = new string('a', 100000) }] };
         Assert.Contains(new ConfigValidator().Validate(config).Issues, issue => issue.Path == "$.shortcuts[0].name");
         Assert.False(new ConfigValidator().Validate(new() { Shortcuts = Enumerable.Range(0, 27).Select(_ => new ShortcutDefinition()).ToList() }).IsValid);
+    }
+
+    [Fact]
+    public void RejectsAggregateSizeThatCouldNotBeReloadedAfterApply()
+    {
+        var config = new ShortcutConfig { Shortcuts = Enumerable.Range(0, 26).Select(index => new ShortcutDefinition {
+            Name = "Test", Hotkey = new() { Key = ((char)('A' + index)).ToString() },
+            Target = new ApplicationTarget { Value = new string('a', 32767), Arguments = new string('b', 32767), WorkingDirectory = new string('c', 32767) }
+        }).ToList() };
+        Assert.Contains(new ConfigValidator().Validate(config, false).Issues, issue => issue.Path == "$");
     }
 }

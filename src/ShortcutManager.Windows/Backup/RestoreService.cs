@@ -12,11 +12,17 @@ public sealed class RestoreService(ConfigValidator validator, ManagedShortcutApp
     public ApplyResult Restore(string backupPath, string managedDirectory, IReadOnlyCollection<string>? externalConflictHotkeys = null)
     {
         var verified = BackupArchive.Read(backupPath);
-        var config = ConfigJson.Deserialize(System.Text.Encoding.UTF8.GetString(verified.Config));
+        // The archive already bounded this byte array. Preserve StreamReader's original
+        // UTF-8/UTF-16/UTF-32 BOM support without an unbounded ReadToEnd on ZIP input.
+        using var input = new MemoryStream(verified.Config, writable: false);
+        using var reader = new StreamReader(input, detectEncodingFromByteOrderMarks: true);
+        var text = new char[verified.Config.Length];
+        var length = reader.ReadBlock(text, 0, text.Length);
+        var config = ConfigJson.Deserialize(new string(text, 0, length));
         var validation = validator.Validate(config);
         if (!validation.IsValid) return new(false, "Backup内のconfigが無効です: " + string.Join(" / ", validation.Issues.Select(issue => issue.Message)));
         ManagedShortcutApplier.EnsureOwnershipSafe(managedDirectory);
         // Apply creates the current-state backup after its conflict and ownership checks.
-        return applier.Apply(config, managedDirectory, externalConflictHotkeys);
+        return applier.Apply(config, managedDirectory, externalConflictHotkeys, backupReason: "restore");
     }
 }

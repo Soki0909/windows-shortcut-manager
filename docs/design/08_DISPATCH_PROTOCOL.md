@@ -14,7 +14,7 @@ Protocol version:
 Canonical:
 
 ```text
-chrome-extension://{extensionId}/dispatch.html?v=1&action=focus-group&group={percentEncodedGroupName}
+chrome-extension://{extensionId}/dispatch.html?v=1&action=toggle-group&group={percentEncodedGroupName}
 ```
 
 Parameter order も上記を canonical とする。
@@ -25,6 +25,7 @@ C#:
 
 ```csharp
 Uri BuildFocusGroupUri(string extensionId, string groupName)
+Uri BuildToggleGroupUri(string extensionId, string groupName)
 ```
 
 Validation:
@@ -43,6 +44,9 @@ Required:
 Accepted:
 - `v=1`
 - `action=focus-group`
+- `action=toggle-group`（#110、2026-10-29所有者承認。前面アプリに関係なくcollapsedを反転。新lnkの既定）
+
+旧focus-groupおよびPopupは常に展開する。foreground等の入力は不要。対象外タブがなければ折りたたみ時にabout:blankへ退避し、対象memberを再activeにしない。詳細はADR-008。
 
 Unknown extra parameters:
 ignore。
@@ -71,6 +75,7 @@ Examples:
 - `group-not-found`
 - `group-query-failed`
 - `group-expand-failed`
+- `group-collapse-failed`
 - `window-focus-failed`
 - `tab-query-failed`
 - `tab-activate-failed`

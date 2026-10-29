@@ -6,16 +6,13 @@ import { selectMatchingGroup } from "../../src/ChromeExtension/lib/group-selecti
 import { selectTabForGroup } from "../../src/ChromeExtension/lib/tab-selection.js";
 import { shouldCollapse } from "../../src/ChromeExtension/lib/group-operation.js";
 
-test("toggle requires an explicit foreground sample, preserving legacy focus", () => {
-  assert.equal(parseDispatchQuery("?v=1&action=toggle-group&group=x").code, "invalid-foreground");
-  assert.equal(parseDispatchQuery("?v=1&action=toggle-group&group=x&foreground=chrome").request.payload.chromeWasForeground, true);
-  assert.equal(parseDispatchQuery("?v=1&action=toggle-group&group=x&foreground=other").request.payload.chromeWasForeground, false);
+test("toggle depends only on collapsed state and preserves legacy focus", () => {
+  assert.equal(parseDispatchQuery("?v=1&action=toggle-group&group=x").request.action, "toggle-group");
+  assert.deepEqual(parseDispatchQuery("?v=1&action=toggle-group&group=x&foreground=chrome").request.payload, { groupName: "x" });
   for (const collapsed of [true, false]) {
-    assert.equal(shouldCollapse("focus-group", true, collapsed), false);
-    assert.equal(shouldCollapse("toggle-group", false, collapsed), false);
+    assert.equal(shouldCollapse("focus-group", collapsed), false);
+    assert.equal(shouldCollapse("toggle-group", collapsed), !collapsed);
   }
-  assert.equal(shouldCollapse("toggle-group", true, true), false);
-  assert.equal(shouldCollapse("toggle-group", true, false), true);
 });
 
 test("normalizes whitespace and Unicode NFKC", () => assert.equal(normalizeGroupTitle(" ７脱 "), "7脱"));
@@ -42,9 +39,9 @@ test("falls back to active then first tab", () => {
   assert.equal(selectTabForGroup([{ id: 1 }, { id: 2 }], null).id, 1);
 });
 
-test("worker dispatch opens from outside, alternates in Chrome, and survives worker reload", async () => {
+test("worker dispatch alternates independently of foreground and survives worker reload", async () => {
   const events = [];
-  const group = { id: 7, windowId: 2, title: "test", collapsed: false };
+  const group = { id: 7, windowId: 2, title: "test", collapsed: true };
   const member = { id: 10, groupId: 7, windowId: 2, url: "https://example.com/", index: 0 };
   const outside = { id: 11, groupId: -1, windowId: 2, url: "about:blank", index: 1 };
   let listener;
@@ -63,27 +60,27 @@ test("worker dispatch opens from outside, alternates in Chrome, and survives wor
     },
     notifications: { async create() {} },
   };
-  const dispatch = (foreground, action = "toggle-group") => new Promise((resolve) => {
-    assert.equal(listener({ type: "dispatch", protocolVersion: 1, action, payload: { groupName: "test", chromeWasForeground: foreground } }, { tab: { id: 99 } }, resolve), true);
+  const dispatch = (action = "toggle-group") => new Promise((resolve) => {
+    assert.equal(listener({ type: "dispatch", protocolVersion: 1, action, payload: { groupName: "test" } }, { tab: { id: 99 } }, resolve), true);
   });
   try {
     await import(`../../src/ChromeExtension/service-worker.js?test=${Date.now()}`);
-    assert.equal((await dispatch(false)).code, "ok");
+    assert.equal((await dispatch()).code, "ok");
     assert.equal(group.collapsed, false);
     events.length = 0;
-    assert.equal((await dispatch(true)).code, "collapsed");
+    assert.equal((await dispatch()).code, "collapsed");
     assert.deepEqual(events, ["window", "activate:11", "collapse"]);
-    assert.equal((await dispatch(true)).code, "ok");
+    assert.equal((await dispatch()).code, "ok");
     assert.equal(group.collapsed, false);
-    await Promise.all([dispatch(true), dispatch(true)]);
+    await Promise.all([dispatch(), dispatch()]);
     assert.equal(group.collapsed, false);
     await import(`../../src/ChromeExtension/service-worker.js?restart=${Date.now()}`);
-    assert.equal((await dispatch(true)).code, "collapsed");
-    assert.equal((await dispatch(false)).code, "ok");
-    assert.equal((await dispatch(true, "focus-group")).code, "ok");
+    assert.equal((await dispatch()).code, "collapsed");
+    assert.equal((await dispatch()).code, "ok");
+    assert.equal((await dispatch("focus-group")).code, "ok");
     tabs = [member, tabs[2]];
     events.length = 0;
-    assert.equal((await dispatch(true)).code, "collapsed");
+    assert.equal((await dispatch()).code, "collapsed");
     assert.deepEqual(events, ["window", "blank", "collapse"]);
   } finally { delete globalThis.chrome; }
 });

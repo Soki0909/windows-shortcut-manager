@@ -155,6 +155,7 @@ public sealed class WindowsTests : IDisposable
         var result = restore.Restore(backupPath, fixture.Managed);
 
         Assert.True(result.Succeeded, result.Message);
+        Assert.Equal("restore", BackupService.Inspect(result.BackupPath!).Reason);
         Assert.Equal("G", fixture.Config.Load().Shortcuts.Single().Hotkey.Key);
         Assert.StartsWith("G - ", Path.GetFileName(Directory.GetFiles(fixture.Managed, "*.lnk").Single()));
     }
@@ -352,6 +353,12 @@ public sealed class WindowsTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => ManagedShortcutApplier.EnsureOwnershipSafe(link));
         Assert.Throws<InvalidOperationException>(() => ManagedShortcutApplier.EnsureOwnershipSafe(Path.Combine(link, "child")));
         Assert.Empty(Directory.GetFileSystemEntries(target));
+        var missingTarget = Path.Combine(root, "missing-target");
+        var dangling = Path.Combine(root, "dangling");
+        Directory.CreateSymbolicLink(dangling, missingTarget);
+        Assert.Throws<InvalidOperationException>(() => ManagedShortcutApplier.EnsureOwnershipSafe(dangling));
+        Assert.Throws<InvalidOperationException>(() => ManagedShortcutApplier.EnsureOwnershipSafe(Path.Combine(dangling, "child")));
+        Assert.False(Directory.Exists(missingTarget));
     }
 
     [Fact]
@@ -373,8 +380,10 @@ public sealed class WindowsTests : IDisposable
         Assert.Equal(count, Directory.GetFiles(Path.Combine(root, "backups")).Length);
     }
 
-    [Fact]
-    public async Task CorruptConfigBlocksApplyUntilReloadRestoreOrExplicitInitialization()
+    [Theory]
+    [InlineData("broken config")]
+    [InlineData("{}")]
+    public async Task CorruptConfigBlocksApplyUntilReloadRestoreOrExplicitInitialization(string brokenConfig)
     {
         var fixture = CreateFixture();
         Assert.True(fixture.Applier.Apply(SampleConfig(), fixture.Managed).Succeeded);
@@ -382,29 +391,29 @@ public sealed class WindowsTests : IDisposable
         var backup = fixture.Backups.Create("manual", fixture.Config.Path, fixture.Managed);
         var link = Directory.GetFiles(fixture.Managed, "*.lnk").Single();
         var linkBytes = File.ReadAllBytes(link);
-        File.WriteAllText(fixture.Config.Path, "broken config");
+        File.WriteAllText(fixture.Config.Path, brokenConfig);
         var paths = new ApplicationPaths(root, fixture.Config.Path, fixture.StatePath, Path.Combine(root, "log.txt"), Path.Combine(root, "backups"), Path.Combine(root, "staging"), fixture.Managed);
         var vm = new ShortcutManager.App.MainViewModel(paths, fixture.Config, new(), new(new ChromeLocator(), new DispatcherUriBuilder()), new(), new(new FakeShellLinkService(), new()), new(), fixture.Backups, fixture.Applier, new(new ConfigValidator(), fixture.Applier), new(paths.LogPath), new ExplorerShellReloader(new FakeExplorerShellProcessHost()));
         Assert.True(vm.RecoveryRequired);
         Assert.False(vm.CanApply);
         Assert.False(await vm.ApplyAsync());
         Assert.Equal(linkBytes, File.ReadAllBytes(link));
-        Assert.Equal("broken config", File.ReadAllText(fixture.Config.Path));
+        Assert.Equal(brokenConfig, File.ReadAllText(fixture.Config.Path));
         Assert.Single(Directory.GetFiles(Path.GetDirectoryName(fixture.Config.Path)!, "*.broken-*.json"));
         File.WriteAllBytes(fixture.Config.Path, valid);
         vm.Load();
         Assert.False(vm.RecoveryRequired);
-        File.WriteAllText(fixture.Config.Path, "broken config");
+        File.WriteAllText(fixture.Config.Path, brokenConfig);
         vm.Load();
         await vm.RestoreAsync(backup);
         Assert.False(vm.RecoveryRequired);
         Assert.Single(vm.Candidate.Shortcuts);
-        File.WriteAllText(fixture.Config.Path, "broken config");
+        File.WriteAllText(fixture.Config.Path, brokenConfig);
         vm.Load();
         vm.InitializeRecovery();
         Assert.True(vm.CanApply);
         Assert.Empty(vm.Candidate.Shortcuts);
-        Assert.Equal("broken config", File.ReadAllText(fixture.Config.Path));
+        Assert.Equal(brokenConfig, File.ReadAllText(fixture.Config.Path));
         Assert.Equal(linkBytes, File.ReadAllBytes(link));
     }
 
@@ -431,23 +440,57 @@ public sealed class WindowsTests : IDisposable
     }
 
     [Fact]
-    public void ChromeHotkeyUsesOneShotEntryWithQuotedArgumentsAndKeepsLegacyResolverCompatible()
+    public void ChromeHotkeyUsesDirectChromeToggleAndKeepsLegacyUriCompatible()
     {
         var chrome = Path.Combine(root, "chrome.exe");
         File.WriteAllText(chrome, "fixture");
         var config = SampleConfig() with { Settings = new() { Chrome = new() { ExecutablePath = chrome, ExtensionId = ExtensionId } } };
         var entry = Entry("F", new ChromeTabGroupTarget { GroupName = "Test \"quoted\" \\" });
-        var executable = Path.Combine(root, "ShortcutManager.Debug.exe");
-        var spec = new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder(), executable).Resolve(config, entry);
-        Assert.Equal(executable, spec.TargetPath);
-        Assert.StartsWith("--dispatch-group ", spec.Arguments);
-        Assert.Contains("\\\"quoted\\\"", spec.Arguments);
-        Assert.EndsWith("\\\\\"", spec.Arguments);
-        var legacy = new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder()).Resolve(config, entry);
-        Assert.Equal(chrome, legacy.TargetPath);
-        Assert.Contains("action=focus-group", legacy.Arguments);
-        var toggle = new DispatcherUriBuilder().BuildToggleGroupUri(ExtensionId, "a&b", true);
-        Assert.Contains("group=a%26b&foreground=chrome", toggle.AbsoluteUri);
+        var profile = Path.Combine(root, "profile with spaces");
+        var spec = new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder(), profile).Resolve(config, entry);
+        Assert.Equal(chrome, spec.TargetPath);
+        Assert.StartsWith("--user-data-dir=\"", spec.Arguments);
+        Assert.Contains("action=toggle-group", spec.Arguments);
+        Assert.Contains("%22quoted%22", spec.Arguments);
+        var normal = new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder()).Resolve(config, entry);
+        Assert.Equal(chrome, normal.TargetPath);
+        Assert.DoesNotContain("--user-data-dir", normal.Arguments);
+        Assert.DoesNotContain("foreground", normal.Arguments);
+        Assert.Contains("action=focus-group", new DispatcherUriBuilder().BuildFocusGroupUri(ExtensionId, "a&b").AbsoluteUri);
+        Assert.Contains("group=a%26b", new DispatcherUriBuilder().BuildToggleGroupUri(ExtensionId, "a&b").AbsoluteUri);
+        Assert.EndsWith("\\\\\"", LaunchSpecResolver.Quote("tail\\"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ApplyRejectsOversizedPriorSnapshotsBeforeCreatingStagingOrWritingLinks(bool oversizedState)
+    {
+        var fixture = CreateFixture();
+        fixture.Config.SaveAtomic(SampleConfig());
+        var path = oversizedState ? fixture.StatePath : fixture.Config.Path;
+        var length = (oversizedState ? BackupArchive.MaxEntryBytes : BackupArchive.MaxConfigBytes) + 1;
+        File.WriteAllBytes(path, new byte[length]);
+        Assert.Throws<InvalidDataException>(() => fixture.Applier.Apply(SampleConfig(), fixture.Managed));
+        Assert.Equal(length, new FileInfo(path).Length);
+        Assert.False(Directory.Exists(fixture.Managed));
+        Assert.False(Directory.Exists(Path.Combine(root, "staging")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RestorePreservesSupportForUtf8AndUtf16BomConfigs(bool utf16)
+    {
+        var fixture = CreateFixture();
+        Assert.True(fixture.Applier.Apply(SampleConfig(), fixture.Managed).Succeeded);
+        var json = File.ReadAllText(fixture.Config.Path);
+        File.WriteAllText(fixture.Config.Path, json, utf16 ? System.Text.Encoding.Unicode : new System.Text.UTF8Encoding(true));
+        var backup = fixture.Backups.Create("manual", fixture.Config.Path, fixture.Managed);
+        Assert.True(fixture.Applier.Apply(SampleConfig() with { Shortcuts = [Entry("H", new WebsiteTarget { Url = "https://example.org" })] }, fixture.Managed).Succeeded);
+        var result = new RestoreService(new ConfigValidator(), fixture.Applier).Restore(backup, fixture.Managed);
+        Assert.True(result.Succeeded, result.Message);
+        Assert.Equal("G", fixture.Config.Load().Shortcuts.Single().Hotkey.Key);
     }
 
     private Fixture CreateFixture(Action<string>? checkpoint = null)

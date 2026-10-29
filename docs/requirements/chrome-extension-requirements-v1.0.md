@@ -1,5 +1,11 @@
 # Chrome Extension 要件定義書 v1.0
 
+## 2026-10-29 所有者承認の追補（#110）
+
+Protocol v1へ`action=toggle-group`を追加する。groupNameによる対象選択規則を維持し、collapsedなら展開・Chrome前面化・最後のmemberへ復帰、expandedなら対象を折りたたむ。前面アプリは判定しない。タブやgroupを削除せず、折りたたみ時にmemberを再選択して展開し直さない。退避できる対象外タブがなければabout:blankを1つ作る。
+
+既存`focus-group`とPopupの「開く」は常に展開する。連続要求は直列化し、Service Worker停止・復帰でも前面履歴に依存しない。元の前面条件は#112へ分離する。この追補は以下の旧仕様と異なる部分に優先する。詳細はADR-008。
+
 更新日: 2026-09-30  
 状態: 要件定義 v1.0 / PoC 実証済み  
 対象: Chrome Tab Group Launcher Extension（仮称）

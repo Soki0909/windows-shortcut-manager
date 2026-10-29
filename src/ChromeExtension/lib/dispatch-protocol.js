@@ -19,16 +19,13 @@ export function parseDispatchQuery(search) {
   if (!groupName) {
     return failure("empty-group-name", "タブグループ名が空です。");
   }
-  if (action === TOGGLE_GROUP_ACTION && !["chrome", "other"].includes(params.get("foreground"))) {
-    return failure("invalid-foreground", "呼出し前の状態が必要です。HotKeyを再作成してください。");
-  }
   return {
     ok: true,
     request: {
       type: "dispatch",
       protocolVersion: DISPATCH_PROTOCOL_VERSION,
       action,
-      payload: { groupName, ...(action === TOGGLE_GROUP_ACTION ? { chromeWasForeground: params.get("foreground") === "chrome" } : {}) },
+      payload: { groupName },
     },
   };
 }

@@ -26,7 +26,9 @@ public static class BackupArchive
             if (!names.Add(name)) throw new InvalidDataException($"Duplicate backup entry: {name}");
             var managed = name.StartsWith("managed-shortcuts/", StringComparison.Ordinal)
                 && name[18..].Length > 0 && !name[18..].Contains('/') && !name.Contains('\\')
-                && name[18..] is not "." and not "..";
+                && name[18..] is not "." and not ".."
+                && !name[18..].Any(character => Path.GetInvalidFileNameChars().Contains(character))
+                && !name.EndsWith('.') && !name.EndsWith(' ');
             if (name is not "backup.json" and not "config.json" and not "state.json" && !managed)
                 throw new InvalidDataException($"Unexpected backup entry: {name}");
             var limit = name == "config.json" ? MaxConfigBytes : name == "backup.json" ? 16384 : MaxEntryBytes;

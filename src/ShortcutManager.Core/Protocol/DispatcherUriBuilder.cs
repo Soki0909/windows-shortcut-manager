@@ -15,10 +15,10 @@ public sealed partial class DispatcherUriBuilder
         return new Uri($"chrome-extension://{extensionId}/dispatch.html?v=1&action=focus-group&group={Uri.EscapeDataString(normalizedName)}");
     }
 
-    public Uri BuildToggleGroupUri(string extensionId, string groupName, bool chromeWasForeground)
+    public Uri BuildToggleGroupUri(string extensionId, string groupName)
     {
         var focus = BuildFocusGroupUri(extensionId, groupName).AbsoluteUri;
-        return new Uri(focus.Replace("action=focus-group", "action=toggle-group", StringComparison.Ordinal) + $"&foreground={(chromeWasForeground ? "chrome" : "other")}");
+        return new Uri(focus.Replace("action=focus-group", "action=toggle-group", StringComparison.Ordinal));
     }
 }
 

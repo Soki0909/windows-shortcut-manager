@@ -21,6 +21,7 @@ public sealed class BackupSafetyTests : IDisposable
     [Theory]
     [InlineData("written")]
     [InlineData("verified")]
+    [InlineData("entry:config.json")]
     public void FailedReplacementPreservesPreviouslyRestorableBackup(string phase)
     {
         var path = Create();
@@ -39,6 +40,7 @@ public sealed class BackupSafetyTests : IDisposable
     [InlineData("../escape", "x")]
     [InlineData("managed-shortcuts/../escape", "x")]
     [InlineData("managed-shortcuts/nested/file", "x")]
+    [InlineData("managed-shortcuts/C:escape.lnk", "x")]
     public void RejectsDuplicateAndUnexpectedEntries(string name, string content)
     {
         var path = Create();
@@ -72,6 +74,25 @@ public sealed class BackupSafetyTests : IDisposable
         }
         Assert.Throws<InvalidDataException>(() => BackupArchive.Read(path));
         File.WriteAllText(path, "broken zip");
+        Assert.Throws<InvalidDataException>(() => BackupArchive.Read(path));
+    }
+
+    [Theory]
+    [InlineData(129, 0)]
+    [InlineData(9, BackupArchive.MaxEntryBytes)]
+    [InlineData(1, BackupArchive.MaxEntryBytes + 1)]
+    public void RejectsExcessiveEntryCountExpandedTotalAndUnusedEntrySize(int count, int size)
+    {
+        var path = Create();
+        using (var archive = ZipFile.Open(path, ZipArchiveMode.Update))
+        {
+            var bytes = new byte[size];
+            for (var index = 0; index < count; index++)
+            {
+                using var stream = archive.CreateEntry($"managed-shortcuts/test-{index}.lnk", CompressionLevel.Optimal).Open();
+                stream.Write(bytes);
+            }
+        }
         Assert.Throws<InvalidDataException>(() => BackupArchive.Read(path));
     }
 }

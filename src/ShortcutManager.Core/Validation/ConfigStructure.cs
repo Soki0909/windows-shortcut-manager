@@ -61,6 +61,8 @@ public static class ConfigStructure
                 default: Invalid(path + ".target", "起動対象がnullまたは未対応です。"); break;
             }
         }
+        if (issues.Count == 0 && System.Text.Encoding.UTF8.GetByteCount(Serialization.ConfigJson.Serialize(config)) > MaxJsonCharacters)
+            Invalid("$", "保存時のJSONは1 MiB以下である必要があります。");
         return issues;
     }
 }

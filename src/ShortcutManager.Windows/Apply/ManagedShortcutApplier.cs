@@ -28,15 +28,15 @@ public sealed class ManagedShortcutApplier(
 {
     public const string OwnershipMarker = ".shortcut-manager-owned";
 
-    public ApplyResult Apply(ShortcutConfig config, string managedDirectory, IReadOnlyCollection<string>? externalConflictHotkeys = null)
+    public ApplyResult Apply(ShortcutConfig config, string managedDirectory, IReadOnlyCollection<string>? externalConflictHotkeys = null, string backupReason = "apply")
     {
         using var mutex = new Mutex(false, "Local\\ShortcutManager.Apply");
         if (!mutex.WaitOne(TimeSpan.Zero)) return new(false, "別の Apply/Restore が実行中です。");
-        try { return ApplyCore(config, managedDirectory, externalConflictHotkeys ?? []); }
+        try { return ApplyCore(config, managedDirectory, externalConflictHotkeys ?? [], backupReason); }
         finally { mutex.ReleaseMutex(); }
     }
 
-    private ApplyResult ApplyCore(ShortcutConfig config, string managedDirectory, IReadOnlyCollection<string> externalConflictHotkeys)
+    private ApplyResult ApplyCore(ShortcutConfig config, string managedDirectory, IReadOnlyCollection<string> externalConflictHotkeys, string backupReason)
     {
         var validation = validator.Validate(config);
         if (!validation.IsValid) return new(false, string.Join(Environment.NewLine, validation.Issues.Select(issue => issue.Message)));
@@ -52,17 +52,18 @@ public sealed class ManagedShortcutApplier(
         catch { priorNames = []; } // Recovery can still identify generated links by their Shell description.
         EnsureOwnershipSafe(managedDirectory, priorNames, shellLinks);
 
+        var priorConfig = ReadSnapshot(configRepository.Path, BackupArchive.MaxConfigBytes);
+        var priorMarkerPath = System.IO.Path.Combine(managedDirectory, OwnershipMarker);
+        var priorMarker = ReadSnapshot(priorMarkerPath, 1024);
+        var priorState = ReadSnapshot(statePath, BackupArchive.MaxEntryBytes);
+
         Directory.CreateDirectory(workingRoot);
         var operationRoot = System.IO.Path.Combine(workingRoot, Guid.NewGuid().ToString("N"));
         var stage = System.IO.Path.Combine(operationRoot, "stage");
         var old = System.IO.Path.Combine(operationRoot, "old");
         Directory.CreateDirectory(stage); Directory.CreateDirectory(old);
-        var priorConfig = File.Exists(configRepository.Path) ? File.ReadAllBytes(configRepository.Path) : null;
         var movedOld = new List<(string Source, string Destination)>();
         var committedNew = new List<string>();
-        var priorMarkerPath = System.IO.Path.Combine(managedDirectory, OwnershipMarker);
-        var priorMarker = File.Exists(priorMarkerPath) ? File.ReadAllBytes(priorMarkerPath) : null;
-        var priorState = File.Exists(statePath) ? File.ReadAllBytes(statePath) : null;
         var retainRecovery = false;
         string? backupPath = null;
 
@@ -77,7 +78,7 @@ public sealed class ManagedShortcutApplier(
                 if (!Same(read.TargetPath, launch.TargetPath) || read.Arguments != launch.Arguments || NormalizeHotkey(read.Hotkey) != launch.Hotkey) throw new InvalidDataException($"Staged shortcut verification failed: {path}");
             }
             checkpoint?.Invoke("staged");
-            backupPath = backups.Create("apply", configRepository.Path, managedDirectory, statePath);
+            backupPath = backups.Create(backupReason, configRepository.Path, managedDirectory, statePath);
             backups.EnforceRetention();
             checkpoint?.Invoke("backed-up");
             configRepository.SaveAtomic(config);
@@ -169,7 +170,7 @@ public sealed class ManagedShortcutApplier(
         if (!System.IO.Path.IsPathFullyQualified(managedDirectory)) throw new InvalidOperationException("管理フォルダは絶対パスが必要です。");
         var full = System.IO.Path.GetFullPath(managedDirectory).TrimEnd(System.IO.Path.DirectorySeparatorChar);
         foreach (var system in new[] { Environment.GetFolderPath(Environment.SpecialFolder.Windows), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) }.Where(value => !string.IsNullOrWhiteSpace(value)))
-            if (full.StartsWith(System.IO.Path.GetFullPath(system).TrimEnd(System.IO.Path.DirectorySeparatorChar) + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            if (full.Equals(System.IO.Path.GetFullPath(system).TrimEnd(System.IO.Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase) || full.StartsWith(System.IO.Path.GetFullPath(system).TrimEnd(System.IO.Path.DirectorySeparatorChar) + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("システム・インストールフォルダ配下は管理対象にできません。");
         var protectedRoots = new[] { System.IO.Path.GetPathRoot(managedDirectory), Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), Environment.GetFolderPath(Environment.SpecialFolder.Programs), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Environment.GetFolderPath(Environment.SpecialFolder.Windows), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) };
         foreach (var protectedRoot in protectedRoots.Where(value => !string.IsNullOrWhiteSpace(value)))
@@ -179,8 +180,16 @@ public sealed class ManagedShortcutApplier(
                 throw new InvalidOperationException("共有・システム・ユーザールートは管理フォルダにできません。");
         }
         for (var current = new DirectoryInfo(managedDirectory); current is not null; current = current.Parent)
-            if ((current.Exists || File.Exists(current.FullName)) && (File.GetAttributes(current.FullName) & FileAttributes.ReparsePoint) != 0)
-                throw new InvalidOperationException($"管理フォルダのreparse pointは許可していません: {current.FullName}");
+        {
+            try
+            {
+                if ((File.GetAttributes(current.FullName) & FileAttributes.ReparsePoint) != 0)
+                    throw new InvalidOperationException($"管理フォルダのreparse pointは許可していません: {current.FullName}");
+            }
+            catch (FileNotFoundException) { }
+            catch (DirectoryNotFoundException) { }
+        }
+        if (File.Exists(managedDirectory)) throw new InvalidOperationException("管理フォルダのパスが既存ファイルを指しています。");
         if (!Directory.Exists(managedDirectory)) return;
         var entries = Directory.EnumerateFileSystemEntries(managedDirectory).ToList();
         if (entries.Count > 0 && !File.Exists(System.IO.Path.Combine(managedDirectory, OwnershipMarker))) throw new InvalidOperationException("管理対象フォルダが非空ですが ownership marker がありません。Apply を拒否しました。");
@@ -208,6 +217,16 @@ public sealed class ManagedShortcutApplier(
             if (lines.Length != 3 || lines[0] != "Shortcut Manager" || lines[1] != "schemaVersion=1" || !lines[2].StartsWith("updatedAt=", StringComparison.Ordinal) || !DateTimeOffset.TryParse(lines[2][10..], out _))
                 throw new InvalidOperationException("ownership marker の内容が不正です。自動で上書きしません。");
         }
+    }
+
+    private static byte[]? ReadSnapshot(string path, int limit)
+    {
+        if (!File.Exists(path)) return null;
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (stream.Length > limit) throw new InvalidDataException($"復旧用スナップショットが容量上限を超えています。元ファイルを保全して中止しました: {path}");
+        var bytes = new byte[(int)stream.Length];
+        stream.ReadExactly(bytes);
+        return bytes;
     }
 
     private void RestoreConfig(byte[]? bytes)

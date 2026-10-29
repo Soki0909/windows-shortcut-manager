@@ -1,4 +1,4 @@
-// Legacy focus-group and Popup always open. Only an explicit pre-launch sample can collapse.
-export function shouldCollapse(action, chromeWasForeground, collapsed) {
-  return action === "toggle-group" && chromeWasForeground === true && collapsed === false;
+// Owner approved foreground-independent toggling on 2026-10-29.
+export function shouldCollapse(action, collapsed) {
+  return action === "toggle-group" && collapsed === false;
 }

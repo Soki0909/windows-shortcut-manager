@@ -15,7 +15,7 @@ document.querySelector("#setup").onclick = async () => {
 };
 document.querySelector("#duplicate").onclick = async () => {
   const window = await chrome.windows.create({ url: "about:blank", focused: false });
-  const id = await chrome.tabs.group({ tabIds: [window.tabs[0].id] });
+  const id = await chrome.tabs.group({ tabIds: [window.tabs[0].id], createProperties: { windowId: window.id } });
   await chrome.tabGroups.update(id, { title, collapsed: false });
   await refresh();
 };

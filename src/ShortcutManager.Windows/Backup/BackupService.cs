@@ -22,17 +22,25 @@ public sealed class BackupService(string backupDirectory, string appVersion, Act
         {
             using (var archive = ZipFile.Open(temporary, ZipArchiveMode.Create))
             {
+                long totalBytes = 0;
+                void AddEntry(string name, byte[] bytes)
+                {
+                    totalBytes += bytes.LongLength;
+                    if (totalBytes > BackupArchive.MaxTotalBytes) throw new InvalidDataException("Backup sources exceed the total size limit.");
+                    checkpoint?.Invoke($"entry:{name}");
+                    WriteEntry(archive, name, bytes);
+                }
                 var configBytes = File.Exists(configPath) ? ReadSource(configPath, BackupArchive.MaxConfigBytes) : Encoding.UTF8.GetBytes(ConfigJson.Serialize(new ShortcutConfig()));
-                WriteEntry(archive, "backup.json", JsonSerializer.SerializeToUtf8Bytes(new BackupManifest(1, DateTimeOffset.Now, appVersion, reason, Convert.ToHexString(SHA256.HashData(configBytes)).ToLowerInvariant()), new JsonSerializerOptions { WriteIndented = true }));
-                WriteEntry(archive, "config.json", configBytes);
+                AddEntry("backup.json", JsonSerializer.SerializeToUtf8Bytes(new BackupManifest(1, DateTimeOffset.Now, appVersion, reason, Convert.ToHexString(SHA256.HashData(configBytes)).ToLowerInvariant()), new JsonSerializerOptions { WriteIndented = true }));
+                AddEntry("config.json", configBytes);
                 var sourceCount = 0;
                 if (Directory.Exists(managedDirectory))
                     foreach (var file in Directory.EnumerateFiles(managedDirectory, "*", SearchOption.TopDirectoryOnly))
                     {
                         if (++sourceCount > BackupArchive.MaxEntries - 3) throw new InvalidDataException("Too many backup files.");
-                        WriteEntry(archive, $"managed-shortcuts/{System.IO.Path.GetFileName(file)}", ReadSource(file, BackupArchive.MaxEntryBytes));
+                        AddEntry($"managed-shortcuts/{System.IO.Path.GetFileName(file)}", ReadSource(file, BackupArchive.MaxEntryBytes));
                     }
-                if (statePath is not null && File.Exists(statePath)) WriteEntry(archive, "state.json", ReadSource(statePath, BackupArchive.MaxEntryBytes));
+                if (statePath is not null && File.Exists(statePath)) AddEntry("state.json", ReadSource(statePath, BackupArchive.MaxEntryBytes));
                 checkpoint?.Invoke("written");
             }
             _ = BackupArchive.Read(temporary);
