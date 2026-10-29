@@ -365,16 +365,17 @@ public sealed class WindowsTests : IDisposable
     public void RestoreConflictAfterBackupLeavesConfigLinksAndBackupsUnchanged()
     {
         var fixture = CreateFixture();
-        Assert.True(fixture.Applier.Apply(SampleConfig(), fixture.Managed).Succeeded);
+        Assert.True(fixture.Applier.Apply(SampleConfig() with { Shortcuts = [Entry("G", new WebsiteTarget { Url = "https://example.com" }), Entry("I", new WebsiteTarget { Url = "https://example.org" })] }, fixture.Managed).Succeeded);
         var backup = fixture.Backups.Create("manual", fixture.Config.Path, fixture.Managed);
         Assert.True(fixture.Applier.Apply(SampleConfig() with { Shortcuts = [Entry("H", new WebsiteTarget { Url = "https://example.org" })] }, fixture.Managed).Succeeded);
         var config = File.ReadAllBytes(fixture.Config.Path);
         var link = Directory.GetFiles(fixture.Managed, "*.lnk").Single();
         var bytes = File.ReadAllBytes(link);
         var count = Directory.GetFiles(Path.Combine(root, "backups")).Length;
-        var result = new RestoreService(new ConfigValidator(), fixture.Applier).Restore(backup, fixture.Managed, ["CTRL+ALT+G"]);
+        var result = new RestoreService(new ConfigValidator(), fixture.Applier).Restore(backup, fixture.Managed, ["CTRL+ALT+G", "CTRL+ALT+I"]);
         Assert.False(result.Succeeded);
         Assert.Contains("CTRL+ALT+G", result.Message);
+        Assert.Contains("CTRL+ALT+I", result.Message);
         Assert.Equal(config, File.ReadAllBytes(fixture.Config.Path));
         Assert.Equal(bytes, File.ReadAllBytes(link));
         Assert.Equal(count, Directory.GetFiles(Path.Combine(root, "backups")).Length);

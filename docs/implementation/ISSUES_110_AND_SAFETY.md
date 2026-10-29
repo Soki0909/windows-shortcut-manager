@@ -35,7 +35,7 @@
 ## Validation Evidence
 
 - 詳細な要件対応表: [ISSUES_110_SAFETY_2026-10-29.md](../verification/ISSUES_110_SAFETY_2026-10-29.md)。
-- 最終Release Core 26/26、Windows 53/53、Node 12/12合格。必須root項目欠落の有効JSONも空設定へ変換せず、復旧モードへ移す。UTF-8/UTF-16 BOM付き設定の復元互換も維持する。
+- 最終Release Core 27/27、Windows 53/53、Node 12/12合格。必須root項目欠落の有効JSONも空設定へ変換せず、復旧モードへ移す。UTF-8/UTF-16 BOM付き設定の復元互換も維持する。
 - Live `chrome-live-1793260987977`: 22記録がすべてpassed。実キー4条件、member保全、他group／複数窓、連続・同時要求、実Worker停止・復帰、冷間起動、Popup／旧action互換、生成lnk直接実行、テストキー除去、外部HotKeyフィールド不変。
 - Debugの破損設定UIで反映disabledと初期化導線を描画確認。元の設定をバイト単位で戻し、再読込で復旧モード解除・反映enabledを確認し終了した。
 - 最終ZIP/Setup生成、3ハッシュ照合、両EXEの7アイコンフレーム、配布EXEのcommand-mode smokeが合格。CIと完了状態はPR #111のChecksとIssue状態を正本とする。未公開ローカル成果物を公開済みv0.1.1と混同しない。

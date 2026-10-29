@@ -48,4 +48,12 @@ public sealed class ConfigSafetyTests
         }).ToList() };
         Assert.Contains(new ConfigValidator().Validate(config, false).Issues, issue => issue.Path == "$");
     }
+
+    [Fact]
+    public void KnownLegacyNumericEnumRemainsReadable()
+    {
+        var config = new ShortcutConfig { Shortcuts = [new() { Name = "Legacy", Hotkey = new() { Key = "A" }, Target = new ApplicationTarget { LaunchMode = ApplicationLaunchMode.Uri, Value = "mailto:test@example.com" } }] };
+        var json = ConfigJson.Serialize(config).Replace("\"launchMode\": \"uri\"", "\"launchMode\": 2", StringComparison.Ordinal);
+        Assert.Equal(ApplicationLaunchMode.Uri, Assert.IsType<ApplicationTarget>(ConfigJson.Deserialize(json).Shortcuts.Single().Target).LaunchMode);
+    }
 }

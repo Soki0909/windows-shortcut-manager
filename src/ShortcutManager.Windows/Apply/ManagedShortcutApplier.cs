@@ -45,8 +45,9 @@ public sealed class ManagedShortcutApplier(
             var pendingRecovery = Directory.EnumerateDirectories(workingRoot).FirstOrDefault(path => File.Exists(System.IO.Path.Combine(path, "recovery.json")));
             if (pendingRecovery is not null) return new(false, $"前回の復旧が未完了です。退避データを確認してから再実行してください: {pendingRecovery}");
         }
-        var conflict = config.Shortcuts.FirstOrDefault(item => item.Enabled && externalConflictHotkeys.Contains(item.Hotkey.Canonical, StringComparer.OrdinalIgnoreCase));
-        if (conflict is not null) return new(false, $"外部ショートカットと {conflict.Hotkey.Canonical} が競合しています。");
+        var conflicts = config.Shortcuts.Where(item => item.Enabled && externalConflictHotkeys.Contains(item.Hotkey.Canonical, StringComparer.OrdinalIgnoreCase))
+            .Select(item => item.Hotkey.Canonical).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).ToArray();
+        if (conflicts.Length > 0) return new(false, $"外部ショートカットと競合しています: {string.Join(", ", conflicts)}");
         IReadOnlyCollection<string> priorNames;
         try { priorNames = configRepository.Load().Shortcuts.Where(item => item.Enabled).Select(ManagedFilename.For).ToArray(); }
         catch { priorNames = []; } // Recovery can still identify generated links by their Shell description.

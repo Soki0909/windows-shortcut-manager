@@ -32,7 +32,7 @@
 ## 実行記録
 
 - `dotnet test ShortcutManager.sln -c Release --no-restore --nologo`
-- 最終合格数: Core 26/26、Windows 53/53、Node 12/12（UTF-8/UTF-16 BOM互換回帰を含む）。
+- 最終合格数: Core 27/27、Windows 53/53、Node 12/12（UTF-8/UTF-16 BOM互換回帰を含む）。
 - `node --test tests/ChromeExtension.Tests/protocol.test.js`
 - `scripts/run-debug.ps1`（通常画面、破損設定画面、修復再読込を実UI確認）
 - `dotnet build tests/ShortcutManager.LiveDriver -c Debug`

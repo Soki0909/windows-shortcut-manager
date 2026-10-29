@@ -32,7 +32,8 @@ public static class ConfigJson
             WriteIndented = true,
             UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         };
-        options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
+        // Preserve known legacy numeric values; ConfigStructure rejects undefined values.
+        options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         return options;
     }
 }
