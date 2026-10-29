@@ -37,3 +37,5 @@
 - run-debug.ps1でウィンドウ生成まで確認したが、画面操作ツールがWindowsブラウザーURLを確定できずターン内の操作停止を要求したため視覚確認は未完了。
 - 製品版・個人Chromeは未更新。Debug configも未作成。専用CfTとDebug窓は再開用に残っている。
 - 最終Release: Core 24/24、Windows 43/43。Node 12/12再実行合格。Release package生成、SHA256再照合、ZIP内toggle module存在／live harness除外を確認。
+- 継続ターン: PR #111 CI run 40830979235はdotnet/extensionとも合格。Debug窓をRaiseした後の画像でDEBUGタイトル・D badge・空のキー枠・反映ボタン・別管理パスを確認（前面化前の誤った画像は証拠から除外）。
+- 隔離CfTは依然ブラウザーURL判定で画面操作停止。HotKeyランチャーが同一テストプロファイルへ配送される条件も追加確認が必要（通常Chromeでは既定プロファイルへの配送契約を維持）。

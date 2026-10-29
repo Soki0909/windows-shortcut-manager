@@ -11,6 +11,7 @@ Branch: `codex/ten-issues-110-safety`. Details: [implementation tracker](../impl
 - Dedicated Chrome for Testing 148 profile and extension copy prepared under gitignored local/. No product install/config/HotKey or personal Chrome extension was changed. No Debug config was created.
 - Do not count #110 complete or accept ADR-008 until the live matrix passes. Ten-issue goal remains active; no Issue has been closed merely for adding code.
 - Final Release gate: `dotnet test ShortcutManager.sln -c Release --no-restore --nologo` passed Core 24/24 and Windows 43/43; `node --test tests/ChromeExtension.Tests/protocol.test.js` passed 12/12. `scripts/package.ps1 -Configuration Release -Version 0.1.1` passed. Both generated SHA-256 values independently matched SHA256SUMS, the extension included lib/group-operation.js and excluded the live harness. These are local unreleased artifacts, not replacements for the published v0.1.1.
+- Follow-up: PR #111 CI run 40830979235 passed both dotnet (1m57s) and extension (12s). Raising the Debug window allowed a matching screenshot to confirm its DEBUG title, D badge, empty key layout, Apply button and separate managed directory. The isolated CfT window still triggered computer-use URL detection failure; no HotKey checks were counted as passed.
 
 ## Development/product isolation (2026-10-28, unreleased)
 
