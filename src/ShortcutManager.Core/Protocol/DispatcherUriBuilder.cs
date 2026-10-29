@@ -14,5 +14,11 @@ public sealed partial class DispatcherUriBuilder
         if (normalizedName.Length is < 1 or > 200) throw new ArgumentException("Group name must be 1 to 200 characters.", nameof(groupName));
         return new Uri($"chrome-extension://{extensionId}/dispatch.html?v=1&action=focus-group&group={Uri.EscapeDataString(normalizedName)}");
     }
+
+    public Uri BuildToggleGroupUri(string extensionId, string groupName, bool chromeWasForeground)
+    {
+        var focus = BuildFocusGroupUri(extensionId, groupName).AbsoluteUri;
+        return new Uri(focus.Replace("action=focus-group", "action=toggle-group", StringComparison.Ordinal) + $"&foreground={(chromeWasForeground ? "chrome" : "other")}");
+    }
 }
 

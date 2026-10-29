@@ -1,6 +1,16 @@
 # Shortcut Manager Verification
 
-Updated: 2026-10-28 (Asia/Tokyo)
+Updated: 2026-10-29 (Asia/Tokyo)
+
+## Issue #110 and nine safety improvements (unreleased)
+
+Branch: `codex/ten-issues-110-safety`. Details: [implementation tracker](../implementation/ISSUES_110_AND_SAFETY.md), [ADR-008](../architecture/ADR-008-one-shot-chrome-group-toggle.md).
+
+- Executed Core Debug 24/24, Windows Debug 43/43, Node 12/12. Isolated fault injection covers recovery failures, unmanaged-file/root protection, corrupt config, backup integrity/limits/atomic replacement and Restore conflicts. Worker tests cover toggle transitions and compatibility.
+- Debug built without warnings and created its separate window via run-debug.ps1. Visual inspection and real HotKey gates remain pending: Windows computer-use stopped because browser URL could not be determined confidently.
+- Dedicated Chrome for Testing 148 profile and extension copy prepared under gitignored local/. No product install/config/HotKey or personal Chrome extension was changed. No Debug config was created.
+- Do not count #110 complete or accept ADR-008 until the live matrix passes. Ten-issue goal remains active; no Issue has been closed merely for adding code.
+- Final Release gate: `dotnet test ShortcutManager.sln -c Release --no-restore --nologo` passed Core 24/24 and Windows 43/43; `node --test tests/ChromeExtension.Tests/protocol.test.js` passed 12/12. `scripts/package.ps1 -Configuration Release -Version 0.1.1` passed. Both generated SHA-256 values independently matched SHA256SUMS, the extension included lib/group-operation.js and excluded the live harness. These are local unreleased artifacts, not replacements for the published v0.1.1.
 
 ## Development/product isolation (2026-10-28, unreleased)
 

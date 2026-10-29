@@ -7,7 +7,12 @@ public sealed class ConfigRepository(string path)
 {
     public string Path { get; } = path;
 
-    public ShortcutConfig Load() => File.Exists(Path) ? ConfigJson.Deserialize(File.ReadAllText(Path)) : new ShortcutConfig();
+    public ShortcutConfig Load()
+    {
+        if (!File.Exists(Path)) return new ShortcutConfig();
+        if (new FileInfo(Path).Length > Core.Validation.ConfigStructure.MaxJsonCharacters) throw new InvalidDataException("$: config.json は1 MiB以下である必要があります。");
+        return ConfigJson.Deserialize(File.ReadAllText(Path));
+    }
 
     public void SaveAtomic(ShortcutConfig config)
     {
