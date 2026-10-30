@@ -718,6 +718,29 @@ public sealed class WindowsTests : IDisposable
         if (point != "lease") Assert.NotEqual(0, process.ExitCode);
         else Assert.Equal(0, process.ExitCode);
     }
+
+    [Fact]
+    public void ShellProbeFindsOwnedUnresponsiveWindowAndBoundsWork()
+    {
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repo is not null && !File.Exists(Path.Combine(repo.FullName, "ShortcutManager.sln"))) repo = repo.Parent;
+        var configuration = typeof(WindowsTests).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyConfigurationAttribute), false).Cast<System.Reflection.AssemblyConfigurationAttribute>().Single().Configuration;
+        var exe = Path.Combine(repo!.FullName, "tests", "ShortcutManager.CrashDriver", "bin", configuration, "net10.0-windows", "ShortcutManager.CrashDriver.exe");
+        var start = new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true };
+        start.ArgumentList.Add(root); start.ArgumentList.Add("hung-window");
+        using var process = System.Diagnostics.Process.Start(start)!;
+        try
+        {
+            Assert.True(SpinWait.SpinUntil(() => File.Exists(Path.Combine(root, "window-ready")), 10000));
+            var report = new ShortcutManager.Windows.Diagnostics.ShellResponsivenessProbe().Run();
+            Assert.Contains(report.Candidates, item => item.ProcessId == process.Id && item.Status is "timeout" or "no-response");
+            Assert.InRange(report.ElapsedMs, 0, 6000);
+            using var cancel = new CancellationTokenSource(); cancel.Cancel();
+            var cancelled = new ShortcutManager.Windows.Diagnostics.ShellResponsivenessProbe().Run(cancel.Token);
+            Assert.False(cancelled.Complete); Assert.Empty(cancelled.Candidates);
+        }
+        finally { if (!process.HasExited) { process.Kill(); process.WaitForExit(); } }
+    }
     private static ShortcutDefinition Entry(string key, ShortcutTarget target) => new() { Name = $"Entry {key}", Hotkey = new() { Key = key }, Target = target };
     private const string ExtensionId = "abcdefghijklmnopabcdefghijklmnop";
     private sealed record Fixture(ConfigRepository Config, string Managed, ManagedShortcutApplier Applier, BackupService Backups, string StatePath, TrackingShellChangeNotifier Notifier);

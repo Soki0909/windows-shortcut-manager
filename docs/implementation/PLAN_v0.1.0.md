@@ -19,6 +19,8 @@ Done requires:
 
 ## Progress
 
+- [x] v0.3.0: #115の実HotKey比較・Shell応答診断と、#47/#48/#84/#85/#86のChrome安定化。詳細は [RELEASE_0.3.0.md](RELEASE_0.3.0.md)、実測は [LATENCY_2026-10-30.md](../verification/LATENCY_2026-10-30.md)。
+
 - [x] v0.2.0追加実装: #3/#63の永続ジャーナル・起動前復旧、#34/#35の多重起動/処理中変更防止、#57の専用Chrome回帰、#92の互換案内を実装。#61の公開前ゲートを追加。選定・証拠・公開状況は [RELEASE_0.2.0.md](RELEASE_0.2.0.md) を参照。
 
 - [x] Development/product isolation (2026-10-28): separate Debug executable, title/header/About, D-badged Window icon, taskbar identity and all storage/managed paths; copied-config override protection; Restore external-conflict guard; dedicated run script and Release-only packaging. Windows 24/24, Debug Core 15/15 and Chrome 10/10 passed; Debug/Release builds passed; Debug process was responsive with the exact title; all 22 installed product/config/managed-file hashes stayed unchanged. Visual capture was stopped by the owner's physical Escape; no further Computer Use input was issued.

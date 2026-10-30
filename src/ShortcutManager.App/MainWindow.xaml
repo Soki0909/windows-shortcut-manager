@@ -58,6 +58,7 @@
           <Button Content="既存をスキャン" Click="Scan_Click" Style="{StaticResource QuietButtonStyle}"/>
           <Button Content="バックアップ" Click="Backup_Click" Style="{StaticResource QuietButtonStyle}"/>
           <Button Content="復元" Click="Restore_Click" Style="{StaticResource QuietButtonStyle}"/>
+          <Button Content="起動診断" Click="LaunchDiagnostics_Click"/>
           <Button Content="設定" Click="Settings_Click"/>
           <Button Content="情報" Click="About_Click"/>
         </StackPanel>

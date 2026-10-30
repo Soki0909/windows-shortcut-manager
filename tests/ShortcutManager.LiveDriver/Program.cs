@@ -6,7 +6,19 @@ using ShortcutManager.Windows.Shell;
 Console.OutputEncoding = new System.Text.UTF8Encoding(false);
 
 // Disposable Windows E2E input driver. Never shipped with the application.
-if (args is ["window"])
+if (args is ["latency-target", var latencyRoot])
+{
+    var thread = new Thread(() => LatencySession.Target(latencyRoot)); thread.SetApartmentState(ApartmentState.STA); thread.Start(); thread.Join();
+}
+else if (args is ["latency-session", var sessionRoot])
+{
+    var thread = new Thread(() => LatencySession.Session(sessionRoot)); thread.SetApartmentState(ApartmentState.STA); thread.Start(); thread.Join();
+}
+else if (args is ["probe-shell", var report])
+{
+    File.WriteAllText(report, JsonSerializer.Serialize(new ShortcutManager.Windows.Diagnostics.ShellResponsivenessProbe().Run(), new JsonSerializerOptions { WriteIndented = true }));
+}
+else if (args is ["window"])
 {
     var thread = new Thread(() => {
         using var form = new System.Windows.Forms.Form { Text = "Shortcut Manager isolated live test", Width = 520, Height = 200 };

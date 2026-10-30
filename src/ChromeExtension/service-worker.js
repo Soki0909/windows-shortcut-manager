@@ -15,6 +15,8 @@ function queueDispatch(operation) {
 const LAST_TAB_KEY = "lastTabByGroupTitle";
 const SETTINGS_KEY = "settings";
 const STARTUP_DEADLINE_KEY = "startupCollapseUntil";
+const EXPLICIT_GROUPS_KEY = "startupExplicitGroupIds";
+let historyQueue = Promise.resolve();
 const DEFAULT_SETTINGS = { collapseOnStartup: false, startupCollapseWindowMs: 20000, debugMode: false };
 
 async function getSettings() {
@@ -33,7 +35,13 @@ async function readLastTabs() {
   return data[LAST_TAB_KEY] ?? {};
 }
 
-async function rememberTab(tab) {
+function rememberTab(tab) {
+  const result = historyQueue.then(() => rememberTabCore(tab));
+  historyQueue = result.catch(() => {});
+  return result;
+}
+
+async function rememberTabCore(tab) {
   if (!tab || tab.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE) return;
   try {
     const group = await chrome.tabGroups.get(tab.groupId);
@@ -56,16 +64,27 @@ async function notifyNotFound(groupName) {
   });
 }
 
-async function focusGroup(groupName, notify = true, action = FOCUS_GROUP_ACTION, dispatcherTabId = null) {
-  let groups;
-  try { groups = await chrome.tabGroups.query({}); }
-  catch { return failure("group-query-failed", "タブグループ一覧を取得できませんでした。"); }
+async function explicitGroups() {
+  const store = chrome.storage.session ?? chrome.storage.local;
+  return (await store.get(EXPLICIT_GROUPS_KEY))[EXPLICIT_GROUPS_KEY] ?? [];
+}
 
-  const group = selectMatchingGroup(groups, groupName, await getLastFocusedWindowId());
+async function protectExplicitGroup(id) {
+  const store = chrome.storage.session ?? chrome.storage.local;
+  await store.set({ [EXPLICIT_GROUPS_KEY]: [...new Set([...(await explicitGroups()), id])].slice(-1000) });
+}
+
+async function focusGroup(groupName, notify = true, action = FOCUS_GROUP_ACTION, dispatcherTabId = null, selected = null) {
+  let groups;
+  try { groups = selected ? [await chrome.tabGroups.get(selected.groupId)] : await chrome.tabGroups.query({}); }
+  catch { return selected ? failure("selection-not-found", "選択したグループがなくなりました。一覧を更新してください。") : failure("group-query-failed", "タブグループ一覧を取得できませんでした。"); }
+
+  const group = selected ? groups.find(group => group.id === selected.groupId && group.windowId === selected.windowId) : selectMatchingGroup(groups, groupName, await getLastFocusedWindowId());
   if (!group) {
     if (notify) await notifyNotFound(groupName);
-    return failure("group-not-found", `「${groupName}」は現在開かれていません。`);
+    return selected ? failure("selection-changed", "選択したグループのウィンドウが変わりました。一覧を更新してください。") : failure("group-not-found", `「${groupName}」は現在開かれていません。`);
   }
+  await protectExplicitGroup(group.id);
 
   if (shouldCollapse(action, group.collapsed)) {
     try {
@@ -90,35 +109,54 @@ async function focusGroup(groupName, notify = true, action = FOCUS_GROUP_ACTION,
   let tabs;
   try { tabs = await chrome.tabs.query({ groupId: group.id }); }
   catch { return failure("tab-query-failed", "グループ内のタブを取得できませんでした。"); }
+  await historyQueue;
   const lastTabs = await readLastTabs();
   const tab = selectTabForGroup(tabs, lastTabs[normalizeGroupTitle(group.title)]);
   if (tab?.id == null) return failure("tab-query-failed", "グループ内にタブがありません。");
   try { await chrome.tabs.update(tab.id, { active: true }); }
   catch { return failure("tab-activate-failed", "復帰先タブを選択できませんでした。"); }
-  await rememberTab(tab);
+  // Tab activation also records history. Do not delay visible success on the
+  // redundant persistence write; the next history read waits for this queue.
+  void rememberTab(tab);
   return { ok: true, code: "ok", groupTitle: group.title ?? "", groupId: group.id, windowId: group.windowId, tabId: tab.id };
 }
 
-async function collapseAll() {
+async function collapseAll(automatic = false) {
   const groups = await chrome.tabGroups.query({});
-  await Promise.allSettled(groups.map((group) => chrome.tabGroups.update(group.id, { collapsed: true })));
-  return groups.length;
+  const protectedIds = automatic ? await explicitGroups() : [];
+  const targets = groups.filter(group => !protectedIds.includes(group.id));
+  const results = await Promise.allSettled(targets.map(async group => {
+    try { await chrome.tabGroups.update(group.id, { collapsed: true }); return "succeeded"; }
+    catch {
+      try { await chrome.tabGroups.get(group.id); return "failed"; }
+      catch { return "disappeared"; }
+    }
+  }));
+  const values = results.map(result => result.status === "fulfilled" ? result.value : "failed");
+  const succeeded = values.filter(value => value === "succeeded").length;
+  const failed = values.filter(value => value === "failed").length;
+  const disappeared = values.filter(value => value === "disappeared").length;
+  return { ok: failed === 0 && disappeared === 0, code: failed || disappeared ? "partial-collapse" : "ok", count: succeeded, succeeded, failed, disappeared, skipped: groups.length - targets.length, total: groups.length,
+    message: `${succeeded} 個を折りたたみました。失敗 ${failed} 個、消滅 ${disappeared} 個。` };
 }
 
 chrome.tabs.onActivated.addListener(({ tabId }) => void chrome.tabs.get(tabId).then(rememberTab).catch(() => {}));
 
 chrome.runtime.onStartup.addListener(() => {
-  void getSettings().then(async (settings) => {
+  void queueDispatch(async () => {
+    const settings = await getSettings();
     if (!settings.collapseOnStartup) return;
     const until = Date.now() + settings.startupCollapseWindowMs;
     await chrome.storage.local.set({ [STARTUP_DEADLINE_KEY]: until });
-    await collapseAll();
-  });
+    await collapseAll(true);
+  }).catch(() => {});
 });
 
 chrome.tabGroups.onCreated.addListener((group) => {
-  void Promise.all([getSettings(), chrome.storage.local.get(STARTUP_DEADLINE_KEY)]).then(([settings, data]) => {
+  void queueDispatch(async () => {
+    const [settings, data] = await Promise.all([getSettings(), chrome.storage.local.get(STARTUP_DEADLINE_KEY)]);
     if (settings.collapseOnStartup && Date.now() <= Number(data[STARTUP_DEADLINE_KEY] ?? 0)) {
+      if ((await explicitGroups()).includes(group.id)) return;
       return chrome.tabGroups.update(group.id, { collapsed: true });
     }
   }).catch(() => {});
@@ -133,9 +171,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     queueDispatch(() => focusGroup(groupName, true, message.action, _sender.tab?.id)).then(sendResponse).catch(() => sendResponse(failure("internal-error", "予期しないエラーが発生しました。")));
     return true;
   }
-  if (message?.type === "focus-group") { focusGroup(normalizeGroupTitle(message.groupName), message.notify !== false).then(sendResponse); return true; }
+  if (message?.type === "focus-group") { queueDispatch(() => focusGroup(normalizeGroupTitle(message.groupName), message.notify !== false)).then(sendResponse).catch(() => sendResponse(failure("internal-error", "グループを開けませんでした。更新して再試行してください。"))); return true; }
+  if (message?.type === "focus-group-instance") {
+    if (!Number.isInteger(message.groupId) || message.groupId < 0 || !Number.isInteger(message.windowId) || message.windowId < 0) { sendResponse(failure("invalid-selection", "一覧の選択が不正です。更新してください。")); return false; }
+    queueDispatch(() => focusGroup("", false, FOCUS_GROUP_ACTION, null, message)).then(sendResponse).catch(() => sendResponse(failure("internal-error", "選択したグループを開けませんでした。更新して再試行してください。")));
+    return true;
+  }
   if (message?.type === "list-groups") { chrome.tabGroups.query({}).then((groups) => sendResponse({ ok: true, groups })).catch(() => sendResponse(failure("group-query-failed", "一覧を取得できませんでした。"))); return true; }
-  if (message?.type === "collapse-all") { collapseAll().then((count) => sendResponse({ ok: true, count })).catch(() => sendResponse(failure("group-query-failed", "折りたためませんでした。"))); return true; }
+  if (message?.type === "collapse-all") { queueDispatch(() => collapseAll()).then(sendResponse).catch(() => sendResponse(failure("group-query-failed", "折りたためませんでした。更新して再試行してください。"))); return true; }
   return false;
 });
 
