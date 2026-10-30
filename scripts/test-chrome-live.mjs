@@ -344,6 +344,31 @@ try {
       const observer = await coldBrowser.contexts()[0].newPage(); await observer.goto(`chrome-extension://${id}/harness.html`);
       await waitFor(() => observer.evaluate(async () => { const value = (await chrome.storage.session.get("liveLastDispatch")).liveLastDispatch; return value?.request.payload.groupName === "Cold absent group" && value.response.code === "group-not-found"; }), "Cold response missing");
       await waitFor(() => observer.evaluate(async () => !(await chrome.tabs.query({})).some(tab => (tab.url || tab.pendingUrl)?.includes("/dispatch.html?"))), "Cold Dispatcher residue");
+      await record("real Chrome: created-event automation respects explicit opens in startup window", async () => {
+        // CLI-loaded unpacked extensions did not receive onStartup in CfT.
+        // Arm the same isolated storage precondition, then exercise real created
+        // events/APIs. The onStartup callback itself is covered by Worker tests.
+        await observer.evaluate(() => chrome.storage.local.set({ settings: { collapseOnStartup: true, startupCollapseWindowMs: 20000, debugMode: false }, startupCollapseUntil: Date.now() + 20000 }));
+        const selected = await observer.evaluate(async () => {
+          const groups = [];
+          for (let i = 0; i < 2; i++) {
+            const window = await chrome.windows.create({ url: "about:blank", focused: false });
+            const id = await chrome.tabs.group({ tabIds: [window.tabs[0].id], createProperties: { windowId: window.id } });
+            await chrome.tabGroups.update(id, { title: `Startup explicit ${i}` });
+            groups.push({ groupId: id, windowId: window.id });
+          }
+          for (let i = 0; i < 6; i++) {
+            const group = groups[i % groups.length];
+            const result = await chrome.runtime.sendMessage({ type: "focus-group-instance", ...group });
+            if (!result.ok) throw new Error(JSON.stringify(result));
+          }
+          return groups;
+        });
+        await delay(300);
+        const states = await observer.evaluate(async ids => Promise.all(ids.map(group => chrome.tabGroups.get(group.groupId))), selected);
+        assert.ok(states.every(group => group.collapsed === false));
+        return states;
+      });
       const workerErrors = await observer.evaluate(async () => (await chrome.storage.session.get("liveWorkerErrors")).liveWorkerErrors ?? []);
       assert.deepEqual(workerErrors, [], "Cold Worker unhandled exceptions");
       assert.deepEqual(pageErrors, [], "Unhandled page exceptions");

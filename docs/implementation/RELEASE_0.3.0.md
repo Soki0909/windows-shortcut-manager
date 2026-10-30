@@ -20,7 +20,12 @@
 
 ## Validation evidence
 
-- Core 27/27, Windows 70/70, extension 20/20 passed. Windows tests use an isolated child window that deliberately delays WM_GETHOTKEY, and verify bounds/cancellation. No fault is injected into owner applications.
-- Real Chrome run `chrome-live-1793343256430`: all checks passed, including each duplicate Popup row, message/storage failures and control recovery, Worker restart, cold Chrome, generated links, tab preservation, unhandled-exception checks and cleanup. The executable source was unchanged after this run except probe reporting and version alignment.
+- Core 27/27, Windows 70/70, extension 22/22 passed. Windows tests use an isolated child window that deliberately delays WM_GETHOTKEY, and verify bounds/cancellation. No fault is injected into owner applications.
+- Real Chrome run `chrome-live-1793343256430`: all checks passed, including each duplicate Popup row, message/storage failures and control recovery, Worker restart, cold Chrome, generated links, tab preservation, unhandled-exception checks and cleanup. Follow-up changes add a warm protection cache, avoid misclassifying failed rechecks as disappearance, and are covered by additional regressions.
 - Actual latency measurement: [LATENCY_2026-10-30.md](../verification/LATENCY_2026-10-30.md). Raw samples/process IDs and owner paths stay gitignored under local/.
 - A test initially used checkbox.check(), which correctly failed because the product immediately reverted a failed save. The test now clicks and asserts rollback/retry rather than requiring the failed value to remain checked.
+
+- Warm group protection reuses a Worker cache: repeated operations no longer re-read/re-write the same session marker. At the protection cap, automatic startup collapse is skipped rather than dropping explicit intent. Session storage is used on current Chrome; older runtimes without it retain only Worker-local protection.
+- CfT command-line loading did not deliver onStartup. The startup handler is tested directly in the Worker fixture; a separate real Chrome test arms the same storage deadline and exercises real group-created events, two windows and repeated explicit opens. This is a controlled startup-condition test, not a claim of a native onStartup event observed.
+
+- Final real Chrome run chrome-live-1793344468041: 20/20 passed, including the explicitly armed startup condition and exact Popup window selection. Final Node 22/22, local package/hash/branding and Debug diagnostics checks passed. Initial clean-runner CI 41018056174 passed all gates; final source is rechecked after the cache/failure-classification follow-up.

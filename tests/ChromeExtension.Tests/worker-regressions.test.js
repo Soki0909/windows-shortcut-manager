@@ -140,3 +140,28 @@ test("visible focus response does not wait for a redundant history persistence w
     assert.equal(f.local.lastTabByGroupTitle, undefined);
   } finally { release?.(); await f.close(); }
 });
+
+test("warm explicit operations reuse session protection without repeated storage calls", async () => {
+  const f = await fixture();
+  try {
+    let reads = 0; let writes = 0;
+    const get = f.api.storage.session.get; const set = f.api.storage.session.set;
+    f.api.storage.session.get = async key => { reads++; return get(key); };
+    f.api.storage.session.set = async data => { writes++; return set(data); };
+    for (let i = 0; i < 4; i++) assert.equal((await f.send({ type: "focus-group-instance", groupId: 1, windowId: 10 })).ok, true);
+    assert.equal(reads, 1); assert.equal(writes, 1);
+  } finally { await f.close(); }
+});
+
+test("protection cap suppresses automatic collapse instead of forgetting prior intent", async () => {
+  const f = await fixture();
+  try {
+    f.session.startupExplicitGroupIds = Array.from({ length: 1000 }, (_, i) => i + 100);
+    f.local.settings = { collapseOnStartup: true };
+    await f.send({ type: "focus-group-instance", groupId: 1, windowId: 10 });
+    assert.deepEqual(f.session.startupExplicitGroupIds, [-1]);
+    f.hooks.startup(); f.hooks.created(f.groups[0]);
+    await f.send({ type: "focus-group-instance", groupId: 2, windowId: 20 });
+    assert.equal(f.groups[0].collapsed, false);
+  } finally { await f.close(); }
+});

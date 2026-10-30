@@ -17,6 +17,7 @@ const SETTINGS_KEY = "settings";
 const STARTUP_DEADLINE_KEY = "startupCollapseUntil";
 const EXPLICIT_GROUPS_KEY = "startupExplicitGroupIds";
 let historyQueue = Promise.resolve();
+let explicitGroupCache;
 const DEFAULT_SETTINGS = { collapseOnStartup: false, startupCollapseWindowMs: 20000, debugMode: false };
 
 async function getSettings() {
@@ -65,13 +66,21 @@ async function notifyNotFound(groupName) {
 }
 
 async function explicitGroups() {
-  const store = chrome.storage.session ?? chrome.storage.local;
-  return (await store.get(EXPLICIT_GROUPS_KEY))[EXPLICIT_GROUPS_KEY] ?? [];
+  if (explicitGroupCache) return explicitGroupCache;
+  // Older runtimes without session storage keep only a Worker-local cache;
+  // never persist session IDs into durable local storage.
+  const store = chrome.storage.session;
+  explicitGroupCache = store ? (await store.get(EXPLICIT_GROUPS_KEY))[EXPLICIT_GROUPS_KEY] ?? [] : [];
+  return explicitGroupCache;
 }
 
 async function protectExplicitGroup(id) {
-  const store = chrome.storage.session ?? chrome.storage.local;
-  await store.set({ [EXPLICIT_GROUPS_KEY]: [...new Set([...(await explicitGroups()), id])].slice(-1000) });
+  const ids = await explicitGroups();
+  if (ids.includes(id) || ids.includes(-1)) return;
+  // At the cap, skip startup automation entirely rather than evict explicit intent.
+  const next = ids.length >= 1000 ? [-1] : [...ids, id];
+  if (chrome.storage.session) await chrome.storage.session.set({ [EXPLICIT_GROUPS_KEY]: next });
+  explicitGroupCache = next;
 }
 
 async function focusGroup(groupName, notify = true, action = FOCUS_GROUP_ACTION, dispatcherTabId = null, selected = null) {
@@ -124,7 +133,7 @@ async function focusGroup(groupName, notify = true, action = FOCUS_GROUP_ACTION,
 async function collapseAll(automatic = false) {
   const groups = await chrome.tabGroups.query({});
   const protectedIds = automatic ? await explicitGroups() : [];
-  const targets = groups.filter(group => !protectedIds.includes(group.id));
+  const targets = groups.filter(group => !protectedIds.includes(-1) && !protectedIds.includes(group.id));
   const results = await Promise.allSettled(targets.map(async group => {
     try { await chrome.tabGroups.update(group.id, { collapsed: true }); return "succeeded"; }
     catch {
@@ -156,7 +165,8 @@ chrome.tabGroups.onCreated.addListener((group) => {
   void queueDispatch(async () => {
     const [settings, data] = await Promise.all([getSettings(), chrome.storage.local.get(STARTUP_DEADLINE_KEY)]);
     if (settings.collapseOnStartup && Date.now() <= Number(data[STARTUP_DEADLINE_KEY] ?? 0)) {
-      if ((await explicitGroups()).includes(group.id)) return;
+      const protectedIds = await explicitGroups();
+      if (protectedIds.includes(-1) || protectedIds.includes(group.id)) return;
       return chrome.tabGroups.update(group.id, { collapsed: true });
     }
   }).catch(() => {});
