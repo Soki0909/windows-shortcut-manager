@@ -28,10 +28,25 @@ public sealed class ManagedShortcutApplier(
 {
     public const string OwnershipMarker = ".shortcut-manager-owned";
 
+    public ApplyResult RecoverPending()
+    {
+        using var mutex = new Mutex(false, "Local\\ShortcutManager.Apply");
+        try { if (!mutex.WaitOne(TimeSpan.Zero)) return new(false, "別の Apply/Restore が実行中です。"); }
+        catch (AbandonedMutexException) { /* This process now owns the mutex. */ }
+        try
+        {
+            var count = ApplyJournal.Recover(workingRoot, configRepository.Path, statePath, shellNotifier, checkpoint);
+            return new(true, count == 0 ? "中断処理はありません。" : $"中断した処理 {count} 件を以前の完全な状態へ復旧しました。Explorerの再読み込みでHotKeyを確認してください。", GeneratedCount: count);
+        }
+        catch (Exception error) { return new(false, $"中断処理の復旧を停止しました。退避データを保全しています: {error.Message}"); }
+        finally { mutex.ReleaseMutex(); }
+    }
+
     public ApplyResult Apply(ShortcutConfig config, string managedDirectory, IReadOnlyCollection<string>? externalConflictHotkeys = null, string backupReason = "apply")
     {
         using var mutex = new Mutex(false, "Local\\ShortcutManager.Apply");
-        if (!mutex.WaitOne(TimeSpan.Zero)) return new(false, "別の Apply/Restore が実行中です。");
+        try { if (!mutex.WaitOne(TimeSpan.Zero)) return new(false, "別の Apply/Restore が実行中です。"); }
+        catch (AbandonedMutexException) { /* Ownership was acquired. Pending journals still block writes. */ }
         try { return ApplyCore(config, managedDirectory, externalConflictHotkeys ?? [], backupReason); }
         finally { mutex.ReleaseMutex(); }
     }
@@ -42,7 +57,7 @@ public sealed class ManagedShortcutApplier(
         if (!validation.IsValid) return new(false, string.Join(Environment.NewLine, validation.Issues.Select(issue => issue.Message)));
         if (Directory.Exists(workingRoot))
         {
-            var pendingRecovery = Directory.EnumerateDirectories(workingRoot).FirstOrDefault(path => File.Exists(System.IO.Path.Combine(path, "recovery.json")));
+            var pendingRecovery = Directory.EnumerateDirectories(workingRoot).FirstOrDefault(path => !File.Exists(System.IO.Path.Combine(path, ApplyJournal.Terminal)) && (File.Exists(System.IO.Path.Combine(path, "recovery.json")) || File.Exists(System.IO.Path.Combine(path, ApplyJournal.Filename))));
             if (pendingRecovery is not null) return new(false, $"前回の復旧が未完了です。退避データを確認してから再実行してください: {pendingRecovery}");
         }
         var conflicts = config.Shortcuts.Where(item => item.Enabled && externalConflictHotkeys.Contains(item.Hotkey.Canonical, StringComparer.OrdinalIgnoreCase))
@@ -67,6 +82,11 @@ public sealed class ManagedShortcutApplier(
         var committedNew = new List<string>();
         var retainRecovery = false;
         string? backupPath = null;
+        void RecordCheckpoint(string point)
+        {
+            if (File.Exists(System.IO.Path.Combine(operationRoot, ApplyJournal.Filename)) && !File.Exists(System.IO.Path.Combine(operationRoot, ApplyJournal.Terminal))) ApplyJournal.Phase(operationRoot, point);
+            checkpoint?.Invoke(point);
+        }
 
         try
         {
@@ -77,13 +97,26 @@ public sealed class ManagedShortcutApplier(
                 shellLinks.Write(path, new(launch.TargetPath, launch.Arguments, launch.WorkingDirectory, launch.Hotkey, launch.IconLocation, launch.Description, launch.WindowStyle));
                 var read = shellLinks.Read(path);
                 if (!Same(read.TargetPath, launch.TargetPath) || read.Arguments != launch.Arguments || NormalizeHotkey(read.Hotkey) != launch.Hotkey) throw new InvalidDataException($"Staged shortcut verification failed: {path}");
+                using var stagedFile = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
+                stagedFile.Flush(true);
             }
-            checkpoint?.Invoke("staged");
+            RecordCheckpoint("staged");
             backupPath = backups.Create(backupReason, configRepository.Path, managedDirectory, statePath);
             backups.EnforceRetention();
-            checkpoint?.Invoke("backed-up");
+            RecordCheckpoint("backed-up");
+            var markerBytes = Encoding.UTF8.GetBytes($"Shortcut Manager{Environment.NewLine}schemaVersion=1{Environment.NewLine}updatedAt={DateTimeOffset.Now:O}{Environment.NewLine}");
+            var configBytes = Encoding.UTF8.GetBytes(ConfigJson.Serialize(config));
+            var hash = Convert.ToHexString(SHA256.HashData(configBytes)).ToLowerInvariant();
+            var stateBytes = JsonSerializer.SerializeToUtf8Bytes(new { lastSuccessfulApply = DateTimeOffset.Now, configSha256 = hash, managedDirectory }, new JsonSerializerOptions { WriteIndented = true });
+            var before = new Dictionary<string, byte[]?>(StringComparer.OrdinalIgnoreCase) { [configRepository.Path] = priorConfig, [priorMarkerPath] = priorMarker, [statePath] = priorState };
+            var after = new Dictionary<string, byte[]?>(StringComparer.OrdinalIgnoreCase) { [configRepository.Path] = configBytes, [priorMarkerPath] = markerBytes, [statePath] = stateBytes };
+            if (Directory.Exists(managedDirectory))
+                foreach (var path in Directory.EnumerateFiles(managedDirectory, "*.lnk")) before[path] = ReadSnapshot(path, BackupArchive.MaxEntryBytes);
+            foreach (var path in Directory.EnumerateFiles(stage, "*.lnk")) after[System.IO.Path.Combine(managedDirectory, System.IO.Path.GetFileName(path))] = File.ReadAllBytes(path);
+            ApplyJournal.Prepare(operationRoot, configRepository.Path, statePath, managedDirectory, before, after);
+            RecordCheckpoint("journal-prepared");
             configRepository.SaveAtomic(config);
-            checkpoint?.Invoke("config-saved");
+            RecordCheckpoint("config-saved");
 
             Directory.CreateDirectory(managedDirectory);
             foreach (var path in Directory.EnumerateFiles(managedDirectory, "*", SearchOption.TopDirectoryOnly).Where(path => !System.IO.Path.GetFileName(path).Equals(OwnershipMarker, StringComparison.OrdinalIgnoreCase)))
@@ -92,27 +125,32 @@ public sealed class ManagedShortcutApplier(
                 File.Move(path, destination);
                 movedOld.Add((destination, path));
                 shellNotifier?.NotifyItemDeleted(path);
+                RecordCheckpoint("old-item-moved");
             }
-            checkpoint?.Invoke("old-moved");
+            RecordCheckpoint("old-moved");
             foreach (var path in Directory.EnumerateFiles(stage, "*.lnk"))
             {
                 var destination = System.IO.Path.Combine(managedDirectory, System.IO.Path.GetFileName(path));
                 File.Move(path, destination);
                 committedNew.Add(destination);
+                RecordCheckpoint("new-item-moved");
                 shellNotifier?.NotifyItemCreated(destination);
             }
-            File.WriteAllText(System.IO.Path.Combine(managedDirectory, OwnershipMarker), $"Shortcut Manager{Environment.NewLine}schemaVersion=1{Environment.NewLine}updatedAt={DateTimeOffset.Now:O}{Environment.NewLine}");
-            checkpoint?.Invoke("new-moved");
+            ApplyJournal.AtomicRestore(priorMarkerPath, markerBytes);
+            RecordCheckpoint("new-moved");
             foreach (var path in committedNew) shellNotifier?.NotifyItemChanged(path);
             shellNotifier?.NotifyDirectoryChanged(managedDirectory);
-            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(statePath)!);
-            var configBytes = Encoding.UTF8.GetBytes(ConfigJson.Serialize(config));
-            var hash = Convert.ToHexString(SHA256.HashData(configBytes)).ToLowerInvariant();
-            File.WriteAllText(statePath, JsonSerializer.Serialize(new { lastSuccessfulApply = DateTimeOffset.Now, configSha256 = hash, managedDirectory }, new JsonSerializerOptions { WriteIndented = true }));
+            ApplyJournal.AtomicRestore(statePath, stateBytes);
+            RecordCheckpoint("state-saved");
+            ApplyJournal.Complete(operationRoot);
+            RecordCheckpoint("committed");
             return new(true, "変更を書き込みました。新規・変更したHotKeyは、Windows Shellの再読み込みまたはWindows再起動後に有効になります。", backupPath, committedNew.Count, hash);
         }
         catch (Exception error)
         {
+            // A test callback may fail after completion; make rollback recoverable again.
+            var terminal = System.IO.Path.Combine(operationRoot, ApplyJournal.Terminal);
+            if (File.Exists(terminal)) File.Delete(terminal);
             var recoveryErrors = new List<string>();
             void Recover(string destination, Action action)
             {
@@ -123,7 +161,7 @@ public sealed class ManagedShortcutApplier(
             {
                 Recover(path, () =>
                 {
-                    checkpoint?.Invoke("rollback-delete");
+                    RecordCheckpoint("rollback-delete");
                     if (File.Exists(path)) File.Delete(path);
                     shellNotifier?.NotifyItemDeleted(path);
                 });
@@ -132,9 +170,9 @@ public sealed class ManagedShortcutApplier(
             {
                 Recover(pair.Destination, () =>
                 {
-                    checkpoint?.Invoke("rollback-restore");
+                    RecordCheckpoint("rollback-restore");
                     if (!File.Exists(pair.Source)) throw new IOException($"退避ファイルがありません: {pair.Source}");
-                    File.Copy(pair.Source, pair.Destination, true);
+                    ApplyJournal.AtomicRestore(pair.Destination, ReadSnapshot(pair.Source, BackupArchive.MaxEntryBytes)!);
                     shellNotifier?.NotifyItemCreated(pair.Destination);
                     shellNotifier?.NotifyItemChanged(pair.Destination);
                 });
@@ -158,6 +196,7 @@ public sealed class ManagedShortcutApplier(
                 catch (Exception evidenceError) { message += $"{Environment.NewLine}復旧記録の保存失敗: {evidenceError.Message}"; }
                 return new(false, message, backupPath);
             }
+            if (File.Exists(System.IO.Path.Combine(operationRoot, ApplyJournal.Filename))) ApplyJournal.Complete(operationRoot);
             return new(false, $"Apply に失敗し、以前の状態へロールバックしました: {error.Message}", backupPath);
         }
         finally
@@ -166,7 +205,7 @@ public sealed class ManagedShortcutApplier(
         }
     }
 
-    public static void EnsureOwnershipSafe(string managedDirectory, IReadOnlyCollection<string>? knownManagedNames = null, IShellLinkService? links = null)
+    public static void EnsureOwnershipSafe(string managedDirectory, IReadOnlyCollection<string>? knownManagedNames = null, IShellLinkService? links = null, bool allowMissingMarker = false)
     {
         if (!System.IO.Path.IsPathFullyQualified(managedDirectory)) throw new InvalidOperationException("管理フォルダは絶対パスが必要です。");
         var full = System.IO.Path.GetFullPath(managedDirectory).TrimEnd(System.IO.Path.DirectorySeparatorChar);
@@ -193,7 +232,7 @@ public sealed class ManagedShortcutApplier(
         if (File.Exists(managedDirectory)) throw new InvalidOperationException("管理フォルダのパスが既存ファイルを指しています。");
         if (!Directory.Exists(managedDirectory)) return;
         var entries = Directory.EnumerateFileSystemEntries(managedDirectory).ToList();
-        if (entries.Count > 0 && !File.Exists(System.IO.Path.Combine(managedDirectory, OwnershipMarker))) throw new InvalidOperationException("管理対象フォルダが非空ですが ownership marker がありません。Apply を拒否しました。");
+        if (!allowMissingMarker && entries.Count > 0 && !File.Exists(System.IO.Path.Combine(managedDirectory, OwnershipMarker))) throw new InvalidOperationException("管理対象フォルダが非空ですが ownership marker がありません。Apply を拒否しました。");
         var marker = System.IO.Path.Combine(managedDirectory, OwnershipMarker);
         foreach (var entry in entries)
         {
@@ -237,7 +276,7 @@ public sealed class ManagedShortcutApplier(
     {
         if (bytes is null) { if (File.Exists(path)) File.Delete(path); return; }
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
-        File.WriteAllBytes(path, bytes);
+        ApplyJournal.AtomicRestore(path, bytes);
     }
 
     private static bool Same(string left, string right) => string.Equals(System.IO.Path.GetFullPath(left), System.IO.Path.GetFullPath(right), StringComparison.OrdinalIgnoreCase);

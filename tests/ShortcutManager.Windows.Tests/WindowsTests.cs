@@ -590,6 +590,133 @@ public sealed class WindowsTests : IDisposable
     }
 
     private static ShortcutConfig SampleConfig() => new() { Settings = new() { Chrome = new() { ExtensionId = ExtensionId } }, Shortcuts = [Entry("G", new WebsiteTarget { Url = "https://github.com/" })] };
+
+    [Theory]
+    [InlineData("staged")]
+    [InlineData("backed-up")]
+    [InlineData("journal-prepared")]
+    [InlineData("config-saved")]
+    [InlineData("old-item-moved")]
+    [InlineData("old-moved")]
+    [InlineData("new-item-moved")]
+    [InlineData("new-moved")]
+    [InlineData("state-saved")]
+    [InlineData("committed")]
+    public void KilledProcessRecoversCompleteStateAndReleasesAbandonedMutex(string point)
+    {
+        var repository = new ConfigRepository(Path.Combine(root, "config.json"));
+        var managed = Path.Combine(root, "managed");
+        var applier = new ManagedShortcutApplier(repository, new ConfigValidator(), new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder()), new ShellLinkService(), new BackupService(Path.Combine(root, "backups"), "test"), Path.Combine(root, "staging"), Path.Combine(root, "state.json"));
+        Assert.True(applier.Apply(SampleConfig(), managed).Succeeded);
+        var original = File.ReadAllBytes(repository.Path);
+        var links = Directory.GetFiles(managed).ToDictionary(path => Path.GetFileName(path)!, File.ReadAllBytes);
+        // Keep the kernel object alive so child termination really produces
+        // AbandonedMutexException, rather than destroying the last mutex handle.
+        using var observer = new Mutex(false, "Local\\ShortcutManager.Apply");
+        RunCrashDriver(point);
+        if (point == "config-saved") RunCrashDriver("recovery-item-restored");
+        var recovered = applier.RecoverPending();
+        Assert.True(recovered.Succeeded, recovered.Message);
+        if (point == "committed") Assert.Equal("H", repository.Load().Shortcuts.Single().Hotkey.Key);
+        else
+        {
+            Assert.Equal(original, File.ReadAllBytes(repository.Path));
+            Assert.Equal(links.Count, Directory.GetFiles(managed).Length);
+            foreach (var pair in links) Assert.Equal(pair.Value, File.ReadAllBytes(Path.Combine(managed, pair.Key!)));
+        }
+        Assert.True(applier.RecoverPending().Succeeded);
+        Assert.True(applier.Apply(repository.Load(), managed).Succeeded);
+    }
+
+    [Fact]
+    public void InstanceLeaseBlocksSecondProcessButAllowsOtherEdition()
+    {
+        using (var lease = new InstanceLease(Path.Combine(root, "lease-config.json")))
+        {
+            Assert.True(lease.Acquired);
+            RunCrashDriver("lease");
+            Assert.Equal("blocked", File.ReadAllText(Path.Combine(root, "lease-result")));
+            using var debug = new InstanceLease(Path.Combine(root, "debug-config.json"));
+            Assert.True(debug.Acquired);
+        }
+        RunCrashDriver("lease");
+        Assert.Equal("acquired", File.ReadAllText(Path.Combine(root, "lease-result")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RecoveryProtectsPostCrashEditsAndCorruptSnapshots(bool corruptSnapshot)
+    {
+        var repository = new ConfigRepository(Path.Combine(root, "config.json"));
+        var managed = Path.Combine(root, "managed");
+        var applier = new ManagedShortcutApplier(repository, new ConfigValidator(), new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder()), new ShellLinkService(), new BackupService(Path.Combine(root, "backups"), "test"), Path.Combine(root, "staging"), Path.Combine(root, "state.json"));
+        Assert.True(applier.Apply(SampleConfig(), managed).Succeeded);
+        RunCrashDriver("config-saved");
+        var operation = Directory.GetDirectories(Path.Combine(root, "staging")).Single();
+        if (corruptSnapshot) File.WriteAllText(Directory.GetFiles(operation, "snapshot-*").First(), "damaged snapshot");
+        else File.WriteAllText(repository.Path, "manual post-crash edit");
+        var before = File.ReadAllBytes(repository.Path);
+        var result = applier.RecoverPending();
+        Assert.False(result.Succeeded, result.Message);
+        Assert.Equal(before, File.ReadAllBytes(repository.Path));
+        Assert.True(Directory.Exists(operation));
+        Assert.False(applier.Apply(SampleConfig(), managed).Succeeded);
+    }
+
+    [Fact]
+    public void InterruptedFirstApplyRecoversWithoutOwnershipMarker()
+    {
+        RunCrashDriver("new-item-moved");
+        var repository = new ConfigRepository(Path.Combine(root, "config.json"));
+        var managed = Path.Combine(root, "managed");
+        var applier = new ManagedShortcutApplier(repository, new ConfigValidator(), new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder()), new ShellLinkService(), new BackupService(Path.Combine(root, "backups"), "test"), Path.Combine(root, "staging"), Path.Combine(root, "state.json"));
+        Assert.True(applier.RecoverPending().Succeeded);
+        Assert.False(File.Exists(repository.Path));
+        Assert.Empty(Directory.GetFiles(managed));
+        Assert.True(applier.Apply(SampleConfig(), managed).Succeeded);
+    }
+
+    [Fact]
+    public async Task BusyViewModelRejectsParallelMutationAndRecoversControls()
+    {
+        var fixture = CreateFixture();
+        fixture.Config.SaveAtomic(SampleConfig());
+        var paths = new ApplicationPaths(Path.GetDirectoryName(fixture.Config.Path)!, fixture.Config.Path, fixture.StatePath, Path.Combine(root, "log.txt"), Path.Combine(root, "backups"), Path.Combine(root, "staging"), fixture.Managed);
+        var reloader = new DelayedShellReloader();
+        var vm = new ShortcutManager.App.MainViewModel(paths, fixture.Config, new(), new(new ChromeLocator(), new DispatcherUriBuilder()), new(), new(new FakeShellLinkService(), new()), new(), fixture.Backups, fixture.Applier, new(new ConfigValidator(), fixture.Applier), new(paths.LogPath), reloader);
+        var task = vm.ReloadShellAsync();
+        Assert.True(vm.IsBusy); Assert.False(vm.CanInteract); Assert.False(vm.CanApply);
+        vm.Upsert(Entry("Z", new WebsiteTarget { Url = "https://example.com" }));
+        vm.Selected = vm.Shortcuts.Single(); vm.DeleteSelected(); vm.Load(); vm.UpdateSettings("changed", "changed");
+        Assert.False(await vm.ApplyAsync()); await vm.RestoreAsync("missing.zip"); await vm.ReloadShellAsync();
+        Assert.Empty(await vm.ScanAsync()); Assert.Throws<InvalidOperationException>(() => vm.Backup());
+        Assert.Single(vm.Candidate.Shortcuts); Assert.False(vm.IsDirty); Assert.Equal(1, reloader.Calls);
+        reloader.Complete.SetResult(new(true, "test")); await task;
+        Assert.False(vm.IsBusy); Assert.True(vm.CanApply);
+        vm.Upsert(Entry("Z", new WebsiteTarget { Url = "https://example.com" })); Assert.True(vm.IsDirty);
+    }
+
+    private sealed class DelayedShellReloader : IExplorerShellReloader
+    {
+        public int Calls;
+        public TaskCompletionSource<ExplorerShellReloadResult> Complete { get; } = new();
+        public Task<ExplorerShellReloadResult> ReloadAsync(CancellationToken cancellationToken = default) { Calls++; return Complete.Task; }
+    }
+
+    private void RunCrashDriver(string point)
+    {
+        var repoRoot = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repoRoot is not null && !File.Exists(Path.Combine(repoRoot.FullName, "ShortcutManager.sln"))) repoRoot = repoRoot.Parent;
+        var configuration = typeof(WindowsTests).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyConfigurationAttribute), false).Cast<System.Reflection.AssemblyConfigurationAttribute>().Single().Configuration;
+        var exe = Path.Combine(repoRoot!.FullName, "tests", "ShortcutManager.CrashDriver", "bin", configuration, "net10.0-windows", "ShortcutManager.CrashDriver.exe");
+        var start = new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true };
+        start.ArgumentList.Add(root); start.ArgumentList.Add(point);
+        using var process = System.Diagnostics.Process.Start(start)!;
+        Assert.True(process.WaitForExit(20000), "Fixture process timed out.");
+        if (point != "lease") Assert.NotEqual(0, process.ExitCode);
+        else Assert.Equal(0, process.ExitCode);
+    }
     private static ShortcutDefinition Entry(string key, ShortcutTarget target) => new() { Name = $"Entry {key}", Hotkey = new() { Key = key }, Target = target };
     private const string ExtensionId = "abcdefghijklmnopabcdefghijklmnop";
     private sealed record Fixture(ConfigRepository Config, string Managed, ManagedShortcutApplier Applier, BackupService Backups, string StatePath, TrackingShellChangeNotifier Notifier);

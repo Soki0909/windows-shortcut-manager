@@ -32,7 +32,7 @@
     <ItemsPanelTemplate x:Key="KeyboardRowPanel"><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
   </Window.Resources>
 
-  <Grid Margin="22">
+  <Grid Margin="22" IsEnabled="{Binding CanInteract}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>

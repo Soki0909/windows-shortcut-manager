@@ -2,6 +2,14 @@
 
 Updated: 2026-10-29 (Asia/Tokyo)
 
+## v0.2.0 release preparation (2026-10-30)
+
+- Core 27/27, Windows 68/68 and Node 13/13 passed. Child processes are killed at ten Apply checkpoints; a retained mutex observer ensures real abandoned ownership. Recovery is killed and repeated, first-Apply interruption is recovered, and corrupt snapshots/post-crash edits stop all recovery writes. Instance leases are tested across processes and independently for Debug; delayed Shell work rejects parallel ViewModel changes.
+- Dedicated CfT live suite covers real API/group/window operations, Worker stop/restart, cold process startup and generated links. Prior owner physical-key evidence remains in the #110 matrix. Normal personal Chrome profiles are excluded.
+- Debug Settings compatibility guidance rendered successfully. Native close action returned `coordinate input geometry is unavailable`; only the test Debug process was stopped for cleanup, without saving settings.
+- Local ZIP/Setup generation, seven-frame branding and all three SHA-256 checks passed. Both signatures are explicitly `NotSigned`; a tampered checksum is rejected. Clean-runner installer and draft-download/publication gates are executed by CI/Release, with workflow state as the authoritative evidence.
+- Release scope, remaining publication gates and compatibility: [release tracker](../implementation/RELEASE_0.2.0.md), [release notes](../releases/v0.2.0.md). Installed product and personal Chrome remain unchanged by development tests.
+
 ## Issue #110 and nine safety improvements (unreleased)
 
 Branch: `codex/ten-issues-110-safety`. Details: [implementation tracker](../implementation/ISSUES_110_AND_SAFETY.md), [ADR-008](../architecture/ADR-008-foreground-independent-group-toggle.md).

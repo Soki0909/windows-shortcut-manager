@@ -3,6 +3,9 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   release:
     runs-on: windows-latest
@@ -20,7 +23,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
-          $version = if ('${{ github.ref_type }}' -eq 'tag') { '${{ github.ref_name }}'.TrimStart('v') } else { '0.1.1' }
+          $version = if ($env:RELEASE_REF_TYPE -eq 'tag') { $env:RELEASE_TAG.TrimStart('v') } else { '0.2.0' }
           dotnet restore ShortcutManager.sln
           dotnet test ShortcutManager.sln -c Release --no-restore
           node --test tests/ChromeExtension.Tests/protocol.test.js
@@ -28,8 +31,13 @@ jobs:
           ./scripts/prepare-installer-tools.ps1
           ./scripts/package-installer.ps1 -Version $version -SkipPublish
           ./scripts/verify-branding.ps1 -Version $version
+          ./scripts/verify-release-artifacts.ps1 -Version $version -RunInstallerSmoke
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
       - shell: pwsh
         if: github.ref_type == 'tag'
-        run: gh release create "${{ github.ref_name }}" artifacts/*.zip artifacts/ShortcutManager-Setup-*.exe artifacts/SHA256SUMS.txt --verify-tag --title "Shortcut Manager ${{ github.ref_name }}" --notes-file "docs/releases/${{ github.ref_name }}.md"
+        run: ./scripts/publish-release.ps1 -Tag $env:RELEASE_TAG
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}

@@ -11,7 +11,7 @@ async function closeSelf() {
 }
 
 async function run() {
-  const parsed = parseDispatchQuery(location.search);
+  const parsed = parseDispatchQuery(location.search, chrome.runtime.getManifest().version);
   if (!parsed.ok) {
     status.textContent = parsed.message;
     details.hidden = false;

@@ -58,16 +58,18 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<KeyTile> BottomRowKeys { get; } = [];
     public ShortcutRow? Selected { get => selected; set => Set(ref selected, value); }
     public string Status { get => status; private set => Set(ref status, value); }
-    public bool IsBusy { get => isBusy; private set => Set(ref isBusy, value); }
+    public bool IsBusy { get => isBusy; private set { if (Set(ref isBusy, value)) { Raise(nameof(CanInteract)); Raise(nameof(CanApply)); } } }
+    public bool CanInteract => !IsBusy;
     public bool IsDirty { get => isDirty; private set => Set(ref isDirty, value); }
     public bool RecoveryRequired { get => recoveryRequired; private set { if (Set(ref recoveryRequired, value)) Raise(nameof(CanApply)); } }
-    public bool CanApply => !RecoveryRequired;
+    public bool CanApply => !RecoveryRequired && !IsBusy;
     public ShortcutConfig Candidate => candidate;
     public string ConfigPath => paths.ConfigPath;
     public string ManagedDirectory => paths.ResolveManagedDirectory(candidate.Settings.ManagedShortcutDirectory);
 
     public void Load()
     {
+        if (IsBusy) return;
         configLoaded = false;
         try
         {
@@ -94,6 +96,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void InitializeRecovery()
     {
+        if (IsBusy) return;
         if (!RecoveryRequired) return;
         // Preserve the broken source in a verified ZIP before allowing an empty candidate.
         backups.Create("recovery-initialize", paths.ConfigPath, paths.ManagedShortcutDirectory, paths.StatePath);
@@ -127,6 +130,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void Upsert(ShortcutDefinition definition)
     {
+        if (IsBusy) return;
         var index = candidate.Shortcuts.FindIndex(item => item.Id == definition.Id);
         if (index >= 0) candidate.Shortcuts[index] = definition;
         else candidate.Shortcuts.Add(definition);
@@ -137,6 +141,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void DeleteSelected()
     {
+        if (IsBusy) return;
         if (Selected is null) return;
         candidate.Shortcuts.RemoveAll(item => item.Id == Selected.Definition.Id);
         IsDirty = true;
@@ -146,6 +151,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void UpdateSettings(string? chromePath, string extensionId)
     {
+        if (IsBusy) return;
         candidate = candidate with { Settings = candidate.Settings with { Chrome = new() { ExecutablePath = string.IsNullOrWhiteSpace(chromePath) ? null : chromePath.Trim(), ExtensionId = extensionId.Trim() } } };
         IsDirty = true;
         Refresh();
@@ -154,6 +160,7 @@ public sealed class MainViewModel : ObservableObject
 
     public async Task<IReadOnlyList<ShortcutInventoryItem>> ScanAsync()
     {
+        if (IsBusy) return [];
         IsBusy = true;
         Status = "既存 .lnk / .url をスキャンしています…";
         try
@@ -168,6 +175,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void Import(ShortcutInventoryItem item)
     {
+        if (IsBusy) return;
         var key = ExtractKey(item.Hotkey);
         if (key is null || candidate.Shortcuts.Any(existing => existing.Enabled && existing.Hotkey.Key == key))
             key = Enumerable.Range('A', 26).Select(value => ((char)value).ToString()).FirstOrDefault(value => candidate.Shortcuts.All(existing => !existing.Enabled || existing.Hotkey.Key != value));
@@ -178,6 +186,7 @@ public sealed class MainViewModel : ObservableObject
 
     public async Task<bool> ApplyAsync()
     {
+        if (IsBusy) return false;
         if (RecoveryRequired) { Status = "復旧モードでは反映できません。バックアップ復元または設定修復後の再読込が必要です。"; return false; }
         IsBusy = true;
         Status = "validate → scan → stage → backup → apply を実行しています…";
@@ -203,6 +212,7 @@ public sealed class MainViewModel : ObservableObject
 
     public async Task ReloadShellAsync()
     {
+        if (IsBusy) return;
         IsBusy = true;
         Status = "Windows Shellを再読み込みしています…";
         logger.Info("Shell reload requested by user.");
@@ -222,6 +232,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void Test(ShortcutDefinition definition)
     {
+        if (IsBusy) return;
         try
         {
             var result = validator.Validate(candidate);
@@ -243,6 +254,7 @@ public sealed class MainViewModel : ObservableObject
 
     public string Backup(string? destination = null)
     {
+        if (IsBusy) throw new InvalidOperationException("処理中はバックアップできません。");
         var path = backups.Create("manual", paths.ConfigPath, ManagedDirectory, paths.StatePath, destination);
         Status = $"バックアップを作成しました: {path}";
         logger.Info($"Manual backup: {path}");
@@ -251,6 +263,7 @@ public sealed class MainViewModel : ObservableObject
 
     public async Task RestoreAsync(string path)
     {
+        if (IsBusy) return;
         IsBusy = true;
         Status = "バックアップを検証して復元しています…";
         try
@@ -260,7 +273,7 @@ public sealed class MainViewModel : ObservableObject
             var result = await Task.Run(() => restore.Restore(path, ManagedDirectory, external));
             Status = result.Message;
             logger.Info($"Restore: success={result.Succeeded}, source={path}");
-            if (result.Succeeded) Load();
+            if (result.Succeeded) { IsBusy = false; Load(); }
         }
         catch (Exception error)
         {
