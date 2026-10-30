@@ -77,7 +77,7 @@ async function protectExplicitGroup(id) {
 async function focusGroup(groupName, notify = true, action = FOCUS_GROUP_ACTION, dispatcherTabId = null, selected = null) {
   let groups;
   try { groups = selected ? [await chrome.tabGroups.get(selected.groupId)] : await chrome.tabGroups.query({}); }
-  catch { return selected ? failure("selection-not-found", "選択したグループがなくなりました。一覧を更新してください。") : failure("group-query-failed", "タブグループ一覧を取得できませんでした。"); }
+  catch { return selected ? failure("selection-unavailable", "選択したグループを取得できません。消滅や権限の問題が考えられます。一覧を更新してください。") : failure("group-query-failed", "タブグループ一覧を取得できませんでした。"); }
 
   const group = selected ? groups.find(group => group.id === selected.groupId && group.windowId === selected.windowId) : selectMatchingGroup(groups, groupName, await getLastFocusedWindowId());
   if (!group) {
@@ -128,8 +128,8 @@ async function collapseAll(automatic = false) {
   const results = await Promise.allSettled(targets.map(async group => {
     try { await chrome.tabGroups.update(group.id, { collapsed: true }); return "succeeded"; }
     catch {
-      try { await chrome.tabGroups.get(group.id); return "failed"; }
-      catch { return "disappeared"; }
+      try { return (await chrome.tabGroups.query({})).some(current => current.id === group.id) ? "failed" : "disappeared"; }
+      catch { return "failed"; } // A failed read is not proof of disappearance.
     }
   }));
   const values = results.map(result => result.status === "fulfilled" ? result.value : "failed");

@@ -87,6 +87,10 @@ test("collapse-all reports successful, failed and disappeared groups separately"
     const response = await f.send({ type: "collapse-all" });
     assert.equal(response.ok, false); assert.equal(response.count, 1);
     assert.equal(response.succeeded, 1); assert.equal(response.failed, 1); assert.equal(response.disappeared, 1);
+    let queryCalls = 0;
+    f.api.tabGroups.query = async () => { if (++queryCalls > 1) throw new Error("recheck denied"); return [{ id: 2 }]; };
+    const uncertain = await f.send({ type: "collapse-all" });
+    assert.equal(uncertain.failed, 1); assert.equal(uncertain.disappeared, 0);
   } finally { await f.close(); }
 });
 
