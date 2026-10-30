@@ -2,6 +2,14 @@
 
 Updated: 2026-10-29 (Asia/Tokyo)
 
+## v0.3.0 responsiveness release (2026-10-30)
+
+- Core 27/27, Windows 70/70 and extension 22/22 passed. Local ZIP/Setup, all three digests, seven-frame branding and unsigned-signature policy checks passed.
+- Owner physical-key measurements (ten per phase) reduced median target-code entry from 3086.43 ms to 139.92 ms after explicitly approved removal of two unresponsive application processes. Direct-launch baselines and limitations: [latency evidence](LATENCY_2026-10-30.md). No claim that product code alone removes every OS delay.
+- Dedicated Chrome run chrome-live-1793343256430 passed all checks, including exact Popup instance selection, injected transport/storage failure and state rollback, Worker/cold start and cleanup. No personal Chrome profile used.
+- Debug diagnostic dialog rendered and completed a real read-only probe; candidate labels, retry and normal close were checked. The initial background capture did not show the target; activation and a fresh target capture resolved it before any input.
+- Scope and publication/update tracking: [RELEASE_0.3.0.md](../implementation/RELEASE_0.3.0.md).
+
 ## v0.2.0 / v0.2.1 release preparation (2026-10-30)
 
 - Public target is v0.2.1. v0.2.0 publication was cancelled before draft creation to fix cleanup ordering. Windows 69/69 passed including the eleventh kill checkpoint after invalidating journal intent but before deleting snapshots. The v0.2.0 tag is preserved; published v0.1.1 assets were not modified.

@@ -18,13 +18,13 @@ jobs:
         run: ./scripts/run-debug.ps1 -NoLaunch
       - run: dotnet build tests/ShortcutManager.LiveDriver/ShortcutManager.LiveDriver.csproj -c Debug --nologo
       - shell: pwsh
-        run: ./scripts/package.ps1 -Configuration Release -Version 0.2.1
+        run: ./scripts/package.ps1 -Configuration Release -Version 0.3.0
       - shell: pwsh
         run: |
           ./scripts/prepare-installer-tools.ps1
-          ./scripts/package-installer.ps1 -Version 0.2.1 -SkipPublish
-          ./scripts/verify-branding.ps1 -Version 0.2.1
-          ./scripts/verify-release-artifacts.ps1 -Version 0.2.1 -RunInstallerSmoke
+          ./scripts/package-installer.ps1 -Version 0.3.0 -SkipPublish
+          ./scripts/verify-branding.ps1 -Version 0.3.0
+          ./scripts/verify-release-artifacts.ps1 -Version 0.3.0 -RunInstallerSmoke
   extension:
     runs-on: ubuntu-latest
     steps:
@@ -32,7 +32,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test tests/ChromeExtension.Tests/protocol.test.js
+      - run: node --test tests/ChromeExtension.Tests/protocol.test.js tests/ChromeExtension.Tests/worker-regressions.test.js
       - shell: pwsh
-        run: ./scripts/verify-version.ps1 -ExpectedVersion 0.2.1
+        run: ./scripts/verify-version.ps1 -ExpectedVersion 0.3.0
 

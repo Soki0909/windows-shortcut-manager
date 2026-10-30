@@ -157,6 +157,18 @@ try {
       return { groupId, windowId: window.id, tabId: window.tabs[0].id };
     }, "Issue110 test");
     try {
+      await record("real Popup: each duplicate row selects its own window", async () => {
+        const first = await group();
+        for (const selected of [{ groupId, windowId: first.windowId }, duplicate]) {
+          await harness.evaluate(async ids => { for (const id of ids) await chrome.tabGroups.update(id, { collapsed: true }); }, [groupId, duplicate.groupId]);
+          const popup = await context.newPage(); await popup.goto(`chrome-extension://${id}/popup.html`);
+          await popup.locator(".group").filter({ hasText: `Window ${selected.windowId} ·` }).getByRole("button", { name: "開く", exact: true }).click();
+          await waitFor(async () => !(await snapshot()).groups.find(item => item.id === selected.groupId).collapsed, "Popup selected wrong duplicate");
+          assert.equal((await snapshot()).groups.find(item => item.id !== selected.groupId && item.title === "Issue110 test").collapsed, true);
+          if (!popup.isClosed()) await popup.close();
+        }
+        await harness.evaluate(async ids => { for (const id of ids) await chrome.tabGroups.update(id, { collapsed: false }); }, [groupId, duplicate.groupId]);
+      });
       await dispatch("toggle-group", "Issue110 test", duplicate.windowId);
       const state = await snapshot();
       assert.equal(state.groups.find(item => item.id === duplicate.groupId).collapsed, true);
@@ -166,6 +178,28 @@ try {
       assert.equal((await snapshot()).groups.find(item => item.id === duplicate.groupId).collapsed, false);
       return state;
     } finally { await harness.evaluate(async id => { try { await chrome.windows.remove(id); } catch { /* A failed test may already have closed its test window. */ } }, duplicate.windowId); }
+  });
+  await record("real Popup: transport/storage failures keep retry available and preserve settings", async () => {
+    const rejected = await context.newPage();
+    await rejected.addInitScript(() => { chrome.runtime.sendMessage = async () => { throw new Error("isolated transport fault"); }; });
+    await rejected.goto(`chrome-extension://${id}/popup.html`);
+    await rejected.getByText("拡張との通信に失敗しました。状態を更新して再試行してください。", { exact: true }).waitFor();
+    assert.equal(await rejected.getByRole("button", { name: "更新", exact: true }).isEnabled(), true);
+    await rejected.close();
+    const unavailable = await context.newPage();
+    await unavailable.addInitScript(() => { chrome.storage.local.get = async () => { throw new Error("isolated settings read fault"); }; });
+    await unavailable.goto(`chrome-extension://${id}/popup.html`);
+    await unavailable.getByText("設定を読み込めませんでした。グループ一覧は更新して再試行できます。", { exact: true }).waitFor();
+    assert.equal(await unavailable.locator("#collapse-startup").isDisabled(), true);
+    assert.equal(await unavailable.getByRole("button", { name: "更新", exact: true }).isEnabled(), true);
+    await unavailable.close();
+    const unwritable = await context.newPage();
+    await unwritable.addInitScript(() => { chrome.storage.local.set = async () => { throw new Error("isolated settings write fault"); }; });
+    await unwritable.goto(`chrome-extension://${id}/popup.html`);
+    await unwritable.locator("#collapse-startup").click();
+    await unwritable.getByText("操作に失敗しました。「更新」で状態を確認して再試行してください。", { exact: true }).waitFor();
+    assert.equal(await unwritable.locator("#collapse-startup").isChecked(), false);
+    await unwritable.close();
   });
   await record("real Chrome: another selected group is preserved when target collapses", async () => {
     const other = await harness.evaluate(async () => {
@@ -310,6 +344,31 @@ try {
       const observer = await coldBrowser.contexts()[0].newPage(); await observer.goto(`chrome-extension://${id}/harness.html`);
       await waitFor(() => observer.evaluate(async () => { const value = (await chrome.storage.session.get("liveLastDispatch")).liveLastDispatch; return value?.request.payload.groupName === "Cold absent group" && value.response.code === "group-not-found"; }), "Cold response missing");
       await waitFor(() => observer.evaluate(async () => !(await chrome.tabs.query({})).some(tab => (tab.url || tab.pendingUrl)?.includes("/dispatch.html?"))), "Cold Dispatcher residue");
+      await record("real Chrome: created-event automation respects explicit opens in startup window", async () => {
+        // CLI-loaded unpacked extensions did not receive onStartup in CfT.
+        // Arm the same isolated storage precondition, then exercise real created
+        // events/APIs. The onStartup callback itself is covered by Worker tests.
+        await observer.evaluate(() => chrome.storage.local.set({ settings: { collapseOnStartup: true, startupCollapseWindowMs: 20000, debugMode: false }, startupCollapseUntil: Date.now() + 20000 }));
+        const selected = await observer.evaluate(async () => {
+          const groups = [];
+          for (let i = 0; i < 2; i++) {
+            const window = await chrome.windows.create({ url: "about:blank", focused: false });
+            const id = await chrome.tabs.group({ tabIds: [window.tabs[0].id], createProperties: { windowId: window.id } });
+            await chrome.tabGroups.update(id, { title: `Startup explicit ${i}` });
+            groups.push({ groupId: id, windowId: window.id });
+          }
+          for (let i = 0; i < 6; i++) {
+            const group = groups[i % groups.length];
+            const result = await chrome.runtime.sendMessage({ type: "focus-group-instance", ...group });
+            if (!result.ok) throw new Error(JSON.stringify(result));
+          }
+          return groups;
+        });
+        await delay(300);
+        const states = await observer.evaluate(async ids => Promise.all(ids.map(group => chrome.tabGroups.get(group.groupId))), selected);
+        assert.ok(states.every(group => group.collapsed === false));
+        return states;
+      });
       const workerErrors = await observer.evaluate(async () => (await chrome.storage.session.get("liveWorkerErrors")).liveWorkerErrors ?? []);
       assert.deepEqual(workerErrors, [], "Cold Worker unhandled exceptions");
       assert.deepEqual(pageErrors, [], "Unhandled page exceptions");

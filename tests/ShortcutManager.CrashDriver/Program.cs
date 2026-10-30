@@ -11,6 +11,15 @@ using ShortcutManager.Windows.Storage;
 
 var root = Path.GetFullPath(args[0]);
 if (!Path.GetFileName(root).StartsWith("shortcut-manager-tests-", StringComparison.Ordinal)) throw new ArgumentException("Isolated fixture required.");
+if (args[1] == "hung-window")
+{
+    var thread = new Thread(() => {
+        using var form = new ProbeWindow { ShowInTaskbar = false, Opacity = 0 };
+        form.Shown += (_, _) => File.WriteAllText(Path.Combine(root, "window-ready"), "ready");
+        System.Windows.Forms.Application.Run(form);
+    });
+    thread.SetApartmentState(ApartmentState.STA); thread.Start(); thread.Join(); return;
+}
 if (args[1] == "lease")
 {
     using var lease = new InstanceLease(Path.Combine(root, "lease-config.json"));
@@ -25,3 +34,12 @@ var applier = new ManagedShortcutApplier(repository, new ConfigValidator(), new 
 var config = new ShortcutConfig { Shortcuts = [new() { Name = "Crash candidate", Hotkey = new() { Key = "H" }, Target = new WebsiteTarget { Url = "https://example.org" } }] };
 if (args[1] == "recovery-item-restored") { applier.RecoverPending(); return; }
 if (!applier.Apply(config, Path.Combine(root, "managed")).Succeeded) Environment.Exit(2);
+
+internal sealed class ProbeWindow : System.Windows.Forms.Form
+{
+    protected override void WndProc(ref System.Windows.Forms.Message message)
+    {
+        if (message.Msg == 0x0033) Thread.Sleep(1000);
+        base.WndProc(ref message);
+    }
+}

@@ -35,7 +35,7 @@ public partial class App : Application
         var scanner = new ShortcutManager.Windows.Inventory.ShortcutInventoryScanner(shellLinks, new ShortcutManager.Windows.Inventory.UrlShortcutReader());
         var logger = new ShortcutManager.Windows.Logging.FileLogger(paths.LogPath);
         var restore = new ShortcutManager.Windows.Backup.RestoreService(validator, applier);
-        if (!e.Args.Contains("--scan") && !e.Args.Contains("--validate-config"))
+        if (!e.Args.Contains("--scan") && !e.Args.Contains("--validate-config") && !e.Args.Contains("--diagnose-launch"))
         {
             var recovery = applier.RecoverPending();
             if (!recovery.Succeeded)
@@ -73,13 +73,15 @@ public partial class App : Application
         var applyPath = ValueAfter(args, "--apply-config");
         var restorePath = ValueAfter(args, "--restore-backup");
         var scanRequested = args.Contains("--scan", StringComparer.OrdinalIgnoreCase);
-        if (validatePath is null && applyPath is null && restorePath is null && !scanRequested) return false;
+        var diagnoseRequested = args.Contains("--diagnose-launch", StringComparer.OrdinalIgnoreCase);
+        if (validatePath is null && applyPath is null && restorePath is null && !scanRequested && !diagnoseRequested) return false;
         if (string.IsNullOrWhiteSpace(resultPath)) throw new ArgumentException("--result <path> is required in command mode.");
 
         object result;
         try
         {
-            if (restorePath is not null)
+            if (diagnoseRequested) result = new ShortcutManager.Windows.Diagnostics.ShellResponsivenessProbe().Run();
+            else if (restorePath is not null)
             {
                 var inventory = scanner.ScanDefaultAsync(paths.ManagedShortcutDirectory).GetAwaiter().GetResult();
                 var external = inventory.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
