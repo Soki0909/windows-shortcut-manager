@@ -201,7 +201,7 @@ public sealed class ManagedShortcutApplier(
         }
         finally
         {
-            try { if (!retainRecovery && Directory.Exists(operationRoot)) Directory.Delete(operationRoot, true); } catch { }
+            if (!retainRecovery && Directory.Exists(operationRoot)) ApplyJournal.Cleanup(operationRoot, checkpoint);
         }
     }
 

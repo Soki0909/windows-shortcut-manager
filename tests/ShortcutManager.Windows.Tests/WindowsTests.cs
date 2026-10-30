@@ -602,6 +602,7 @@ public sealed class WindowsTests : IDisposable
     [InlineData("new-moved")]
     [InlineData("state-saved")]
     [InlineData("committed")]
+    [InlineData("cleanup-intent-removed")]
     public void KilledProcessRecoversCompleteStateAndReleasesAbandonedMutex(string point)
     {
         var repository = new ConfigRepository(Path.Combine(root, "config.json"));
@@ -617,7 +618,7 @@ public sealed class WindowsTests : IDisposable
         if (point == "config-saved") RunCrashDriver("recovery-item-restored");
         var recovered = applier.RecoverPending();
         Assert.True(recovered.Succeeded, recovered.Message);
-        if (point == "committed") Assert.Equal("H", repository.Load().Shortcuts.Single().Hotkey.Key);
+        if (point is "committed" or "cleanup-intent-removed") Assert.Equal("H", repository.Load().Shortcuts.Single().Hotkey.Key);
         else
         {
             Assert.Equal(original, File.ReadAllBytes(repository.Path));

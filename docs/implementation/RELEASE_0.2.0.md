@@ -30,3 +30,9 @@ Include merged #110/#2/#4/#5/#6/#7/#37/#38/#39/#40. Finish the remaining P0 cras
 - Final real Chrome run chrome-live-1793335333677: 17/17 passed, including explicit page/Worker unhandled-exception observers, cold startup and cleanup. During the earlier rerun an open Debug UI correctly blocked CLI scan; the owned test process was closed before rerunning.
 
 - CI 41004714567 passed all gates on a clean Windows runner after registering CrashDriver in the solution. An initial --no-build run exposed the missing fixture build; the fixed solution build/test path passed locally and in CI.
+
+## Final publication version: v0.2.1
+
+- The v0.2.0 Release run 41005299163 was cancelled before draft creation. Keep its source tag immutable; publish the patch as v0.2.1.
+- Cleanup now removes journal intent while the terminal marker still exists, before recursively deleting snapshots. A kill at cleanup-intent-removed is the eleventh checkpoint. Windows 69/69 passed; Core 27 and Node 13 remain unchanged. The final PR/Release workflows re-run all gates.
+- v0.2.1 notes: [update instructions](../releases/v0.2.1.md). Personal installed product is not changed by publishing.
