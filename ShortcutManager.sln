@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShortcutManager.Core.Tests"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShortcutManager.Windows.Tests", "tests\ShortcutManager.Windows.Tests\ShortcutManager.Windows.Tests.csproj", "{0A1FD3BD-4AD0-4D12-B5FC-12C8D3F36CAB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShortcutManager.CrashDriver", "tests\ShortcutManager.CrashDriver\ShortcutManager.CrashDriver.csproj", "{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +89,18 @@ Global
 		{0A1FD3BD-4AD0-4D12-B5FC-12C8D3F36CAB}.Release|x64.Build.0 = Release|Any CPU
 		{0A1FD3BD-4AD0-4D12-B5FC-12C8D3F36CAB}.Release|x86.ActiveCfg = Release|Any CPU
 		{0A1FD3BD-4AD0-4D12-B5FC-12C8D3F36CAB}.Release|x86.Build.0 = Release|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Debug|x64.Build.0 = Debug|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Debug|x86.Build.0 = Debug|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Release|x64.ActiveCfg = Release|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Release|x64.Build.0 = Release|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Release|x86.ActiveCfg = Release|Any CPU
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -97,5 +111,6 @@ Global
 		{F3A38010-A7DD-42CC-8106-396F4BC84BD1} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{19B8779B-A8CB-401D-A9A3-028A74138A80} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{0A1FD3BD-4AD0-4D12-B5FC-12C8D3F36CAB} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{3F0FDDBF-FBBA-4DF6-A822-D90C62440483} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
