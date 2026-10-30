@@ -10,8 +10,8 @@ Include merged #110/#2/#4/#5/#6/#7/#37/#38/#39/#40. Finish the remaining P0 cras
 - [x] #34/#35: per-edition instance lease, ViewModel update guards and disabled controls while busy.
 - [x] #92: minimum-extension query, protocol diagnostics, Settings/Popup guidance and release compatibility table.
 - [x] #57: rerun the dedicated real Chrome suite against this version.
-- [ ] #61: exercise draft-download verification and disposable-runner Setup smoke before publication.
-- [ ] Final CI, main merge, tag and downloaded public artifact verification.
+- [x] #61: draft-download verification and disposable-runner Setup smoke are required before publication. CI run 41004714567 passed local-artifact Setup installation, installed CLI validation and uninstall. The tagged workflow repeats this against downloaded draft assets.
+- Publication status is tracked by [PR #113](https://github.com/Soki0909/windows-shortcut-manager/pull/113) and the [v0.2.0 Release workflow](https://github.com/Soki0909/windows-shortcut-manager/actions/workflows/release.yml). Published asset verification is a gate before the release becomes public.
 
 ## Discoveries and decisions
 
@@ -28,3 +28,5 @@ Include merged #110/#2/#4/#5/#6/#7/#37/#38/#39/#40. Finish the remaining P0 cras
 - Real Chrome run chrome-live-1793334818957: 16/16 including cleanup passed; physical keys remain covered by prior 22-record owner run.
 
 - Final real Chrome run chrome-live-1793335333677: 17/17 passed, including explicit page/Worker unhandled-exception observers, cold startup and cleanup. During the earlier rerun an open Debug UI correctly blocked CLI scan; the owned test process was closed before rerunning.
+
+- CI 41004714567 passed all gates on a clean Windows runner after registering CrashDriver in the solution. An initial --no-build run exposed the missing fixture build; the fixed solution build/test path passed locally and in CI.
