@@ -1,4 +1,4 @@
-import { parseDispatchQuery } from "./lib/dispatch-protocol.js";
+import { parseDispatchQuery, TOGGLE_GROUP_ACTION } from "./lib/dispatch-protocol.js";
 
 const status = document.querySelector("#status");
 const details = document.querySelector("#details");
@@ -21,10 +21,10 @@ async function run() {
   }
 
   const groupName = parsed.request.payload.groupName;
-  status.textContent = `「${groupName}」を開いています…`;
+  status.textContent = parsed.request.action === TOGGLE_GROUP_ACTION ? `「${groupName}」を切り替えています…` : `「${groupName}」を開いています…`;
   const response = await chrome.runtime.sendMessage(parsed.request);
   if (response?.ok) {
-    status.textContent = `「${groupName}」へ移動しました。`;
+    status.textContent = response.code === "collapsed" ? `「${groupName}」を折りたたみました。` : `「${groupName}」へ移動しました。`;
     await closeSelf();
     return;
   }

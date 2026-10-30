@@ -10,7 +10,8 @@ public sealed partial class ConfigValidator
 
     public ValidationResult Validate(ShortcutConfig config, bool checkFileSystem = true)
     {
-        var issues = new List<ValidationIssue>();
+        var issues = ConfigStructure.Inspect(config).ToList();
+        if (issues.Count > 0) return new(issues);
         if (config.SchemaVersion != 1) issues.Add(new("invalid-schema-version", "schemaVersion は 1 である必要があります。"));
         if (config.DispatchProtocolVersion != 1) issues.Add(new("invalid-dispatch-version", "dispatchProtocolVersion は 1 である必要があります。"));
         if (config.Shortcuts.Count > 26) issues.Add(new("too-many-shortcuts", "ショートカットは最大26件です。"));

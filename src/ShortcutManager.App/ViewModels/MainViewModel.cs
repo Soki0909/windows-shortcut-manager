@@ -33,6 +33,7 @@ public sealed class MainViewModel : ObservableObject
     private bool isBusy;
     private bool isDirty;
     private bool configLoaded;
+    private bool recoveryRequired;
 
     public MainViewModel(ApplicationPaths paths, ConfigRepository repository, ConfigValidator validator, LaunchSpecResolver resolver, ProcessLauncher launcher, ShortcutInventoryScanner scanner, ShortcutImporter importer, BackupService backups, ManagedShortcutApplier applier, RestoreService restore, FileLogger logger, IExplorerShellReloader shellReloader)
     {
@@ -59,6 +60,8 @@ public sealed class MainViewModel : ObservableObject
     public string Status { get => status; private set => Set(ref status, value); }
     public bool IsBusy { get => isBusy; private set => Set(ref isBusy, value); }
     public bool IsDirty { get => isDirty; private set => Set(ref isDirty, value); }
+    public bool RecoveryRequired { get => recoveryRequired; private set { if (Set(ref recoveryRequired, value)) Raise(nameof(CanApply)); } }
+    public bool CanApply => !RecoveryRequired;
     public ShortcutConfig Candidate => candidate;
     public string ConfigPath => paths.ConfigPath;
     public string ManagedDirectory => paths.ResolveManagedDirectory(candidate.Settings.ManagedShortcutDirectory);
@@ -69,19 +72,36 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             candidate = repository.Load();
+            var validation = validator.Validate(candidate, checkFileSystem: false);
+            if (!validation.IsValid) throw new InvalidDataException(string.Join(Environment.NewLine, validation.Issues.Select(issue => issue.Message)));
             Refresh();
             IsDirty = false;
+            RecoveryRequired = false;
             configLoaded = File.Exists(paths.ConfigPath);
             Status = File.Exists(paths.ConfigPath) ? "config.json を読み込みました。" : "初回起動: ショートカットを追加するか既存をスキャンしてください。";
         }
         catch (Exception error)
         {
-            if (File.Exists(paths.ConfigPath)) File.Copy(paths.ConfigPath, $"{paths.ConfigPath}.broken-{DateTime.Now:yyyyMMdd-HHmmss}.json", false);
+            RecoveryRequired = true;
+            try { if (File.Exists(paths.ConfigPath)) File.Copy(paths.ConfigPath, $"{paths.ConfigPath}.broken-{Guid.NewGuid():N}.json", false); }
+            catch (Exception preservationError) { Status = $"破損設定のコピーを保存できません。元ファイルは保全しています: {preservationError.Message}"; }
             candidate = new();
             Refresh();
-            Status = $"config.json を読み込めません。既存ショートカットは変更していません: {error.Message}";
+            Status = $"復旧モード: 反映は停止中です。「復元」でバックアップを選ぶか、config.jsonを修復して「再読込」してください。既存ショートカットは変更していません: {error.Message}";
             logger.Error("Config load failed", error);
         }
+    }
+
+    public void InitializeRecovery()
+    {
+        if (!RecoveryRequired) return;
+        // Preserve the broken source in a verified ZIP before allowing an empty candidate.
+        backups.Create("recovery-initialize", paths.ConfigPath, paths.ManagedShortcutDirectory, paths.StatePath);
+        candidate = new();
+        RecoveryRequired = false;
+        IsDirty = true;
+        Refresh();
+        Status = "破損設定をバックアップし、空の候補を準備しました。既存リンクの削除は「変更を反映」まで行いません。";
     }
 
     public async Task<bool> AuditStartupAsync(ManagedShortcutAuditor auditor)
@@ -158,6 +178,7 @@ public sealed class MainViewModel : ObservableObject
 
     public async Task<bool> ApplyAsync()
     {
+        if (RecoveryRequired) { Status = "復旧モードでは反映できません。バックアップ復元または設定修復後の再読込が必要です。"; return false; }
         IsBusy = true;
         Status = "validate → scan → stage → backup → apply を実行しています…";
         try

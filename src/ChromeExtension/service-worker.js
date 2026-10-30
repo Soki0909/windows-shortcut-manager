@@ -1,7 +1,16 @@
 import { normalizeGroupTitle } from "./lib/normalize.js";
 import { selectMatchingGroup } from "./lib/group-selection.js";
 import { selectTabForGroup } from "./lib/tab-selection.js";
-import { DISPATCH_PROTOCOL_VERSION, FOCUS_GROUP_ACTION, failure } from "./lib/dispatch-protocol.js";
+import { DISPATCH_PROTOCOL_VERSION, FOCUS_GROUP_ACTION, TOGGLE_GROUP_ACTION, failure } from "./lib/dispatch-protocol.js";
+import { shouldCollapse } from "./lib/group-operation.js";
+
+// Serialize complete dispatches, including repeated HotKeys, without a timer-based guess.
+let dispatchQueue = Promise.resolve();
+function queueDispatch(operation) {
+  const result = dispatchQueue.then(operation);
+  dispatchQueue = result.catch(() => {});
+  return result;
+}
 
 const LAST_TAB_KEY = "lastTabByGroupTitle";
 const SETTINGS_KEY = "settings";
@@ -47,7 +56,7 @@ async function notifyNotFound(groupName) {
   });
 }
 
-async function focusGroup(groupName, notify = true) {
+async function focusGroup(groupName, notify = true, action = FOCUS_GROUP_ACTION, dispatcherTabId = null) {
   let groups;
   try { groups = await chrome.tabGroups.query({}); }
   catch { return failure("group-query-failed", "タブグループ一覧を取得できませんでした。"); }
@@ -56,6 +65,21 @@ async function focusGroup(groupName, notify = true) {
   if (!group) {
     if (notify) await notifyNotFound(groupName);
     return failure("group-not-found", `「${groupName}」は現在開かれていません。`);
+  }
+
+  if (shouldCollapse(action, group.collapsed)) {
+    try {
+      await chrome.windows.update(group.windowId, { focused: true });
+      // Closing the active Dispatcher can otherwise reactivate a member and undo collapse.
+      const outside = (await chrome.tabs.query({ windowId: group.windowId }))
+        .filter((tab) => tab.id !== dispatcherTabId && tab.groupId !== group.id && !tab.url?.startsWith(`chrome-extension://${chrome.runtime.id}/dispatch.html`))
+        .sort((left, right) => Number(right.active) - Number(left.active) || left.index - right.index)[0];
+      if (outside) await chrome.tabs.update(outside.id, { active: true });
+      else await chrome.tabs.create({ windowId: group.windowId, url: "about:blank", active: true });
+      await chrome.tabGroups.update(group.id, { collapsed: true });
+      // Never activate a member tab here: that would immediately expand the group again.
+      return { ok: true, code: "collapsed", groupId: group.id, windowId: group.windowId };
+    } catch { return failure("group-collapse-failed", "タブグループを折りたためませんでした。"); }
   }
 
   try { await chrome.tabGroups.update(group.id, { collapsed: false }); }
@@ -103,10 +127,10 @@ chrome.tabGroups.onCreated.addListener((group) => {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "dispatch") {
     if (message.protocolVersion !== DISPATCH_PROTOCOL_VERSION) { sendResponse(failure("invalid-protocol", "Dispatcher protocol v1 が必要です。")); return false; }
-    if (message.action !== FOCUS_GROUP_ACTION) { sendResponse(failure("invalid-action", "未対応の action です。")); return false; }
+    if (![FOCUS_GROUP_ACTION, TOGGLE_GROUP_ACTION].includes(message.action)) { sendResponse(failure("invalid-action", "未対応の action です。")); return false; }
     const groupName = normalizeGroupTitle(message.payload?.groupName);
     if (!groupName) { sendResponse(failure("empty-group-name", "タブグループ名が空です。")); return false; }
-    focusGroup(groupName).then(sendResponse).catch(() => sendResponse(failure("internal-error", "予期しないエラーが発生しました。")));
+    queueDispatch(() => focusGroup(groupName, true, message.action, _sender.tab?.id)).then(sendResponse).catch(() => sendResponse(failure("internal-error", "予期しないエラーが発生しました。")));
     return true;
   }
   if (message?.type === "focus-group") { focusGroup(normalizeGroupTitle(message.groupName), message.notify !== false).then(sendResponse); return true; }

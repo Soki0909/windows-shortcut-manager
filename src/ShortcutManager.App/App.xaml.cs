@@ -17,12 +17,12 @@ public partial class App : Application
         var repository = new ShortcutManager.Windows.Storage.ConfigRepository(paths.ConfigPath);
         var validator = new ShortcutManager.Core.Validation.ConfigValidator();
         var shellLinks = new ShortcutManager.Windows.ShellLinks.ShellLinkService();
-        var resolver = new ShortcutManager.Windows.Launching.LaunchSpecResolver(new ShortcutManager.Windows.Chrome.ChromeLocator(), new ShortcutManager.Core.Protocol.DispatcherUriBuilder());
+        var resolver = new ShortcutManager.Windows.Launching.LaunchSpecResolver(new ShortcutManager.Windows.Chrome.ChromeLocator(), new ShortcutManager.Core.Protocol.DispatcherUriBuilder(), BuildIdentity.IsDevelopment ? ValueAfter(e.Args, "--chrome-test-profile") : null);
         var backups = new ShortcutManager.Windows.Backup.BackupService(paths.BackupDirectory, BuildIdentity.Version);
         var applier = new ShortcutManager.Windows.Apply.ManagedShortcutApplier(repository, validator, resolver, shellLinks, backups, paths.StagingDirectory, paths.StatePath, shellNotifier: new ShortcutManager.Windows.Shell.ShellChangeNotifier());
         var scanner = new ShortcutManager.Windows.Inventory.ShortcutInventoryScanner(shellLinks, new ShortcutManager.Windows.Inventory.UrlShortcutReader());
         var logger = new ShortcutManager.Windows.Logging.FileLogger(paths.LogPath);
-        var restore = new ShortcutManager.Windows.Backup.RestoreService(repository, validator, backups, applier, paths.StatePath);
+        var restore = new ShortcutManager.Windows.Backup.RestoreService(validator, applier);
         if (TryRunCommandLine(e.Args, paths, repository, validator, scanner, applier, restore, logger))
         {
             Shutdown();

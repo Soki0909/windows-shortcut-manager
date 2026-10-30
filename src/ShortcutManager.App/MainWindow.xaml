@@ -99,8 +99,11 @@
             <Button Content="削除" Click="Delete_Click"/>
             <Button Content="テスト起動" Click="Test_Click"/>
             <Button Content="再読込" Click="Reload_Click"/>
+            <Button Content="復旧用初期化" Click="InitializeRecovery_Click">
+              <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding RecoveryRequired}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Button.Style>
+            </Button>
             <Button Content="Explorerを再起動" Click="ShellReload_Click"/>
-            <Button Content="変更を反映" Style="{StaticResource PrimaryButtonStyle}" Click="Apply_Click" Padding="18,8"/>
+            <Button Content="変更を反映" Style="{StaticResource PrimaryButtonStyle}" Click="Apply_Click" Padding="18,8" IsEnabled="{Binding CanApply}"/>
           </StackPanel>
         </Grid>
         <DataGrid Grid.Row="1" ItemsSource="{Binding Shortcuts}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" MouseDoubleClick="Grid_DoubleClick" AlternationCount="2">

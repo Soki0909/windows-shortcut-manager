@@ -1,5 +1,7 @@
 # Shortcut Manager
 
+開発中の#110では、タブグループHotKeyが前面アプリに関係なく展開・折りたたみを切り替えます。旧Dispatcherのfocus-groupと拡張Popupの「開く」は従来どおりです。新Managerの起動時監査／Applyでリンクが再生成されるため、対応拡張を先に更新してください。インストール済み製品は開発ビルドで自動更新しません。
+
 Windows の `Ctrl+Alt+A-Z` を、常駐プロセスなしで Website / Application / BAT・CMD / Chrome タブグループへ割り当てるローカル管理ツールです。Windows Shell の Start Menu `.lnk` HotKey を利用するため、Managerを閉じてもショートカットは動き続けます。
 
 ## クイックスタート

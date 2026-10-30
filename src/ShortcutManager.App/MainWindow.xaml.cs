@@ -72,6 +72,13 @@ public partial class MainWindow : Window
 
     private void Test_Click(object sender, RoutedEventArgs e) { if (viewModel.Selected is not null) viewModel.Test(viewModel.Selected.Definition); }
     private void Reload_Click(object sender, RoutedEventArgs e) { if (!viewModel.IsDirty || MessageBox.Show(this, "未適用変更を破棄して再読み込みしますか？", "Reload", MessageBoxButton.YesNo) == MessageBoxResult.Yes) viewModel.Load(); }
+    private void InitializeRecovery_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(this, "破損設定をバックアップして空の候補設定を用意します。後で「変更を反映」を押すと既存の管理HotKeyが削除されます。初期化しますか？", "復旧用初期化", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        try { viewModel.InitializeRecovery(); }
+        catch (Exception error) { MessageBox.Show(this, $"バックアップに失敗したため初期化を中止しました: {error.Message}", "復旧", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
     private async void Apply_Click(object sender, RoutedEventArgs e)
     {
         if (!await viewModel.ApplyAsync()) return;

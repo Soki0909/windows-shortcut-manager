@@ -232,6 +232,14 @@ Validation:
 
 ## Blockers
 
+### 2026-10-29 post-release improvements
+- #110 + nine safety issues: [ISSUES_110_AND_SAFETY.md](ISSUES_110_AND_SAFETY.md). Separate from completed v0.1.0 milestones.
+- Discoveries: rollback cleanup could discard recovery originals; Apply accepted unrelated files; Restore did not verify its config hash. Added protections and isolated regressions.
+- Decisions: preserve installed product; use Debug and isolated Chrome for Testing. Owner approved foreground-independent toggle in Accepted ADR-008; original foreground condition is P3 issue #112. Withdrawn native prototype is excluded from product.
+- Validation evidence: final Release Core 27/27, Windows 53/53, Node 12/12; ZIP/Setup generation, independent hashes and seven-frame branding passed. Live #110 run recorded 22 passed checks, including four owner physical HotKey conditions and Worker/cold-start scenarios. Debug recovery UI and repaired Reload passed. See the condition matrix linked in the implementation tracker.
+
+### Historical v0.1.0 blockers
+
 - No remaining blockers for M9/M10. Physical U activation and removal passed; corrected reload success was logged; the managed configuration returned to 19 enabled shortcuts. The final automatic-recovery run changed Explorer PID `32368 → 45204` in about 0.9 seconds, and the owner confirmed no extra file-manager window appeared in front.
 - Native ChatGPT App and Slack are absent; their final-layout entries remain disabled until installed or an owner-approved launch target is supplied.
 - Chrome Web Store/Microsoft Store publication and code signing require owner credentials/accounts and are not v0.1.0 package blockers.

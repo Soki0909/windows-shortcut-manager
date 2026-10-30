@@ -4,7 +4,7 @@ using ShortcutManager.Windows.Chrome;
 
 namespace ShortcutManager.Windows.Launching;
 
-public sealed class LaunchSpecResolver(ChromeLocator chromeLocator, DispatcherUriBuilder uriBuilder)
+public sealed class LaunchSpecResolver(ChromeLocator chromeLocator, DispatcherUriBuilder uriBuilder, string? testChromeUserDataDirectory = null)
 {
     public LaunchSpec Resolve(ShortcutConfig config, ShortcutDefinition shortcut)
     {
@@ -32,13 +32,27 @@ public sealed class LaunchSpecResolver(ChromeLocator chromeLocator, DispatcherUr
                 break;
             case ChromeTabGroupTarget chrome:
                 target = chromeLocator.Find(config.Settings.Chrome.ExecutablePath) ?? throw new FileNotFoundException("chrome.exe was not found.");
-                arguments = Quote(uriBuilder.BuildFocusGroupUri(config.Settings.Chrome.ExtensionId, chrome.GroupName).AbsoluteUri);
-                workingDirectory = Path.GetDirectoryName(target) ?? string.Empty; icon = target; break;
+                arguments = Quote(uriBuilder.BuildToggleGroupUri(config.Settings.Chrome.ExtensionId, chrome.GroupName).AbsoluteUri);
+                workingDirectory = Path.GetDirectoryName(target) ?? string.Empty; icon = target;
+                if (testChromeUserDataDirectory is not null) arguments = $"--user-data-dir={Quote(Path.GetFullPath(testChromeUserDataDirectory))} " + arguments;
+                break;
             default: throw new InvalidOperationException("Unsupported shortcut target.");
         }
         return new(target, arguments, workingDirectory, shortcut.Hotkey.Canonical, string.IsNullOrWhiteSpace(icon) ? target : $"{icon},0", $"Shortcut Manager: {shortcut.Name}", windowStyle);
     }
 
-    public static string Quote(string value) => $"\"{value.Replace("\"", "\\\"")}\"";
+    public static string Quote(string value)
+    {
+        var result = new System.Text.StringBuilder("\"");
+        var slashes = 0;
+        foreach (var character in value)
+        {
+            if (character == '\\') { slashes++; continue; }
+            result.Append('\\', character == '"' ? slashes * 2 + 1 : slashes);
+            result.Append(character);
+            slashes = 0;
+        }
+        return result.Append('\\', slashes * 2).Append('"').ToString();
+    }
 }
 

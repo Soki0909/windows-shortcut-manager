@@ -18,7 +18,7 @@ public sealed class ManagedShortcutAuditor(ConfigValidator validator, LaunchSpec
         var validation = validator.Validate(config);
         if (!validation.IsValid)
             throw new InvalidDataException(string.Join(Environment.NewLine, validation.Issues.Select(issue => issue.Message)));
-        ManagedShortcutApplier.EnsureOwnershipSafe(directory);
+        ManagedShortcutApplier.EnsureOwnershipSafe(directory, config.Shortcuts.Where(item => item.Enabled).Select(ManagedFilename.For).ToArray(), links);
         var differences = new List<string>();
         var expectedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var definition in config.Shortcuts.Where(item => item.Enabled))
