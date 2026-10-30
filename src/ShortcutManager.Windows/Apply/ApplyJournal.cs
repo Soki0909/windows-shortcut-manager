@@ -48,7 +48,7 @@ internal static class ApplyJournal
         foreach (var root in Directory.EnumerateDirectories(workingRoot).Where(path => Guid.TryParseExact(Path.GetFileName(path), "N", out _)))
         {
             if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("復旧用フォルダがreparse pointです。");
-            if (File.Exists(Path.Combine(root, Terminal))) { Cleanup(root); continue; }
+            if (File.Exists(Path.Combine(root, Terminal))) { Cleanup(root, checkpoint); continue; }
             var path = Path.Combine(root, Filename);
             if (!File.Exists(path))
             {
@@ -97,7 +97,7 @@ internal static class ApplyJournal
             }
             notifier?.NotifyDirectoryChanged(data.ManagedDirectory);
             Complete(root);
-            Cleanup(root);
+            Cleanup(root, checkpoint);
             count++;
         }
         return count;
@@ -119,5 +119,17 @@ internal static class ApplyJournal
     }
 
     private static bool Same(string left, string right) => Path.GetFullPath(left).Equals(Path.GetFullPath(right), StringComparison.OrdinalIgnoreCase);
-    private static void Cleanup(string root) { try { Directory.Delete(root, true); } catch { /* A terminal journal can be cleaned next time. */ } }
+    public static void Cleanup(string root, Action<string>? checkpoint)
+    {
+        try
+        {
+            // Invalidate recovery intent while the terminal marker still exists.
+            // A kill during recursive deletion must never leave an active journal
+            // whose snapshots have already been removed.
+            File.Delete(Path.Combine(root, Filename));
+            checkpoint?.Invoke("cleanup-intent-removed");
+            Directory.Delete(root, true);
+        }
+        catch { /* Leave terminal data for cleanup next time; never replay it. */ }
+    }
 }

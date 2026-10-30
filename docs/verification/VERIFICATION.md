@@ -2,7 +2,9 @@
 
 Updated: 2026-10-29 (Asia/Tokyo)
 
-## v0.2.0 release preparation (2026-10-30)
+## v0.2.0 / v0.2.1 release preparation (2026-10-30)
+
+- Public target is v0.2.1. v0.2.0 publication was cancelled before draft creation to fix cleanup ordering. Windows 69/69 passed including the eleventh kill checkpoint after invalidating journal intent but before deleting snapshots. The v0.2.0 tag is preserved; published v0.1.1 assets were not modified.
 
 - Clean-runner [CI 41004714567](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/41004714567) passed Release tests, Debug/driver builds, packaging, branding, SHA/signature policy and Setup install/CLI/uninstall. Final dedicated Chrome run chrome-live-1793335333677 passed 17/17 including unhandled-exception monitoring and cleanup.
 
