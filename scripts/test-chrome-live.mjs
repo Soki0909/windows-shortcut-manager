@@ -19,6 +19,16 @@ await fs.mkdir(output, { recursive: true });
 await fs.cp(path.join(root, "src/ChromeExtension"), extension, { recursive: true });
 await fs.copyFile(path.join(root, "tests/ChromeExtension.Live/harness.html"), path.join(extension, "harness.html"));
 await fs.copyFile(path.join(root, "tests/ChromeExtension.Live/harness.js"), path.join(extension, "harness.js"));
+const workerFile = path.join(extension, "service-worker.js");
+const workerSource = await fs.readFile(workerFile, "utf8");
+await fs.writeFile(workerFile, `
+// Test-only exception observer; excluded from the distributed extension.
+function liveWorkerError(message) {
+  chrome.storage.session.get('liveWorkerErrors').then(data => chrome.storage.session.set({ liveWorkerErrors: [...(data.liveWorkerErrors ?? []), message] })).catch(() => {});
+}
+self.addEventListener('error', event => liveWorkerError(String(event.message)));
+self.addEventListener('unhandledrejection', event => liveWorkerError(String(event.reason)));
+` + workerSource);
 // Observe responses only in the disposable test copy; production source is unchanged.
 const dispatchFile = path.join(extension, "dispatch.js");
 const dispatchSource = await fs.readFile(dispatchFile, "utf8");
@@ -26,6 +36,7 @@ const observedLine = "const response = await chrome.runtime.sendMessage(parsed.r
 assert.ok(dispatchSource.includes(observedLine));
 await fs.writeFile(dispatchFile, dispatchSource.replace(observedLine, observedLine + "\n  await chrome.storage.session.set({ liveLastDispatch: { request: parsed.request, response } });"));
 const records = [];
+const pageErrors = [];
 let context;
 let debug;
 let cleanupRequired = false;
@@ -50,13 +61,16 @@ async function record(name, check) {
 async function command(args, name) {
   const result = path.join(output, name + ".json");
   run(app, [...args, "--result", result]);
-  return JSON.parse(await fs.readFile(result, "utf8"));
+  const response = JSON.parse(await fs.readFile(result, "utf8"));
+  if (args.includes("--scan")) assert.equal(response.ok, true, response.message ?? "Inventory failed");
+  return response;
 }
 try {
   context = await chromium.launchPersistentContext(profile, {
     executablePath: chromePath, headless: false,
     args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`, "--no-first-run", "--no-default-browser-check"],
   });
+  context.on("page", page => page.on("pageerror", error => pageErrors.push(String(error))));
   const browserCdp = await context.browser().newBrowserCDPSession();
   const browserPid = (await browserCdp.send("SystemInfo.getProcessInfo")).processInfo.find(process => process.type === "browser").id;
   const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
@@ -278,6 +292,10 @@ try {
   await harness.bringToFront();
   await harness.getByRole("button", { name: "状態を更新", exact: true }).click();
   await harness.screenshot({ path: path.join(output, "verified.png"), fullPage: true });
+  await record("no unhandled page or Service Worker exceptions", async () => {
+    assert.deepEqual(pageErrors, []);
+    assert.deepEqual(await harness.evaluate(async () => (await chrome.storage.session.get("liveWorkerErrors")).liveWorkerErrors ?? []), []);
+  });
   await record("cold Chrome startup handles absent group without Dispatcher residue", async () => {
     await context.close(); context = null;
     const portFile = path.join(profile, "DevToolsActivePort");
@@ -292,6 +310,9 @@ try {
       const observer = await coldBrowser.contexts()[0].newPage(); await observer.goto(`chrome-extension://${id}/harness.html`);
       await waitFor(() => observer.evaluate(async () => { const value = (await chrome.storage.session.get("liveLastDispatch")).liveLastDispatch; return value?.request.payload.groupName === "Cold absent group" && value.response.code === "group-not-found"; }), "Cold response missing");
       await waitFor(() => observer.evaluate(async () => !(await chrome.tabs.query({})).some(tab => (tab.url || tab.pendingUrl)?.includes("/dispatch.html?"))), "Cold Dispatcher residue");
+      const workerErrors = await observer.evaluate(async () => (await chrome.storage.session.get("liveWorkerErrors")).liveWorkerErrors ?? []);
+      assert.deepEqual(workerErrors, [], "Cold Worker unhandled exceptions");
+      assert.deepEqual(pageErrors, [], "Unhandled page exceptions");
       return await observer.evaluate(async () => (await chrome.storage.session.get("liveLastDispatch")).liveLastDispatch);
     } finally { if (coldBrowser) await coldBrowser.close(); cold.kill(); }
   });

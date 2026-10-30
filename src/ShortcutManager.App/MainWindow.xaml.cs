@@ -105,6 +105,7 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
+        if (viewModel.IsBusy) { e.Cancel = true; return; }
         if (!viewModel.IsDirty) return;
         var result = MessageBox.Show(this, "未適用の変更を破棄して終了しますか？", "Shortcut Manager", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (result != MessageBoxResult.Yes) e.Cancel = true;

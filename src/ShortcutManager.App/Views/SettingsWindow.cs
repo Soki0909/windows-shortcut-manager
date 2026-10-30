@@ -16,12 +16,13 @@ public sealed class SettingsWindow : Window
         Title = "設定"; Width = 650; Height = 360; WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize;
         chromePath.Text = currentChromePath ?? string.Empty; extensionId.Text = currentExtensionId;
         var grid = new Grid { Margin = new(18) }; grid.ColumnDefinitions.Add(new() { Width = new(160) }); grid.ColumnDefinitions.Add(new());
-        for (var index = 0; index < 5; index++) grid.RowDefinitions.Add(new() { Height = GridLength.Auto });
+        for (var index = 0; index < 6; index++) grid.RowDefinitions.Add(new() { Height = GridLength.Auto });
         Add(grid, 0, "Chrome executable", ChromePanel()); Add(grid, 1, "Extension ID", extensionId); Add(grid, 2, "config.json", new TextBox { Text = configPath, IsReadOnly = true }); Add(grid, 3, "Managed folder", new TextBox { Text = managedPath, IsReadOnly = true });
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         var cancel = new Button { Content = "キャンセル", Margin = new(4), Padding = new(12, 6, 12, 6) }; cancel.Click += (_, _) => DialogResult = false;
         var ok = new Button { Content = "OK", Margin = new(4), Padding = new(18, 6, 18, 6), IsDefault = true }; ok.Click += (_, _) => { if (extensionId.Text.Length != 0 && (extensionId.Text.Length != 32 || extensionId.Text.Any(character => character is < 'a' or > 'p'))) { MessageBox.Show(this, "Extension ID は a-p の32文字です。", "入力エラー"); return; } DialogResult = true; };
-        buttons.Children.Add(cancel); buttons.Children.Add(ok); Grid.SetRow(buttons, 4); Grid.SetColumnSpan(buttons, 2); grid.Children.Add(buttons); Content = grid;
+        Add(grid, 4, "Chrome連携", new TextBlock { Text = "開閉HotKeyには拡張v0.2.0以降が必要です。拡張を先に更新してください。\n旧Managerの開く操作は互換。導入済み拡張の版はPopupで確認できます。", TextWrapping = TextWrapping.Wrap });
+        buttons.Children.Add(cancel); buttons.Children.Add(ok); Grid.SetRow(buttons, 5); Grid.SetColumnSpan(buttons, 2); grid.Children.Add(buttons); Content = grid;
     }
 
     private FrameworkElement ChromePanel() { var panel = new DockPanel(); var browse = new Button { Content = "参照…", Margin = new(5, 0, 0, 0) }; browse.Click += (_, _) => { var dialog = new OpenFileDialog { Filter = "chrome.exe|chrome.exe|実行ファイル|*.exe" }; if (dialog.ShowDialog(this) == true) chromePath.Text = dialog.FileName; }; DockPanel.SetDock(browse, Dock.Right); panel.Children.Add(browse); panel.Children.Add(chromePath); return panel; }

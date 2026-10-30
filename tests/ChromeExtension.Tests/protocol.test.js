@@ -19,6 +19,14 @@ test("normalizes whitespace and Unicode NFKC", () => assert.equal(normalizeGroup
 test("parses Japanese group", () => assert.equal(parseDispatchQuery("?v=1&action=focus-group&group=%E7%A0%94%E7%A9%B6").request.payload.groupName, "研究"));
 test("parses spaces and emoji", () => assert.equal(parseDispatchQuery("?v=1&action=focus-group&group=hello%20%F0%9F%9A%80").request.payload.groupName, "hello 🚀"));
 test("rejects unknown protocol", () => assert.equal(parseDispatchQuery("?v=2&action=focus-group&group=x").code, "invalid-protocol"));
+test("minimum extension version gives actionable diagnostic without breaking legacy links", () => {
+  const query = "?v=1&action=toggle-group&group=x&minExtensionVersion=0.2.0";
+  assert.equal(parseDispatchQuery(query, "0.1.1").code, "extension-update-required");
+  assert.equal(parseDispatchQuery(query, "0.2.0").ok, true);
+  assert.equal(parseDispatchQuery(query, "0.10.0").ok, true);
+  assert.equal(parseDispatchQuery(query.replace("0.2.0", "invalid"), "0.2.0").code, "invalid-minimum-version");
+  assert.equal(parseDispatchQuery("?v=1&action=focus-group&group=x", "0.2.0").ok, true);
+});
 test("rejects unknown action", () => assert.equal(parseDispatchQuery("?v=1&action=other&group=x").code, "invalid-action"));
 test("rejects empty group", () => assert.equal(parseDispatchQuery("?v=1&action=focus-group&group=%20").code, "empty-group-name"));
 test("selects matching group in last focused window", () => {

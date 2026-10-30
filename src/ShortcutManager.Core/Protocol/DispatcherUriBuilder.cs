@@ -18,7 +18,7 @@ public sealed partial class DispatcherUriBuilder
     public Uri BuildToggleGroupUri(string extensionId, string groupName)
     {
         var focus = BuildFocusGroupUri(extensionId, groupName).AbsoluteUri;
-        return new Uri(focus.Replace("action=focus-group", "action=toggle-group", StringComparison.Ordinal));
+        return new Uri(focus.Replace("action=focus-group", "action=toggle-group", StringComparison.Ordinal) + "&minExtensionVersion=0.2.0");
     }
 }
 

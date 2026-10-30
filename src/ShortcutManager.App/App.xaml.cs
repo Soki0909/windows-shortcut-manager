@@ -9,11 +9,23 @@ namespace ShortcutManager.App;
 
 public partial class App : Application
 {
+    private ShortcutManager.Windows.Storage.InstanceLease? instance;
+    protected override void OnExit(ExitEventArgs e) { instance?.Dispose(); base.OnExit(e); }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         BuildIdentity.ConfigureTaskbar();
         var paths = ShortcutManager.Windows.Storage.ApplicationPaths.ForCurrentUser(BuildIdentity.IsDevelopment);
+        instance = new(paths.ConfigPath);
+        if (!instance.Acquired)
+        {
+            const string message = "この版のShortcut Managerは既に起動しています。開いている画面で操作し、変更を反映または破棄してから終了してください。";
+            var resultPath = ValueAfter(e.Args, "--result");
+            if (resultPath is not null) { Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(resultPath))!); File.WriteAllText(resultPath, JsonSerializer.Serialize(new { ok = false, message })); }
+            else MessageBox.Show(message, "Shortcut Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+            Shutdown(); return;
+        }
         var repository = new ShortcutManager.Windows.Storage.ConfigRepository(paths.ConfigPath);
         var validator = new ShortcutManager.Core.Validation.ConfigValidator();
         var shellLinks = new ShortcutManager.Windows.ShellLinks.ShellLinkService();
@@ -23,6 +35,18 @@ public partial class App : Application
         var scanner = new ShortcutManager.Windows.Inventory.ShortcutInventoryScanner(shellLinks, new ShortcutManager.Windows.Inventory.UrlShortcutReader());
         var logger = new ShortcutManager.Windows.Logging.FileLogger(paths.LogPath);
         var restore = new ShortcutManager.Windows.Backup.RestoreService(validator, applier);
+        if (!e.Args.Contains("--scan") && !e.Args.Contains("--validate-config"))
+        {
+            var recovery = applier.RecoverPending();
+            if (!recovery.Succeeded)
+            {
+                var resultPath = ValueAfter(e.Args, "--result");
+                if (resultPath is not null) { Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(resultPath))!); File.WriteAllText(resultPath, JsonSerializer.Serialize(new { ok = false, message = recovery.Message })); }
+                else MessageBox.Show(recovery.Message, "復旧が必要です", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Shutdown(); return;
+            }
+            if (recovery.GeneratedCount > 0 && e.Args.Length == 0) MessageBox.Show(recovery.Message, "中断処理の復旧", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
         if (TryRunCommandLine(e.Args, paths, repository, validator, scanner, applier, restore, logger))
         {
             Shutdown();
