@@ -33,12 +33,22 @@ public partial class MainWindow : Window
         if (sender is Button { Tag: KeyTile tile }) Edit(tile.Row?.Definition, tile.Key);
     }
 
-    private void Edit(Core.Models.ShortcutDefinition? definition, string? key)
+    private bool Edit(Core.Models.ShortcutDefinition? definition, string? key, Window? owner = null, int initialType = 0)
     {
-        var usedKeys = viewModel.Shortcuts.Where(row => row.Definition.Id != definition?.Id && row.Enabled).ToDictionary(row => row.Key, row => row.Name);
-        var dialog = new ShortcutEditorWindow(definition, key, usedKeys) { Owner = this };
-        if (dialog.ShowDialog() == true && dialog.Result is not null) viewModel.Upsert(dialog.Result);
+        if (viewModel.IsBusy || viewModel.RecoveryRequired) return false;
+        var usedKeys = viewModel.Shortcuts.Where(row => row.Definition.Id != definition?.Id && row.Enabled).GroupBy(row => row.Key).ToDictionary(group => group.Key, group => string.Join(" / ", group.Select(row => row.Name)));
+        var dialog = new ShortcutEditorWindow(definition, key, usedKeys, initialType) { Owner = owner ?? this };
+        if (dialog.ShowDialog() != true || dialog.Result is null) return false;
+        viewModel.Upsert(dialog.Result);
+        viewModel.Selected = viewModel.Shortcuts.First(row => row.Definition.Id == dialog.Result.Id);
+        return true;
     }
+
+    private void AddWebsite_Click(object sender, RoutedEventArgs e) => Edit(null, null);
+    private void AddApplication_Click(object sender, RoutedEventArgs e) => Edit(null, null, initialType: 1);
+    private void Help_Click(object sender, RoutedEventArgs e) => new HelpWindow(owner => ShowGettingStarted(owner)) { Owner = this }.ShowDialog();
+    public void ShowGettingStarted(Window? owner = null) => new GettingStartedWindow(viewModel, guide => Edit(null, null, guide)) { Owner = owner ?? this }.ShowDialog();
+    private void Guide_Click(object sender, RoutedEventArgs e) => ShowGettingStarted();
 
     private async void Scan_Click(object sender, RoutedEventArgs e)
     {
@@ -105,13 +115,14 @@ public partial class MainWindow : Window
         if (ConfirmShellReload()) await viewModel.ReloadShellAsync();
     }
 
+    internal const string ShellReloadExplanation = "新規・変更したHotKeyの有効化を試すため、Windows Explorerを再起動します。\n\n公開APIではHotKeyの即時反映は保証されないため、反映されない場合はWindowsの再起動が必要です。デスクトップとタスクバーが一瞬消え、開いているエクスプローラー画面が閉じる可能性があります。ファイルのコピーや移動中でないことを確認して続行してください。";
     private bool ConfirmShellReload() => MessageBox.Show(
         this,
-        "新規・変更したHotKeyの有効化を試すため、Windows Explorerを再起動します。\n\n公開APIではHotKeyの即時反映は保証されないため、反映されない場合はWindowsの再起動が必要です。デスクトップとタスクバーが一瞬消え、開いているエクスプローラー画面が閉じる可能性があります。ファイルのコピーや移動中でないことを確認して続行してください。",
+        ShellReloadExplanation,
         "Windows Explorerを再起動",
         MessageBoxButton.YesNo,
         MessageBoxImage.Warning) == MessageBoxResult.Yes;
-    private void About_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this, $"{BuildIdentity.DisplayName} v{BuildIdentity.Version}\n{(BuildIdentity.IsDevelopment ? "デバッグ版" : "製品版")} / 非常駐 / local-only\nWindows .lnk HotKey + Chrome Dispatcher Protocol v1", "About");
+    private void About_Click(object sender, RoutedEventArgs e) => new HelpWindow(owner => ShowGettingStarted(owner), showInformation: true) { Owner = this }.ShowDialog();
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {

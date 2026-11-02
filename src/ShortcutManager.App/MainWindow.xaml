@@ -60,6 +60,7 @@
           <Button Content="復元" Click="Restore_Click" Style="{StaticResource QuietButtonStyle}"/>
           <Button Content="起動診断" Click="LaunchDiagnostics_Click"/>
           <Button Content="設定" Click="Settings_Click"/>
+          <Button Content="使い方" Click="Help_Click"/>
           <Button Content="情報" Click="About_Click"/>
         </StackPanel>
       </Grid>
@@ -117,6 +118,19 @@
             <DataGridTextColumn Header="状態" Binding="{Binding Status, Mode=OneWay}" ElementStyle="{StaticResource GridCellTextStyle}" Width="125"/>
           </DataGrid.Columns>
         </DataGrid>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="{StaticResource SurfaceBrush}">
+          <ScrollViewer.Style><Style TargetType="ScrollViewer"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding ShowEmptyState}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></ScrollViewer.Style>
+          <StackPanel Margin="18" HorizontalAlignment="Center" MaxWidth="620">
+            <TextBlock Text="よく使うサイトやアプリを、キーひとつに。" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+            <TextBlock Text="まず1件追加し、対象をテストしてから変更を反映します。登録後はこのアプリを閉じても使えます。" TextWrapping="Wrap" Margin="0,7,0,10"/>
+            <WrapPanel HorizontalAlignment="Center">
+              <Button Content="Webサイトを追加" Click="AddWebsite_Click" ToolTip="URLを登録します。Chrome拡張は不要です。"/>
+              <Button Content="アプリを追加" Click="AddApplication_Click" ToolTip="実行ファイルや既存のWindowsショートカットを登録します。"/>
+              <Button Content="既存から移行" Click="Scan_Click" ToolTip="既存の割当を読み取って候補へ取り込みます。元ファイルは変更しません。"/>
+              <Button Content="初回ガイド" Click="Guide_Click"/>
+            </WrapPanel>
+          </StackPanel>
+        </ScrollViewer>
         <Border Grid.Row="2" Background="{StaticResource SurfaceMutedBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="14,8">
           <TextBlock Text="{Binding ManagedDirectory, StringFormat=管理フォルダ: {0}}" FontSize="10" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis"/>
         </Border>

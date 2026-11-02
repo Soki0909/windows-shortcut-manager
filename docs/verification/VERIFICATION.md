@@ -2,6 +2,18 @@
 
 Updated: 2026-11-02 (Asia/Tokyo)
 
+## 初回導入・オフライン案内 / #9/#10/#13/#24/#69（2026-11-02、未公開）
+
+- 空状態からWebサイト/アプリ追加と既存移行を説明付きで案内。新規configなしの場合のみガイドを自動表示し、既存設定では繰り返さない。ガイドは閉じる/ヘルプから再開でき、単に開いても設定を書き換えない。
+- ガイドは登録→実対象テスト→反映と明示確認付きExplorer再起動→Manager終了後の実キー確認を案内。保存/テスト/再起動を物理確認済みとはしない。実行処理は既存サービスへ委譲。
+- キー一覧が主導線になりCtrl+Altの実入力は不要。既存設定内の使用状況を表示。従来の実入力は既存対象が起動し得ると明示した折りたたみ欄へ残す。hookは追加しない。
+- 「使い方」に症状別オフラインヘルプ・復旧案内、製品情報に実行中assembly版、Debug/製品区別とリリース/ヘルプ/報告リンクを表示。ユーザー名・設定・ログをリンクへ自動添付しない。
+- Debug build 0 warnings/errors。GUIで空状態/登録後の非表示、一覧でUを選び実HotKeyなしに未保存候補を作成、ガイドの登録前後の操作可否・スキップ/再開・初回自動表示、ヘルプと製品情報を確認。表示 `0.3.1+f005c6b7e7fde66397f72db7c2b5fd88ae664c82` が同じDebug EXEのProductVersionと一致した。
+- UI fixtureの候補は保存せず破棄、Debug configの初回probeは原本復元とSHA一致を確認。個人Chrome/製品データ/実HotKey/Explorerを変更せず。ガイドから実行される既存Apply/Shell/ブラウザー起動そのものは今回再試験していない。
+- Debugの終了UI操作が一度失敗しビルドがEXEロックで停止したが、正常終了を確認して再ビルドpassed。モーダル操作のUIA cache/geometry制約は再観測とscreenshot-backed操作で解決。未保存の利用者データを強制破棄していない。
+
+公開後記録 [PR #127](https://github.com/Soki0909/windows-shortcut-manager/pull/127) / [CI 41406522663](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/41406522663) をmain `40d3dd0a9091c2c61f36b475ab2bfb0bb81837c3`へ、CI範囲判定 [PR #129](https://github.com/Soki0909/windows-shortcut-manager/pull/129) / [CI 41407105770](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/41407105770) をmain `d989c39777534a10514b9d7c5dd4d1ecfd99b208`へ統合済み。
+
 ## 変更範囲に応じたCI / #128（2026-11-02）
 
 - 所有者の検証絞込み指示をCIにも適用。native git差分とPowerShellだけでWindows/拡張/配置helperを振り分ける。文書/管理記録はruntime/Setup検証を省く。比較元不明・取得不能・未知のbuild入力・workflow/共有設定変更は保守的に全チェック。

@@ -102,6 +102,7 @@ public partial class App : Application
             try { repaired = await viewModel.AuditStartupAsync(new ShortcutManager.Windows.Apply.ManagedShortcutAuditor(validator, resolver, shellLinks)); }
             finally { window.IsEnabled = true; }
             if (repaired) await window.OfferShellReloadAsync();
+            if (!viewModel.RecoveryRequired && !File.Exists(paths.ConfigPath) && viewModel.Shortcuts.Count == 0) window.ShowGettingStarted();
         };
         window.Show();
     }

@@ -68,12 +68,13 @@ public sealed class MainViewModel : ObservableObject
     public bool IsBusy { get => isBusy; private set { if (Set(ref isBusy, value)) { Raise(nameof(CanInteract)); Raise(nameof(CanApply)); Raise(nameof(CanInitializeRecovery)); } } }
     public bool CanInteract => !IsBusy;
     public bool IsDirty { get => isDirty; private set => Set(ref isDirty, value); }
-    public bool RecoveryRequired { get => recoveryRequired; private set { if (Set(ref recoveryRequired, value)) { Raise(nameof(CanApply)); Raise(nameof(CanInitializeRecovery)); } } }
+    public bool RecoveryRequired { get => recoveryRequired; private set { if (Set(ref recoveryRequired, value)) { Raise(nameof(CanApply)); Raise(nameof(CanInitializeRecovery)); Raise(nameof(ShowEmptyState)); } } }
     public bool CanApply => !RecoveryRequired && !IsBusy;
     public bool CanInitializeRecovery => RecoveryRequired && !incompatibleConfig && !IsBusy;
     public ShortcutConfig Candidate => candidate;
     public string ConfigPath => paths.ConfigPath;
     public string ManagedDirectory => paths.ResolveManagedDirectory(candidate.Settings.ManagedShortcutDirectory);
+    public bool ShowEmptyState => Shortcuts.Count == 0 && !RecoveryRequired;
 
     public void Load()
     {
@@ -337,6 +338,7 @@ public sealed class MainViewModel : ObservableObject
         Replace(HomeRowKeys, KeyboardLayout.Rows[1].Select(key => tiles[key.ToString()]));
         Replace(BottomRowKeys, KeyboardLayout.Rows[2].Select(key => tiles[key.ToString()]));
         Raise(nameof(ManagedDirectory));
+        Raise(nameof(ShowEmptyState));
     }
 
     private static void Replace(ObservableCollection<KeyTile> target, IEnumerable<KeyTile> values)
