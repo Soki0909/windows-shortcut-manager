@@ -254,6 +254,15 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public InventoryScanReport? LastScanReport { get; private set; }
+    public Windows.Diagnostics.DiagnosticReport CaptureDiagnostic(Version productVersion, bool development)
+    {
+        if (IsBusy) throw new InvalidOperationException("処理が終わってから診断を作成してください。");
+        var errors = logger.DiagnosticErrors;
+        return Windows.Diagnostics.DiagnosticReport.Capture(productVersion, development, candidate,
+            new(configLoaded, RecoveryRequired, incompatibleConfig, IsDirty, savedConfigChangedExternally,
+                savedLinksVerified, ShellReflectionPending, AuditOnly, logger.LastFailure is not null, errors.Count, errors.LastCode),
+            validator.Validate(candidate, checkFileSystem: false).Issues, LastAuditDetails, LastScanReport);
+    }
     public IReadOnlyList<ShortcutInventoryItem> ConflictingItems {get;private set;}=[];
     public async Task<IReadOnlyList<ShortcutInventoryItem>> ScanAsync(IEnumerable<string>? roots = null)
     {

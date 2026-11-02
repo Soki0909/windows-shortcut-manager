@@ -225,6 +225,19 @@ public sealed class EditorStateTests : IDisposable
         Assert.Equal(count+1,Directory.GetFiles(Path.Combine(root,"backups"),"*.zip").Length);
     }
 
+    [Fact]
+    public void DiagnosticCapturePreservesUnsavedCandidateAndAllFilesWithoutScanning()
+    {
+        var entry=Entry();Save(entry);var vm=Model();vm.Upsert(entry with {Name="private-canary-name",Target=new WebsiteTarget {Url="https://private.invalid/path?token=secret"}});
+        var candidate=ConfigJson.Serialize(vm.Candidate);
+        var before=Directory.GetFiles(root,"*",SearchOption.AllDirectories).ToDictionary(path=>path,File.ReadAllBytes);
+        var report=vm.CaptureDiagnostic(new(1,0,0),true).Preview();
+        Assert.True(vm.IsDirty);Assert.Null(vm.LastScanReport);Assert.Equal(candidate,ConfigJson.Serialize(vm.Candidate));
+        Assert.DoesNotContain("private-canary",report);Assert.DoesNotContain("private.invalid",report);
+        Assert.Equal(before.Keys.Order(),Directory.GetFiles(root,"*",SearchOption.AllDirectories).Order());
+        foreach(var file in before)Assert.Equal(file.Value,File.ReadAllBytes(file.Key));
+    }
+
     public void Dispose() => Directory.Delete(root,true);
     private sealed class ResultReloader : IExplorerShellReloader
     {

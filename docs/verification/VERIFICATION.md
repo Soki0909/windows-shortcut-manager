@@ -2,6 +2,13 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
+## 報告用診断のプレビューと新規保存 / #58（2026-11-03）
+
+- `dotnet test tests/ShortcutManager.Windows.Tests/ShortcutManager.Windows.Tests.csproj -c Debug --no-restore --filter 'FullyQualifiedName~DiagnosticReportTests|FullyQualifiedName~LoggingSafetyTests|FullyQualifiedName~DiagnosticCapturePreserves'`: 10/10 passed。canaryの名前/URL/ID/パス/未知コードを出さず、既知コードと件数を保持。補足の明示追加/除去/上限、未走査と未確認の区別、正確なUnicode保存、既存保持・同時保存・失敗時の非公開を検証。ViewModelの診断作成前後で候補と隔離root内全fileのbyte不変を確認。
+- 最初の補足テストはprivacy説明の`userNotes`名に文字列検索が一致した。root JSON項目の有無を直接確認するよう修正。追加した同時保存テストはxUnit解析ルールに合わせ`Assert.Single`のpredicate overloadへ修正後passed。
+- `scripts/run-debug.ps1 -NoLaunch`警告0/エラー0。非表示WPFで確認前は保存不可、補足追加/変更/除去で確認解除、オフ時はroot userNotesが消えることを確認。790x700/480x360と小画面の最下部描画を目視確認。短い保存ボタン名へ調整して切れを避ける。個人のconfig/clipboard/Chrome/日常製品を使わず、ファイル選択ダイアログや送信は実行していない。
+- #45/#46準備の前区切りmain `443c800`および`79d5014`のCI 41507003680 / 41507291467 successを確認。公開PRIVACY URLはHTTP200、正式Store公開/審査は未実施。
+
 
 ## Store提出資料 / #46（2026-11-03、準備段階）
 

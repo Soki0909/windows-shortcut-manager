@@ -28,6 +28,12 @@ public partial class MainWindow : Window
 
     private void Add_Click(object sender, RoutedEventArgs e) => Edit(null, null);
     private void LaunchDiagnostics_Click(object sender, RoutedEventArgs e) { if (!viewModel.IsBusy) new LaunchDiagnosticsWindow { Owner = this }.ShowDialog(); }
+    private void ExportDiagnostic_Click(object sender, RoutedEventArgs e)
+    {
+        if (viewModel.IsBusy) return;
+        try { new DiagnosticExportWindow(viewModel.CaptureDiagnostic(typeof(App).Assembly.GetName().Version!, BuildIdentity.IsDevelopment)) { Owner = this }.ShowDialog(); }
+        catch (Exception error) { MessageBox.Show(this, "診断を作成できませんでした: " + error.Message, "報告用の診断", MessageBoxButton.OK, MessageBoxImage.Warning); }
+    }
     private void Edit_Click(object sender, RoutedEventArgs e) { if (viewModel.Selected is not null) Edit(viewModel.Selected.Definition, null); }
     private void Grid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) { if (viewModel.Selected is not null) Edit(viewModel.Selected.Definition, null); }
     private void KeyTile_Click(object sender, RoutedEventArgs e)
