@@ -21,11 +21,15 @@ foreach ($name in $expected | Where-Object { $_.EndsWith('.zip') }) {
         $names = @($zip.Entries.FullName)
         if (($names | Sort-Object -Unique).Count -ne $names.Count -or @($names | Where-Object { $_ -match '(^/|\.\.|:|ShortcutManager\.Debug|CrashDriver|LiveDriver|harness|node_modules)' }).Count) { throw "Unsafe ZIP structure: $name" }
         if ($name -like '*TabBridge*') {
+            if ('LICENSE' -notin $names) { throw 'Extension license missing.' }
             $entry = $zip.GetEntry('manifest.json'); if (-not $entry) { throw 'Root manifest missing.' }
             $reader = [IO.StreamReader]::new($entry.Open()); try { $manifest = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
             if ($manifest.version -ne $Version -or $manifest.manifest_version -ne 3) { throw 'Extension version mismatch.' }
             foreach ($key in @('commands','host_permissions','content_scripts','externally_connectable')) { if ($manifest.PSObject.Properties.Name -contains $key) { throw "Forbidden manifest key: $key" } }
         } else {
+            foreach ($required in @('LICENSE','THIRD-PARTY-NOTICES.md','BRANDING.md','licenses/Microsoft.NETCore.App.Runtime.win-x64-LICENSE.TXT','licenses/Microsoft.NETCore.App.Runtime.win-x64-THIRD-PARTY-NOTICES.TXT','licenses/Microsoft.WindowsDesktop.App.Runtime.win-x64-LICENSE')) {
+                if ($required -notin $names) { throw "Windows notice missing: $required" }
+            }
             if ('ShortcutManager.exe' -notin $names -or 'ShortcutManager.runtimeconfig.json' -notin $names) { throw 'Windows payload missing.' }
             $probe = Join-Path ([IO.Path]::GetTempPath()) ("sm-version-" + [Guid]::NewGuid().ToString('N') + '.exe')
             try {

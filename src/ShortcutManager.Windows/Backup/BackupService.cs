@@ -48,6 +48,16 @@ public sealed class BackupService(string backupDirectory, string appVersion, Act
             checkpoint?.Invoke("verified");
             if (File.Exists(path)) File.Replace(temporary, path, null);
             else File.Move(temporary, path);
+            // A receipt identifies backups created automatically here. Imported ZIPs and
+            // historical archives without receipts are deliberately never collected.
+            if (destination is null && reason is "apply" or "restore")
+            {
+                var receipt = new AutomaticBackupReceipt(1, System.IO.Path.GetFileName(path),
+                    Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))));
+                using var stream = new FileStream(path + ".automatic.json", FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough);
+                JsonSerializer.Serialize(stream, receipt);
+                stream.Flush(true);
+            }
             return path;
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
@@ -55,9 +65,36 @@ public sealed class BackupService(string backupDirectory, string appVersion, Act
 
     public void EnforceRetention(int keep = 20)
     {
+        if (keep < 1) throw new ArgumentOutOfRangeException(nameof(keep), "Keep at least one automatic backup.");
         if (!Directory.Exists(backupDirectory)) return;
-        foreach (var file in new DirectoryInfo(backupDirectory).GetFiles("*.zip").OrderByDescending(file => file.CreationTimeUtc).Skip(keep)) file.Delete();
+        var eligible = new List<(FileInfo File, DateTimeOffset CreatedAt)>();
+        foreach (var file in new DirectoryInfo(backupDirectory).GetFiles("*.zip"))
+        {
+            var receiptPath = file.FullName + ".automatic.json";
+            try
+            {
+                if (file.Attributes.HasFlag(FileAttributes.ReparsePoint) || !File.Exists(receiptPath)) continue;
+                var receiptFile = new FileInfo(receiptPath);
+                if (receiptFile.Attributes.HasFlag(FileAttributes.ReparsePoint) || receiptFile.Length > 4096 || file.Length > BackupArchive.MaxTotalBytes) continue;
+                var receipt = JsonSerializer.Deserialize<AutomaticBackupReceipt>(File.ReadAllText(receiptPath));
+                if (receipt is null || receipt.FormatVersion != 1 || receipt.Filename != file.Name
+                    || receipt.Sha256 != Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(file.FullName)))) continue;
+                var manifest = Inspect(file.FullName);
+                if (manifest.Reason is "apply" or "restore") eligible.Add((file, manifest.CreatedAt));
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+            {
+                // Unknown, inaccessible, modified or corrupt data is not ours to remove.
+            }
+        }
+        foreach (var entry in eligible.OrderByDescending(entry => entry.CreatedAt).ThenByDescending(entry => entry.File.Name, StringComparer.Ordinal).Skip(keep))
+        {
+            entry.File.Delete();
+            File.Delete(entry.File.FullName + ".automatic.json");
+        }
     }
+
+    private sealed record AutomaticBackupReceipt(int FormatVersion, string Filename, string Sha256);
 
     public static BackupManifest Inspect(string path)
     {

@@ -1,0 +1,11 @@
+Shortcut Manager
+
+このアプリは現在のWindowsユーザー専用としてインストールされます。管理者権限は不要です。
+
+更新・アンインストールでは、保存した設定、自動バックアップ、管理対象のHotKeyショートカットを保持します。アンインストール後もHotKeyは残ります。不要な割当はアンインストール前にアプリから削除して「変更を反映」してください。
+
+Webサイト・アプリ・BAT/CMDの割当だけならChrome拡張は不要です。Chromeタブグループを呼び出す場合は、Tab Bridgeを別途導入して拡張IDを設定してください。SetupはChromeプロファイルや拡張設定を変更しません。
+
+使い方: https://github.com/Soki0909/windows-shortcut-manager#readme
+サポート: https://github.com/Soki0909/windows-shortcut-manager/issues
+更新: https://github.com/Soki0909/windows-shortcut-manager/releases

@@ -10,12 +10,51 @@ namespace ShortcutManager.App;
 public partial class App : Application
 {
     private ShortcutManager.Windows.Storage.InstanceLease? instance;
+    private ShortcutManager.Windows.Logging.FileLogger? applicationLogger;
+    private string[] startupArgs = [];
+    private bool stoppingAfterError;
     protected override void OnExit(ExitEventArgs e) { instance?.Dispose(); base.OnExit(e); }
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        startupArgs = e.Args;
+        DispatcherUnhandledException += (_, error) =>
+        {
+            error.Handled = true;
+            StopAfterError(error.Exception);
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, error) => applicationLogger?.Error("Unhandled process failure", error.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, error) => applicationLogger?.Error("Unobserved task failure", error.Exception);
+        try { StartApplication(e); }
+        catch (Exception error) { StopAfterError(error); }
+    }
+
+    private void StopAfterError(Exception error)
+    {
+        if (stoppingAfterError) return;
+        stoppingAfterError = true;
+        applicationLogger?.Error("Application stopped", error);
+        var message = $"処理を続行できないため終了します。保存済み設定や復旧用データを削除せず、再起動時に復旧を確認してください。\n{error.Message}";
+        var resultPath = ValueAfter(startupArgs, "--result");
+        if (resultPath is not null)
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(resultPath))!);
+                File.WriteAllText(resultPath, JsonSerializer.Serialize(new { ok = false, message, type = error.GetType().Name }));
+            }
+            catch (Exception outputError) { applicationLogger?.Error("Could not write command result", outputError); }
+        }
+        if (!startupArgs.Any(arg => arg.StartsWith("--", StringComparison.Ordinal)))
+            MessageBox.Show(message, "Shortcut Manager — 処理を停止しました", MessageBoxButton.OK, MessageBoxImage.Error);
+        Shutdown(1);
+    }
+
+    private void StartApplication(StartupEventArgs e)
+    {
         base.OnStartup(e);
         BuildIdentity.ConfigureTaskbar();
+        ValidateCommandArguments(e.Args);
         var paths = ShortcutManager.Windows.Storage.ApplicationPaths.ForCurrentUser(BuildIdentity.IsDevelopment);
         instance = new(paths.ConfigPath);
         if (!instance.Acquired)
@@ -23,8 +62,8 @@ public partial class App : Application
             const string message = "この版のShortcut Managerは既に起動しています。開いている画面で操作し、変更を反映または破棄してから終了してください。";
             var resultPath = ValueAfter(e.Args, "--result");
             if (resultPath is not null) { Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(resultPath))!); File.WriteAllText(resultPath, JsonSerializer.Serialize(new { ok = false, message })); }
-            else MessageBox.Show(message, "Shortcut Manager", MessageBoxButton.OK, MessageBoxImage.Information);
-            Shutdown(); return;
+            else if (e.Args.Length == 0) MessageBox.Show(message, "Shortcut Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+            Shutdown(1); return;
         }
         var repository = new ShortcutManager.Windows.Storage.ConfigRepository(paths.ConfigPath);
         var validator = new ShortcutManager.Core.Validation.ConfigValidator();
@@ -34,22 +73,23 @@ public partial class App : Application
         var applier = new ShortcutManager.Windows.Apply.ManagedShortcutApplier(repository, validator, resolver, shellLinks, backups, paths.StagingDirectory, paths.StatePath, shellNotifier: new ShortcutManager.Windows.Shell.ShellChangeNotifier());
         var scanner = new ShortcutManager.Windows.Inventory.ShortcutInventoryScanner(shellLinks, new ShortcutManager.Windows.Inventory.UrlShortcutReader());
         var logger = new ShortcutManager.Windows.Logging.FileLogger(paths.LogPath);
+        applicationLogger = logger;
         var restore = new ShortcutManager.Windows.Backup.RestoreService(validator, applier);
-        if (!e.Args.Contains("--scan") && !e.Args.Contains("--validate-config") && !e.Args.Contains("--diagnose-launch"))
+        if (!e.Args.Contains("--scan", StringComparer.OrdinalIgnoreCase) && !e.Args.Contains("--validate-config", StringComparer.OrdinalIgnoreCase) && !e.Args.Contains("--diagnose-launch", StringComparer.OrdinalIgnoreCase))
         {
             var recovery = applier.RecoverPending();
             if (!recovery.Succeeded)
             {
                 var resultPath = ValueAfter(e.Args, "--result");
                 if (resultPath is not null) { Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(resultPath))!); File.WriteAllText(resultPath, JsonSerializer.Serialize(new { ok = false, message = recovery.Message })); }
-                else MessageBox.Show(recovery.Message, "復旧が必要です", MessageBoxButton.OK, MessageBoxImage.Warning);
-                Shutdown(); return;
+                else if (e.Args.Length == 0) MessageBox.Show(recovery.Message, "復旧が必要です", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Shutdown(1); return;
             }
             if (recovery.GeneratedCount > 0 && e.Args.Length == 0) MessageBox.Show(recovery.Message, "中断処理の復旧", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        if (TryRunCommandLine(e.Args, paths, repository, validator, scanner, applier, restore, logger))
+        if (TryRunCommandLine(e.Args, paths, repository, validator, scanner, applier, restore, logger, out var exitCode))
         {
-            Shutdown();
+            Shutdown(exitCode);
             return;
         }
         var viewModel = new MainViewModel(paths, repository, validator, resolver, new ShortcutManager.Windows.Launching.ProcessLauncher(), scanner, new ShortcutManager.Windows.Inventory.ShortcutImporter(), backups, applier, restore, logger, new ShortcutManager.Windows.Shell.ExplorerShellReloader());
@@ -66,8 +106,9 @@ public partial class App : Application
         window.Show();
     }
 
-    private static bool TryRunCommandLine(string[] args, ShortcutManager.Windows.Storage.ApplicationPaths paths, ShortcutManager.Windows.Storage.ConfigRepository repository, ShortcutManager.Core.Validation.ConfigValidator validator, ShortcutManager.Windows.Inventory.ShortcutInventoryScanner scanner, ShortcutManager.Windows.Apply.ManagedShortcutApplier applier, ShortcutManager.Windows.Backup.RestoreService restore, ShortcutManager.Windows.Logging.FileLogger logger)
+    private static bool TryRunCommandLine(string[] args, ShortcutManager.Windows.Storage.ApplicationPaths paths, ShortcutManager.Windows.Storage.ConfigRepository repository, ShortcutManager.Core.Validation.ConfigValidator validator, ShortcutManager.Windows.Inventory.ShortcutInventoryScanner scanner, ShortcutManager.Windows.Apply.ManagedShortcutApplier applier, ShortcutManager.Windows.Backup.RestoreService restore, ShortcutManager.Windows.Logging.FileLogger logger, out int exitCode)
     {
+        exitCode = 0;
         var resultPath = ValueAfter(args, "--result");
         var validatePath = ValueAfter(args, "--validate-config");
         var applyPath = ValueAfter(args, "--apply-config");
@@ -114,7 +155,10 @@ public partial class App : Application
             result = new { ok = false, message = error.Message, type = error.GetType().Name };
         }
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(resultPath))!);
-        File.WriteAllText(resultPath, JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+        var json = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        if ((json.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.False)
+            || (json.TryGetProperty("succeeded", out var succeeded) && succeeded.ValueKind == JsonValueKind.False)) exitCode = 1;
+        File.WriteAllText(resultPath, json.GetRawText());
         return true;
     }
 
@@ -122,6 +166,25 @@ public partial class App : Application
     {
         var index = Array.FindIndex(args, value => value.Equals(key, StringComparison.OrdinalIgnoreCase));
         return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
+    }
+
+    private static void ValidateCommandArguments(string[] args)
+    {
+        if (args.Length == 0) return;
+        var commands = new[] { "--scan", "--validate-config", "--apply-config", "--restore-backup", "--diagnose-launch" };
+        var flags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < args.Length; index++)
+        {
+            var flag = args[index];
+            if (!flags.Add(flag)) throw new ArgumentException($"Duplicate option: {flag}");
+            if (flag.Equals("--scan", StringComparison.OrdinalIgnoreCase) || flag.Equals("--diagnose-launch", StringComparison.OrdinalIgnoreCase)) continue;
+            if (!new[] { "--validate-config", "--apply-config", "--restore-backup", "--result", "--chrome-test-profile" }.Contains(flag, StringComparer.OrdinalIgnoreCase)
+                || (flag.Equals("--chrome-test-profile", StringComparison.OrdinalIgnoreCase) && !BuildIdentity.IsDevelopment)) throw new ArgumentException($"Unknown option: {flag}");
+            if (++index >= args.Length || args[index].StartsWith("--", StringComparison.Ordinal)) throw new ArgumentException($"Value required: {flag}");
+        }
+        var commandCount = commands.Count(flags.Contains);
+        if (commandCount == 0 && flags.Count == 1 && flags.Contains("--chrome-test-profile")) return;
+        if (commandCount != 1 || !flags.Contains("--result")) throw new ArgumentException("Specify exactly one command and --result <path>.");
     }
 }
 

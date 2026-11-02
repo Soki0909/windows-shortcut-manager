@@ -50,6 +50,7 @@ public sealed class MainViewModel : ObservableObject
         this.applier = applier;
         this.restore = restore;
         this.logger = logger;
+        logger.FailureChanged += () => Raise(nameof(LogWarning));
         this.shellReloader = shellReloader;
         Load();
     }
@@ -60,6 +61,7 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<KeyTile> BottomRowKeys { get; } = [];
     public ShortcutRow? Selected { get => selected; set => Set(ref selected, value); }
     public string Status { get => status; private set => Set(ref status, value); }
+    public string LogWarning => logger.LastFailure ?? string.Empty;
     public bool ShellReflectionPending { get => shellReflectionPending; private set { if (Set(ref shellReflectionPending, value)) Raise(nameof(RestoreNotice)); } }
     public string RestoreNotice => restoreSummary + (ShellReflectionPending ? "\nHotKeyはExplorerへの反映待ちです。「Explorerを再起動」から反映を試すか、Windowsを再起動してください。" : string.Empty);
     public bool IsBusy { get => isBusy; private set { if (Set(ref isBusy, value)) { Raise(nameof(CanInteract)); Raise(nameof(CanApply)); } } }

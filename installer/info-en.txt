@@ -1,0 +1,11 @@
+Shortcut Manager
+
+This application installs for the current Windows user. Administrator privileges are not required.
+
+Upgrades and uninstall preserve saved settings, automatic backups, and managed HotKey shortcuts. HotKeys remain after uninstall. To remove unwanted assignments, delete them in the application and apply changes before uninstalling.
+
+Website, application, and BAT/CMD assignments do not require a Chrome extension. To launch Chrome tab groups, install Tab Bridge separately and configure its extension ID. Setup does not modify Chrome profiles or extension settings.
+
+Guide: https://github.com/Soki0909/windows-shortcut-manager#readme
+Support: https://github.com/Soki0909/windows-shortcut-manager/issues
+Updates: https://github.com/Soki0909/windows-shortcut-manager/releases
