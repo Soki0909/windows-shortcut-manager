@@ -49,15 +49,24 @@ public partial class MainWindow : Window
 
     private void Backup_Click(object sender, RoutedEventArgs e)
     {
+        if (MessageBox.Show(this, Windows.Backup.BackupScope.Description + "\n\n保存先を選びますか？", "バックアップの範囲", MessageBoxButton.YesNo, MessageBoxImage.Information) != MessageBoxResult.Yes) return;
         var dialog = new SaveFileDialog { Filter = "Shortcut Manager backup (*.zip)|*.zip", FileName = $"ShortcutManager-backup-{DateTime.Now:yyyyMMdd-HHmmss}.zip" };
-        if (dialog.ShowDialog(this) == true) viewModel.Backup(dialog.FileName);
+        if (dialog.ShowDialog(this) != true) return;
+        try { viewModel.Backup(dialog.FileName); }
+        catch (Exception error) { MessageBox.Show(this, error.Message, "バックアップ失敗", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
     private async void Restore_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog { Filter = "Shortcut Manager backup (*.zip)|*.zip" };
         if (dialog.ShowDialog(this) != true) return;
-        if (MessageBox.Show(this, "現在の状態を自動バックアップしてから復元します。続行しますか？", "Restore", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes) await viewModel.RestoreAsync(dialog.FileName);
+        try
+        {
+            var preview = viewModel.PreviewRestore(dialog.FileName);
+            if (MessageBox.Show(this, preview + "\n\n現在の状態を自動バックアップしてから復元します。続行しますか？", "復元の確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            if (await viewModel.RestoreAsync(dialog.FileName)) await OfferShellReloadAsync();
+        }
+        catch (Exception error) { MessageBox.Show(this, error.Message, "復元できません", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)

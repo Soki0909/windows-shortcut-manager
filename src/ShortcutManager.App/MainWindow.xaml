@@ -127,7 +127,12 @@
       <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
         <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,10,0"/>
-        <TextBlock Grid.Column="1" Text="{Binding Status}" TextWrapping="Wrap"/>
+        <StackPanel Grid.Column="1">
+          <TextBlock Text="{Binding RestoreNotice}" TextWrapping="Wrap" FontWeight="SemiBold">
+            <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding RestoreNotice}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+          </TextBlock>
+          <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
+        </StackPanel>
         <ProgressBar Grid.Column="2" IsIndeterminate="{Binding IsBusy}" Height="4" VerticalAlignment="Center" Foreground="{StaticResource PrimaryBrush}" Background="#DDE2EC"/>
       </Grid>
     </Border>

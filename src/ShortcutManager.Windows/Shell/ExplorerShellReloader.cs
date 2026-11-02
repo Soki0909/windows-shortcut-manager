@@ -10,13 +10,17 @@ public sealed class ExplorerShellReloader : IExplorerShellReloader
     private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(15);
     private readonly IExplorerShellProcessHost processHost;
     private readonly TimeSpan autoRestartGrace;
+    private readonly TimeSpan exitTimeout;
+    private readonly TimeSpan startTimeout;
 
     public ExplorerShellReloader() : this(new ExplorerShellProcessHost(), DefaultAutoRestartGrace) { }
 
-    public ExplorerShellReloader(IExplorerShellProcessHost processHost, TimeSpan? autoRestartGrace = null)
+    public ExplorerShellReloader(IExplorerShellProcessHost processHost, TimeSpan? autoRestartGrace = null, TimeSpan? exitTimeout = null, TimeSpan? startTimeout = null)
     {
         this.processHost = processHost;
         this.autoRestartGrace = autoRestartGrace ?? DefaultAutoRestartGrace;
+        this.exitTimeout = exitTimeout ?? ExitTimeout;
+        this.startTimeout = startTimeout ?? StartTimeout;
     }
 
     public async Task<ExplorerShellReloadResult> ReloadAsync(CancellationToken cancellationToken = default)
@@ -27,40 +31,63 @@ public sealed class ExplorerShellReloader : IExplorerShellReloader
         if (shell.SessionId != processHost.CurrentSessionId)
             return new(false, "別セッションの Explorer は変更しません。現在のWindowsセッションで再実行してください。", shell.Id);
 
+        var terminationAttempted = false;
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            terminationAttempted = true;
             processHost.Terminate(shell);
-            using (var exitTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            using (var exitDeadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
             {
-                exitTimeout.CancelAfter(ExitTimeout);
-                await processHost.WaitForExitAsync(shell, exitTimeout.Token);
+                exitDeadline.CancelAfter(exitTimeout);
+                await processHost.WaitForExitAsync(shell, exitDeadline.Token);
             }
 
             var restarted = await WaitForReplacementAsync(shell, autoRestartGrace, cancellationToken);
             if (restarted is null)
             {
                 processHost.StartExplorer();
-                restarted = await WaitForReplacementAsync(shell, StartTimeout, cancellationToken);
+                restarted = await WaitForReplacementAsync(shell, startTimeout, cancellationToken);
             }
             if (restarted is null)
-                return new(false, "Windows Shellの再読み込みが時間内に完了しませんでした。タスク マネージャーからWindows Explorerを再起動してください。", shell.Id);
+                throw new TimeoutException("Explorerの復帰を時間内に確認できませんでした。");
 
             return new(true, "Windows Shellを再読み込みしました。新規・変更したHotKeyを確認してください。", shell.Id, restarted.Id);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            return new(false, "Windows Shellの再読み込みが時間内に完了しませんでした。タスク マネージャーからWindows Explorerを再起動してください。", shell.Id);
-        }
         catch (Exception error)
         {
-            try
-            {
-                if (processHost.GetShellProcess() is null) processHost.StartExplorer();
-            }
-            catch { }
-            return new(false, $"Windows Shellの再読み込みに失敗しました: {error.Message}", shell.Id);
+            var reason = error is OperationCanceledException
+                ? cancellationToken.IsCancellationRequested ? "Windows Shellの再読み込みを取り消しました。" : "Windows Shellの終了待機が時間切れになりました。"
+                : $"Windows Shellの再読み込みに失敗しました: {error.Message}";
+            if (!terminationAttempted) return new(false, reason + " Explorerは変更していません。", shell.Id);
+            return await RecoverShellAsync(shell, reason);
         }
     }
+
+    private async Task<ExplorerShellReloadResult> RecoverShellAsync(ExplorerShellProcess previous, string reason)
+    {
+        // Recovery has its own bounded budget: a canceled caller must not strand the desktop.
+        try
+        {
+            var current = processHost.GetShellProcess();
+            if (current is not null && current.SessionId != processHost.CurrentSessionId)
+                return new(false, reason + " 別セッションのExplorerは変更しません。" + ManualRecovery, previous.Id);
+            if (current is null)
+            {
+                processHost.StartExplorer();
+                current = await WaitForReplacementAsync(previous, startTimeout, CancellationToken.None);
+            }
+            if (current is not null)
+                return new(false, reason + " 現在のセッションのShell表示は確認できました。HotKeyの反映は未確認です。", previous.Id, current.Id);
+            return new(false, reason + " Shellの復旧を確認できませんでした。" + ManualRecovery, previous.Id);
+        }
+        catch (Exception recoveryError)
+        {
+            return new(false, reason + $" Shellの復旧にも失敗しました: {recoveryError.Message}" + ManualRecovery, previous.Id);
+        }
+    }
+
+    private const string ManualRecovery = " Ctrl+Shift+Escでタスク マネージャーを開き、「新しいタスクを実行」からexplorer.exeを起動してください。";
 
     private async Task<ExplorerShellProcess?> WaitForReplacementAsync(ExplorerShellProcess previous, TimeSpan timeout, CancellationToken cancellationToken)
     {

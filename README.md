@@ -1,19 +1,21 @@
 # Shortcut Manager
 
-v0.3.0では、タブグループHotKeyが前面アプリに関係なく展開・折りたたみを切り替えます。旧Dispatcherのfocus-groupと拡張Popupの「開く」は従来どおりです。新Managerの起動時監査／Applyでリンクが再生成されるため、対応拡張を先に更新してください。インストール済み製品は開発ビルドで自動更新しません。
+v0.3.1では、変更反映後の全属性読戻し、Explorer再起動失敗時の復旧、復元結果とバックアップ範囲の案内を改善しました。タブグループの開閉・キー割り当て・Protocol v1は維持します。インストール済み製品は開発ビルドで自動更新しません。
 
 Windows の `Ctrl+Alt+A-Z` を、常駐プロセスなしで Website / Application / BAT・CMD / Chrome タブグループへ割り当てるローカル管理ツールです。Windows Shell の Start Menu `.lnk` HotKey を利用するため、Managerを閉じてもショートカットは動き続けます。
 
 ## クイックスタート
 
-1. `ShortcutManager-Setup-win-x64-v0.3.0.exe` を実行してインストールし、スタートメニューの「Shortcut Manager」から起動します。従来のportable ZIPを展開して起動する方法も利用できます。
-2. Chromeを使う場合は `ShortcutManager-TabBridge-v0.3.0.zip` を展開し、`chrome://extensions` のデベロッパーモードからフォルダを読み込みます。
+1. `ShortcutManager-Setup-win-x64-v0.3.1.exe` を実行してインストールし、スタートメニューの「Shortcut Manager」から起動します。従来のportable ZIPを展開して起動する方法も利用できます。
+2. Chromeを使う場合は `ShortcutManager-TabBridge-v0.3.1.zip` を展開し、`chrome://extensions` のデベロッパーモードからフォルダを読み込みます。
 3. Extension Popupに表示される32文字のIDをManagerの「設定」に入力します。
 4. 「既存をスキャン」から既存 `.lnk/.url` をインポートするか、「追加」で登録します。
 5. 「テスト起動」でtargetを確認し、「変更を反映」を実行します。続く確認でExplorerの再起動を選ぶと、Windowsを再起動せず新しいHotKeyが有効になります。
 6. Managerを閉じ、登録した `Ctrl+Alt+キー` を使用します。
 
 Applyは、検証 → 外部競合scan → staging生成 → `.lnk` read-back検証 → 自動backup → ownership確認 → commit の順に動作し、失敗時は以前のconfigと管理 `.lnk` を復元します。Markerのない非空フォルダや管理外shortcutは変更しません。
+
+バックアップには保存済み設定・管理リンク・反映状態が含まれます。外部BAT/CMDや参照元lnk、アプリ本体、Chrome拡張の設定やタブ、未適用の編集は含みません。外部ファイルは別途保管してください。復元前には不足するファイルのパスを確認でき、不足があれば現在の状態を変更せず停止します。移動した外部ファイルは元の場所へ戻すか、参照先を修正してバックアップを作り直してください。復元後も、Explorer再起動を辞退した場合は反映待ちの案内が残ります。
 
 HotKeyの変更にはExplorerの登録更新が必要です。反映を後回しにした場合は「Explorerを再起動」から実行できます。タスクバーとデスクトップが一時的に消え、開いているExplorer画面が閉じる可能性があるため、ファイルのコピーや移動が終わってから実行してください。WindowsがShellを自動復帰するのを待つことで、余分なファイル管理ウィンドウの起動を避けます。
 
@@ -23,7 +25,7 @@ HotKeyの変更にはExplorerの登録更新が必要です。反映を後回し
 
 ## 起動時の自動監査・修復
 
-Applyが中断していた場合は、保存したジャーナルから以前の完全な状態へ復旧してから監査します。復旧データの破損や中断後の手動変更が見つかった場合は、退避データを残して停止します。旧版Managerは終了してから更新してください。互換性と更新順序は [v0.3.0リリースノート](docs/releases/v0.3.0.md) を参照してください。
+Applyが中断していた場合は、保存したジャーナルから以前の完全な状態へ復旧してから監査します。復旧データの破損や中断後の手動変更が見つかった場合は、退避データを残して停止します。旧版Managerは終了してから更新してください。互換性と更新順序は [v0.3.1リリースノート](docs/releases/v0.3.1.md) を参照してください。
 
 起動時に、保存済みconfig.jsonと管理対象の実際の `.lnk` を照合します。欠落、HotKey・起動先・引数などの改変、設定にない古い管理リンクを検出すると、自動バックアップを作成してから修復します。一致していれば書き込みは行いません。修復後に表示される確認からExplorerを再起動できます。
 
@@ -52,10 +54,10 @@ WindowsのHotKey自体は共通なので、製品版で使用中のキーはDebu
 ```powershell
 ./scripts/build.ps1
 ./scripts/test.ps1
-./scripts/package.ps1 -Version 0.3.0
+./scripts/package.ps1 -Version 0.3.1
 # インストーラーを生成する場合（Inno Setupはビルド用のみ）
 ./scripts/prepare-installer-tools.ps1
-./scripts/package-installer.ps1 -Version 0.3.0 -SkipPublish
+./scripts/package-installer.ps1 -Version 0.3.1 -SkipPublish
 ```
 
 成果物は `artifacts/` に生成されます。Chrome Extensionはbuild stepを持たないMV3/Vanilla JavaScriptです。
@@ -73,7 +75,7 @@ WindowsのHotKey自体は共通なので、製品版で使用中のキーはDebu
 
 - 実行中プロセスが `RegisterHotKey` で取得した全HotKeyは静的列挙できません。Apply後の実機テストが必要です。
 - Chromeで保存済みでも閉じているタブグループはChrome公開APIから再オープンできません。
-- v0.3.0のWindows ZIPは未署名です。SmartScreenの警告対象になり得ます。
+- v0.3.1のWindows ZIPは未署名です。SmartScreenの警告対象になり得ます。
 - Chrome Web Store / Microsoft Storeへの公開とコード署名は、所有者アカウント・credentialが必要な別工程です。
 
 詳細は [要件](docs/requirements/shortcut-manager-requirements-v1.0.md)、[設計](docs/design/02_SYSTEM_ARCHITECTURE.md)、[検証記録](docs/verification/VERIFICATION.md) を参照してください。

@@ -1,4 +1,4 @@
-param([ValidateSet('Release')][string]$Configuration = 'Release',[string]$Version = '0.3.0')
+param([ValidateSet('Release')][string]$Configuration = 'Release',[string]$Version = '0.3.1')
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path "$PSScriptRoot\.."
 $artifacts = Join-Path $root 'artifacts'
