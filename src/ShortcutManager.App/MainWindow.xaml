@@ -80,6 +80,7 @@
               <MenuItem Header="バックアップ履歴…" Click="BackupHistory_Click" IsEnabled="{Binding CanRestore}"/>
               <MenuItem Header="今回直前の反映を戻す…" Click="UndoApply_Click" IsEnabled="{Binding CanUndoLastApply}" ToolTip="今回の起動中に行った直前の反映だけを、対応するバックアップから確認して戻します。未保存の候補がある場合は先に整理してください。"/>
               <MenuItem Header="起動診断…" Click="LaunchDiagnostics_Click"/>
+              <MenuItem Header="報告用の診断を確認・保存…" Click="ExportDiagnostic_Click" IsEnabled="{Binding CanInteract}"/>
               <MenuItem Header="復旧用初期化…" Click="InitializeRecovery_Click" IsEnabled="{Binding CanInitializeRecovery}">
                 <MenuItem.Style><Style TargetType="MenuItem"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding RecoveryRequired}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></MenuItem.Style>
               </MenuItem>

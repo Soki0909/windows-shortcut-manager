@@ -3,11 +3,34 @@ namespace ShortcutManager.Windows.Logging;
 public sealed class FileLogger(string path, long maxBytes = 2 * 1024 * 1024, int maxFiles = 5)
 {
     private readonly object gate = new();
+    private int diagnosticErrorCount;
+    private Diagnostics.DiagnosticErrorCode lastDiagnosticError;
     public string? LastFailure { get; private set; }
     public event Action? FailureChanged;
 
     public void Info(string message) => Write("INFO", message);
-    public void Error(string message, Exception? error = null) => Write("ERROR", error is null ? message : $"{message}: {error.GetType().Name}: {error.Message}");
+    public (int Count, Diagnostics.DiagnosticErrorCode LastCode) DiagnosticErrors
+    {
+        get { lock (gate) return (diagnosticErrorCount, lastDiagnosticError); }
+    }
+    public void Error(string message, Exception? error = null)
+    {
+        lock (gate)
+        {
+            diagnosticErrorCount = diagnosticErrorCount == int.MaxValue ? int.MaxValue : diagnosticErrorCount + 1;
+            lastDiagnosticError = error switch
+            {
+                Core.Serialization.UnsupportedConfigVersionException => Diagnostics.DiagnosticErrorCode.UnsupportedConfigVersion,
+                UnauthorizedAccessException or System.Security.SecurityException => Diagnostics.DiagnosticErrorCode.AccessDenied,
+                InvalidDataException => Diagnostics.DiagnosticErrorCode.InvalidData,
+                IOException => Diagnostics.DiagnosticErrorCode.IoFailure,
+                System.Text.Json.JsonException => Diagnostics.DiagnosticErrorCode.InvalidFormat,
+                ArgumentException => Diagnostics.DiagnosticErrorCode.InvalidArgument,
+                _ => Diagnostics.DiagnosticErrorCode.OperationFailed
+            };
+            Write("ERROR", error is null ? message : $"{message}: {error.GetType().Name}: {error.Message}");
+        }
+    }
 
     private void Write(string level, string message)
     {
