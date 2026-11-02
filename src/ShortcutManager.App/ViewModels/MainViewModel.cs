@@ -48,6 +48,9 @@ public sealed class MainViewModel : ObservableObject
     private bool savedLinksVerified;
     private bool shellReloadCompleted;
     private string auditNotice = "保存リンク: 未監査。物理キーの状態は別に確認してください。";
+    private string? lastApplyBackupPath;
+    private string? lastAppliedSnapshot;
+    private string? lastApplyBackupHash;
 
     public MainViewModel(ApplicationPaths paths, ConfigRepository repository, ConfigValidator validator, LaunchSpecResolver resolver, ProcessLauncher launcher, ShortcutInventoryScanner scanner, ShortcutImporter importer, BackupService backups, ManagedShortcutApplier applier, RestoreService restore, FileLogger logger, IExplorerShellReloader shellReloader)
     {
@@ -94,6 +97,8 @@ public sealed class MainViewModel : ObservableObject
     public bool CanApply => !RecoveryRequired && !IsBusy && IsDirty && !savedConfigChangedExternally;
     public bool CanModify => !RecoveryRequired && !IsBusy;
     public bool CanRestore => !IsBusy && !incompatibleConfig;
+    public bool CanUndoLastApply => CanRestore && !IsDirty && !savedConfigChangedExternally && lastApplyBackupPath is not null && lastAppliedSnapshot==savedJson && File.Exists(lastApplyBackupPath);
+    public string? LastApplyBackupPath => CanUndoLastApply ? lastApplyBackupPath : null;
     public bool CanEditSelected => !RecoveryRequired && !IsBusy && Selected is not null;
     public bool CanConfirmHotkey => CanEditSelected && !IsDirty && !savedConfigChangedExternally && savedLinksVerified && Selected!.Enabled;
     public bool CanAuditSaved => !IsBusy && configLoaded;
@@ -265,6 +270,10 @@ public sealed class MainViewModel : ObservableObject
             if (result.Succeeded)
             {
                 CaptureSaved();
+                lastApplyBackupPath=result.BackupPath;
+                lastAppliedSnapshot=savedJson;
+                try {lastApplyBackupHash=lastApplyBackupPath is null?null:Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(lastApplyBackupPath)));}
+                catch(Exception error) {lastApplyBackupPath=null;lastApplyBackupHash=null;logger.Error("Could not associate undo backup",error);}
                 configLoaded = true;
                 explicitRecoveryInitialization = false;
                 physicalConfirmations.Clear();
@@ -370,6 +379,39 @@ public sealed class MainViewModel : ObservableObject
 
     public string PreviewRestore(string path) => restore.Preview(path);
 
+    public Task<IReadOnlyList<BackupHistoryEntry>> ReadBackupHistoryAsync() => Task.Run(()=>BackupHistory.Read(paths.BackupDirectory));
+    public async Task<PreparedRestore> PrepareUndoRestoreAsync()
+    {
+        if(!CanUndoLastApply || !CheckSavedSourceUnchanged())throw new InvalidOperationException("直前の反映との対応を確認できません。保存済み設定と履歴を確認してください。");
+        var prepared=await PrepareRestoreAsync(lastApplyBackupPath!);
+        if(prepared.Preview.ArchiveSha256!=lastApplyBackupHash)throw new InvalidDataException("直前の反映に対応するバックアップが変わりました。自動では戻しません。");
+        return prepared;
+    }
+    public async Task<PreparedRestore> PrepareRestoreAsync(string path,RestoreMode mode=RestoreMode.Entire)
+    {
+        if(!CanRestore)throw new InvalidOperationException("現在は復元を確認できません。");
+        IsBusy=true;
+        try
+        {
+            repository.EnsureCompatibleVersion();
+            var before=CurrentSourceHash();ShortcutConfig? saved;
+            try {saved=repository.Load();} catch(System.Text.Json.JsonException){saved=null;}
+            LastScanReport=await scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots.Concat(LastScanReport?.Roots ?? []),ManagedDirectory);
+            var external=LastScanReport.Items.Where(item=>!item.IsManaged).Select(item=>item.Hotkey).ToArray();
+            var preview=await Task.Run(()=>restore.Prepare(path,saved,external,mode,ManagedDirectory));
+            if(before!=CurrentSourceHash())throw new InvalidOperationException("確認中に保存設定が変わりました。プレビューを開き直してください。");
+            return new(Path.GetFullPath(path),before,mode,preview);
+        }
+        finally {IsBusy=false;}
+    }
+
+    private string CurrentSourceHash()
+    {
+        if(!File.Exists(repository.Path))return "absent";
+        if(new FileInfo(repository.Path).Length>ConfigStructure.MaxJsonCharacters)throw new InvalidDataException("現在の設定がサイズ上限を超えています。原本を保全して確認してください。");
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(repository.Path)));
+    }
+
     public async Task AuditSavedAsync(ManagedShortcutAuditor auditor)
     {
         if (!CanAuditSaved) return;
@@ -425,22 +467,25 @@ public sealed class MainViewModel : ObservableObject
         return true;
     }
 
-    public async Task<bool> RestoreAsync(string path)
+    public async Task<bool> RestoreAsync(string path,PreparedRestore? prepared=null)
     {
         if (IsBusy) return false;
         IsBusy = true;
         Status = "バックアップを検証して復元しています…";
         try
         {
-            var inventory = await scanner.ScanDefaultAsync(ManagedDirectory);
+            if(prepared is not null && (Path.GetFullPath(path)!=prepared.BackupPath || CurrentSourceHash()!=prepared.CurrentConfigSha256)) {Status="確認後に現在の設定が変わりました。復元せず、プレビューを開き直してください。";return false;}
+            LastScanReport=await scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots.Concat(LastScanReport?.Roots ?? []),ManagedDirectory);
+            var inventory = LastScanReport.Items;
             var external = inventory.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
-            var result = await Task.Run(() => restore.Restore(path, ManagedDirectory, external));
+            var result = await Task.Run(() => prepared is not null && CurrentSourceHash()!=prepared.CurrentConfigSha256 ? new ApplyResult(false,"確認後に現在の設定が変わりました。プレビューを開き直してください。") : restore.Restore(path, ManagedDirectory, external,prepared?.Mode ?? RestoreMode.Entire,prepared?.Preview.ArchiveSha256,prepared is null?null:ConfigJson.Serialize(prepared.Preview.Config)));
             Status = result.Message;
             logger.Info($"Restore: success={result.Succeeded}, source={path}");
             if (result.Succeeded)
             {
                 IsBusy = false;
                 Load();
+                lastApplyBackupPath=null;lastAppliedSnapshot=null;lastApplyBackupHash=null;
                 physicalConfirmations.Clear();
                 savedLinksVerified = !RecoveryRequired;
                 auditNotice = "保存リンク: 復元後の読戻しで一致を確認しました。実キー動作は未確認です。";
@@ -487,7 +532,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void RaiseActionState()
     {
-        foreach (var name in new[] { nameof(CanApply), nameof(CanModify), nameof(CanRestore), nameof(CanEditSelected), nameof(CanConfirmHotkey), nameof(CanAuditSaved), nameof(PendingChangeCount), nameof(ReloadLabel), nameof(SelectionText), nameof(EditingNotice), nameof(AuditNotice), nameof(ShellNotice), nameof(PhysicalConfirmationNotice) }) Raise(name);
+        foreach (var name in new[] { nameof(CanApply), nameof(CanModify), nameof(CanRestore), nameof(CanUndoLastApply), nameof(CanEditSelected), nameof(CanConfirmHotkey), nameof(CanAuditSaved), nameof(PendingChangeCount), nameof(ReloadLabel), nameof(SelectionText), nameof(EditingNotice), nameof(AuditNotice), nameof(ShellNotice), nameof(PhysicalConfirmationNotice) }) Raise(name);
     }
 
     private void Refresh()

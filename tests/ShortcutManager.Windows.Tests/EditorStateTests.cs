@@ -179,6 +179,39 @@ public sealed class EditorStateTests : IDisposable
         Assert.False(vm.Import(item,"U"));Assert.Equal(26,vm.Shortcuts.Count);Assert.Contains("最大26",vm.Status);
     }
 
+    [Fact]
+    public async Task RestorePreviewKeepsCandidateAndStopsWhenCurrentConfigChangesAfterConfirmation()
+    {
+        var entry=Entry();Save(entry);var archive=backups.Create("manual",repository.Path,Managed,State);var vm=Model();vm.Upsert(entry with {Name="Unsaved"});
+        var candidate=ConfigJson.Serialize(vm.Candidate);var before=File.ReadAllBytes(repository.Path);var state=File.ReadAllBytes(State);var count=Directory.GetFiles(Path.Combine(root,"backups")).Length;
+        var prepared=await vm.PrepareRestoreAsync(archive);
+        Assert.Equal(candidate,ConfigJson.Serialize(vm.Candidate));Assert.Equal(before,File.ReadAllBytes(repository.Path));Assert.Equal(state,File.ReadAllBytes(State));Assert.Equal(count,Directory.GetFiles(Path.Combine(root,"backups")).Length);
+        repository.SaveAtomic(new(){Shortcuts=[entry with {Name="External"}]});var external=File.ReadAllBytes(repository.Path);
+        Assert.False(await vm.RestoreAsync(archive,prepared));Assert.Equal(external,File.ReadAllBytes(repository.Path));Assert.Equal(candidate,ConfigJson.Serialize(vm.Candidate));Assert.Equal(count,Directory.GetFiles(Path.Combine(root,"backups")).Length);
+    }
+
+    [Fact]
+    public async Task UndoUsesOnlyThisSessionsLastApplyAndCreatesRestoreBackup()
+    {
+        var entry=Entry();Save(entry);var vm=Model();Assert.False(vm.CanUndoLastApply);
+        vm.Upsert(entry with {Name="Changed"});Assert.True(await vm.ApplyAsync());Assert.True(vm.CanUndoLastApply);
+        var prepared=await vm.PrepareUndoRestoreAsync();Assert.Equal(entry.Name,prepared.Preview.Config.Shortcuts.Single().Name);
+        var count=Directory.GetFiles(Path.Combine(root,"backups"),"*.zip").Length;
+        Assert.True(await vm.RestoreAsync(prepared.BackupPath,prepared));Assert.Equal(entry.Name,vm.Shortcuts.Single().Name);Assert.False(vm.CanUndoLastApply);
+        Assert.Equal(count+1,Directory.GetFiles(Path.Combine(root,"backups"),"*.zip").Length);Assert.True(vm.ShellReflectionPending);
+    }
+
+    [Fact]
+    public async Task UndoRejectsChangedBackupAndExternalCurrentState()
+    {
+        var entry=Entry();Save(entry);var vm=Model();vm.Upsert(entry with {Name="Changed"});Assert.True(await vm.ApplyAsync());
+        var path=vm.LastApplyBackupPath!;var replacement=backups.Create("manual",repository.Path,Managed,State);File.Copy(replacement,path,true);
+        var before=File.ReadAllBytes(repository.Path);var count=Directory.GetFiles(Path.Combine(root,"backups")).Length;
+        await Assert.ThrowsAsync<InvalidDataException>(()=>vm.PrepareUndoRestoreAsync());Assert.Equal(before,File.ReadAllBytes(repository.Path));Assert.Equal(count,Directory.GetFiles(Path.Combine(root,"backups")).Length);
+        repository.SaveAtomic(new(){Shortcuts=[entry with {Name="External"}]});
+        await Assert.ThrowsAsync<InvalidOperationException>(()=>vm.PrepareUndoRestoreAsync());Assert.Contains("外部",vm.EditingNotice);Assert.False(vm.CanUndoLastApply);
+    }
+
     public void Dispose() => Directory.Delete(root,true);
     private sealed class ResultReloader : IExplorerShellReloader
     {

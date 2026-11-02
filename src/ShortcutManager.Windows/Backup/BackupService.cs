@@ -96,6 +96,18 @@ public sealed class BackupService(string backupDirectory, string appVersion, Act
 
     private sealed record AutomaticBackupReceipt(int FormatVersion, string Filename, string Sha256);
 
+    public static bool HasAutomaticReceipt(string path)
+    {
+        try
+        {
+            var zip=new FileInfo(path);var receiptFile=new FileInfo(path+".automatic.json");
+            if(!receiptFile.Exists || zip.Attributes.HasFlag(FileAttributes.ReparsePoint) || receiptFile.Attributes.HasFlag(FileAttributes.ReparsePoint) || receiptFile.Length>4096 || zip.Length>BackupArchive.MaxTotalBytes)return false;
+            var receipt=JsonSerializer.Deserialize<AutomaticBackupReceipt>(File.ReadAllText(receiptFile.FullName));
+            return receipt is not null && receipt.FormatVersion==1 && receipt.Filename==zip.Name && receipt.Sha256==Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
+        }
+        catch(Exception error) when(error is IOException or UnauthorizedAccessException or JsonException) {return false;}
+    }
+
     public static BackupManifest Inspect(string path)
     {
         return BackupArchive.Read(path).Manifest;

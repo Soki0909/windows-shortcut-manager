@@ -80,11 +80,26 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog(this) != true) return;
         try
         {
-            var preview = viewModel.PreviewRestore(dialog.FileName);
-            if (MessageBox.Show(this, preview + "\n\n現在の状態を自動バックアップしてから復元します。続行しますか？", "復元の確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-            if (await viewModel.RestoreAsync(dialog.FileName)) await OfferShellReloadAsync();
+            await ShowRestorePreviewAsync(await viewModel.PrepareRestoreAsync(dialog.FileName));
         }
         catch (Exception error) { MessageBox.Show(this, error.Message, "復元できません", MessageBoxButton.OK, MessageBoxImage.Error); }
+    }
+
+    private async Task ShowRestorePreviewAsync(Windows.Backup.PreparedRestore prepared)
+    {
+        var dialog=new RestorePreviewWindow(prepared,viewModel.PendingChangeCount,()=>viewModel.LastScanReport?.Summary ?? string.Empty,mode=>viewModel.PrepareRestoreAsync(prepared.BackupPath,mode)) {Owner=this};
+        if(dialog.ShowDialog()==true && await viewModel.RestoreAsync(dialog.Prepared.BackupPath,dialog.Prepared))await OfferShellReloadAsync();
+    }
+    private async void BackupHistory_Click(object sender,RoutedEventArgs e)
+    {
+        if(!viewModel.CanRestore)return;
+        try {var dialog=new BackupHistoryWindow(await viewModel.ReadBackupHistoryAsync()) {Owner=this};if(dialog.ShowDialog()==true && dialog.SelectedPath is { } path)await ShowRestorePreviewAsync(await viewModel.PrepareRestoreAsync(path));}
+        catch(Exception error) {MessageBox.Show(this,error.Message,"履歴を確認できません",MessageBoxButton.OK,MessageBoxImage.Warning);}
+    }
+    private async void UndoApply_Click(object sender,RoutedEventArgs e)
+    {
+        try {await ShowRestorePreviewAsync(await viewModel.PrepareUndoRestoreAsync());}
+        catch(Exception error) {MessageBox.Show(this,error.Message,"直前の変更を戻せません",MessageBoxButton.OK,MessageBoxImage.Warning);}
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)
