@@ -1,0 +1,38 @@
+name: Installer payload safeguards
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/installer-native.yml'
+      - 'installer/**'
+      - 'tests/Installer.Tests/**'
+      - 'scripts/write-installer-payload.ps1'
+      - 'scripts/test-installer-payload.ps1'
+      - 'scripts/test-installer-maintenance.ps1'
+      - 'scripts/build-tools.json'
+      - 'scripts/prepare-installer-tools.ps1'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/installer-native.yml'
+      - 'installer/**'
+      - 'tests/Installer.Tests/**'
+      - 'scripts/write-installer-payload.ps1'
+      - 'scripts/test-installer-maintenance.ps1'
+      - 'scripts/build-tools.json'
+      - 'scripts/prepare-installer-tools.ps1'
+permissions:
+  contents: read
+concurrency:
+  group: installer-native-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  payload:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - shell: pwsh
+        run: |
+          ./scripts/prepare-installer-tools.ps1
+          ./scripts/test-installer-payload.ps1
+          ./scripts/test-installer-maintenance.ps1

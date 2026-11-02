@@ -7,6 +7,7 @@ type
   TPayloadFiles = array of TPayloadFile;
 var
   PayloadRoot, PreviousReceiptHash: String;
+  PayloadPathRejection: String;
   PreviousReceiptExists, PreviousReceiptValid: Boolean;
   PreviousPayload, NextPayload: TPayloadFiles;
 
@@ -39,18 +40,21 @@ function PayloadSafeRelative(Name: String): Boolean;
 var Part, Rest: String; Sep, I: Integer;
 begin
   Result := False;
+  PayloadPathRejection := 'absolute/empty/separator';
   if (Name = '') or (Pos('/', Name) <> 0) or (Pos(':', Name) <> 0) or (Copy(Name, 1, 1) = '\') then exit;
   Rest := Name;
   repeat
     Sep := Pos('\', Rest);
     if Sep = 0 then Part := Rest else Part := Copy(Rest, 1, Sep - 1);
+    PayloadPathRejection := 'component';
     if (Part = '') or (Part = '.') or (Part = '..') or (Part <> Trim(Part)) or (Copy(Part, Length(Part), 1) = '.') then exit;
     // Keep Unicode path characters as strings; do not narrow them through Char.
-    for I := 0 to 31 do if Pos(Chr(I), Part) <> 0 then exit;
-    for I := 1 to Length('"|?*') do if Pos(Copy('"|?*', I, 1), Part) <> 0 then exit;
+    for I := 0 to 31 do if Pos(Chr(I), Part) <> 0 then begin PayloadPathRejection := 'control ' + IntToStr(I); exit; end;
+    for I := 1 to Length('"|?*') do if Pos(Copy('"|?*', I, 1), Part) <> 0 then begin PayloadPathRejection := 'reserved character ' + IntToStr(I); exit; end;
     if Sep = 0 then break;
     Rest := Copy(Rest, Sep + 1, Length(Rest));
   until False;
+  PayloadPathRejection := 'reserved metadata name';
   if CompareText(Copy(Name, 1, 18), '.shortcut-manager-') = 0 then exit;
   if CompareText(Copy(Name, 1, 5), 'unins') = 0 then exit;
   Result := True;
@@ -90,7 +94,7 @@ begin
     Section := 'File' + IntToStr(I);
     Relative := GetIniString(Section, 'Path', '', Name);
     Hash := GetIniString(Section, 'Sha256', '', Name);
-    if not PayloadSafeRelative(Relative) then begin Log('Payload receipt rejected: relative path at index ' + IntToStr(I)); exit; end;
+    if not PayloadSafeRelative(Relative) then begin Log('Payload receipt rejected: relative path at index ' + IntToStr(I) + ' (' + PayloadPathRejection + ')'); exit; end;
     if not PayloadValidHash(Hash) then begin Log('Payload receipt rejected: hash at index ' + IntToStr(I)); exit; end;
     for J := 0 to I - 1 do if CompareText(Files[J].RelativePath, Relative) = 0 then begin Log('Payload receipt rejected: duplicate path.'); exit; end;
     Files[I].RelativePath := Relative;

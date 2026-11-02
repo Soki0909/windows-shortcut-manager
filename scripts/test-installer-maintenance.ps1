@@ -49,7 +49,7 @@ try{
     $process=Start-Process -FilePath (Join-Path $fixture 'payload-native-tests.exe') -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/LOG=`"$fixture/run.log`"") -WindowStyle Hidden -Wait -PassThru
     if(-not (Test-Path -LiteralPath (Join-Path $fixture 'result.json'))){
         if(Test-Path -LiteralPath (Join-Path $fixture 'failure.txt')){Get-Content -LiteralPath (Join-Path $fixture 'failure.txt')}
-        Get-Content -LiteralPath (Join-Path $fixture 'run.log') -Tail 14
+        Get-Content -LiteralPath (Join-Path $fixture 'run.log') -Tail 24
         throw "Native payload checks failed (Setup exit $($process.ExitCode))."
     }
     $result=Get-Content -LiteralPath (Join-Path $fixture 'result.json') -Raw|ConvertFrom-Json

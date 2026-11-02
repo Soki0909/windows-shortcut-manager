@@ -3,6 +3,9 @@ on:
   push:
     branches: [main]
   pull_request:
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -65,7 +68,6 @@ jobs:
           ./scripts/verify-release-artifacts.ps1 -Version 0.3.1 -RunInstallerSmoke -RequireMetadata -ExpectedSourceCommit $env:GITHUB_SHA -RequireCleanSource
           ./scripts/test-release-signing.ps1 -Version 0.3.1
           ./scripts/test-build-metadata.ps1 -Version 0.3.1
-          ./scripts/test-installer-maintenance.ps1
           ./scripts/test-installer-lifecycle.ps1 -Version 0.3.1
   extension:
     needs: changes
