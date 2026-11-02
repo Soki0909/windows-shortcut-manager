@@ -18,6 +18,8 @@ jobs:
         run: ./scripts/run-debug.ps1 -NoLaunch
       - shell: pwsh
         run: ./scripts/test-cli.ps1
+      - shell: pwsh
+        run: ./scripts/test-extension-deployment.ps1
       - run: dotnet build tests/ShortcutManager.LiveDriver/ShortcutManager.LiveDriver.csproj -c Debug --nologo
       - shell: pwsh
         run: ./scripts/package.ps1 -Configuration Release -Version 0.3.1
