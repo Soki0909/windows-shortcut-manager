@@ -13,7 +13,7 @@ function Read-PayloadDirectory([string]$Directory){
         if($child.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)){throw 'Installer payload does not follow reparse points.'}
         if($child.PSIsContainer){Read-PayloadDirectory $child.FullName;continue}
         $relative=[IO.Path]::GetRelativePath($root,$child.FullName)
-        if($relative.Split([char]'\')|Where-Object {$_ -in '.','..' -or $_ -ne $_.Trim() -or $_.EndsWith('.') -or $_ -match '[\x00-\x1f:"/|?*]'}){throw 'Unsafe installer payload name.'}
+        if($relative.Split([char]'\')|Where-Object {$_ -in '.','..' -or $_ -ne $_.Trim([char]' ') -or $_.EndsWith('.') -or $_ -match '[\x00-\x1f:"/|?*]'}){throw 'Unsafe installer payload name.'}
         if($relative.StartsWith('.shortcut-manager-',[StringComparison]::OrdinalIgnoreCase) -or $relative.StartsWith('unins',[StringComparison]::OrdinalIgnoreCase)) {throw 'Installer metadata/uninstaller is not a publish payload.'}
         $files.Add([pscustomobject]@{Path=$relative;Sha256=(Get-FileHash -LiteralPath $child.FullName).Hash.ToLowerInvariant()})
     }

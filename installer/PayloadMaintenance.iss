@@ -47,7 +47,7 @@ begin
     Sep := Pos('\', Rest);
     if Sep = 0 then Part := Rest else Part := Copy(Rest, 1, Sep - 1);
     PayloadPathRejection := 'component';
-    if (Part = '') or (Part = '.') or (Part = '..') or (Part <> Trim(Part)) or (Copy(Part, Length(Part), 1) = '.') then exit;
+    if (Part = '') or (Part = '.') or (Part = '..') or (Copy(Part, 1, 1) = ' ') or (Copy(Part, Length(Part), 1) = ' ') or (Copy(Part, Length(Part), 1) = '.') then exit;
     // Keep Unicode path characters as strings; do not narrow them through Char.
     for I := 0 to 31 do if Pos(Chr(I), Part) <> 0 then begin PayloadPathRejection := 'control ' + IntToStr(I); exit; end;
     for I := 1 to Length('"|?*') do if Pos(Copy('"|?*', I, 1), Part) <> 0 then begin PayloadPathRejection := 'reserved character ' + IntToStr(I); exit; end;

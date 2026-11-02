@@ -30,7 +30,11 @@ begin
       Manifest := Root + '\case-' + IntToStr(I) + '\next.ini';
       Receipt := App + '\.shortcut-manager-payload.ini';
       if FileExists(Receipt) then BeforeHash := GetSHA256OfFile(Receipt) else BeforeHash := '';
-      if I = 0 then Log('Unicode fixture record path: ' + GetIniString('File1', 'Path', '', Receipt));
+      if I = 0 then begin
+        BackupFile := GetIniString('File1', 'Path', '', Receipt);
+        Log('Unicode fixture record path: ' + BackupFile);
+        Log('Fixture Trim equality: ' + IntToStr(CompareText(BackupFile, Trim(BackupFile))));
+      end;
       if (I = 5) or (I = 11) then begin
         HasBackup := False;
         try BeginPayloadUpgrade(App, Manifest);
