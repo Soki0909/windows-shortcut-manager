@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][string]$Tag,[switch]$RequireSigned,[string]$ExpectedSignerThumbprint=$env:CODE_SIGN_THUMBPRINT)
+param([Parameter(Mandatory)][string]$Tag,[switch]$RequireSigned,[string]$ExpectedSignerThumbprint=$env:CODE_SIGN_THUMBPRINT,[switch]$VerifyAttestation)
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 if ($Tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw 'Release tag must be vX.Y.Z.' }
@@ -19,11 +19,18 @@ if (-not $existing) {
 }
 $download = Join-Path $env:RUNNER_TEMP ("release-download-" + [Guid]::NewGuid().ToString('N'))
 gh release download $Tag --dir $download
+if($VerifyAttestation){
+    if($env:GITHUB_REPOSITORY -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'){throw 'Repository identity is required for provenance verification.'}
+    $commit=(git rev-parse HEAD).Trim()
+    foreach($name in $names){
+        gh attestation verify (Join-Path $download $name) --repo $env:GITHUB_REPOSITORY --signer-workflow "$env:GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest $commit --source-ref "refs/tags/$Tag" --deny-self-hosted-runners
+    }
+}
 if (-not $existing) {
     foreach ($name in $names) {
         if ((Get-FileHash -LiteralPath "artifacts/$name").Hash -ne (Get-FileHash -LiteralPath (Join-Path $download $name)).Hash) { throw "Downloaded asset differs: $name" }
     }
 }
-& "$PSScriptRoot/verify-release-artifacts.ps1" -Version $version -ArtifactDirectory $download -RunInstallerSmoke -RequireSigned:$RequireSigned -ExpectedSignerThumbprint $ExpectedSignerThumbprint
+& "$PSScriptRoot/verify-release-artifacts.ps1" -Version $version -ArtifactDirectory $download -RunInstallerSmoke -RequireSigned:$RequireSigned -ExpectedSignerThumbprint $ExpectedSignerThumbprint -RequireMetadata -ExpectedSourceCommit (git rev-parse HEAD).Trim() -RequireCleanSource
 gh release edit $Tag --draft=false --latest
 Write-Host "Published verified release: $Tag"

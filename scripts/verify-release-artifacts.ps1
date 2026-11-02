@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][string]$Version, [string]$ArtifactDirectory = "$PSScriptRoot/../artifacts", [switch]$RunInstallerSmoke,[switch]$RequireSigned,[string]$ExpectedSignerThumbprint=$env:CODE_SIGN_THUMBPRINT)
+param([Parameter(Mandatory)][string]$Version, [string]$ArtifactDirectory = "$PSScriptRoot/../artifacts", [switch]$RunInstallerSmoke,[switch]$RequireSigned,[string]$ExpectedSignerThumbprint=$env:CODE_SIGN_THUMBPRINT,[switch]$RequireMetadata,[string]$ExpectedSourceCommit,[switch]$RequireCleanSource)
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid release version.' }
@@ -36,6 +36,19 @@ foreach ($name in $expected | Where-Object { $_.EndsWith('.zip') }) {
                 if ($required -notin $names) { throw "Windows notice missing: $required" }
             }
             if ('ShortcutManager.exe' -notin $names -or 'ShortcutManager.runtimeconfig.json' -notin $names) { throw 'Windows payload missing.' }
+            $metadataNames=@('BUILD-INFO.json','SBOM.spdx.json','ShortcutManager.deps.json')
+            if($RequireMetadata -or 'BUILD-INFO.json' -in $names -or 'SBOM.spdx.json' -in $names){
+                $metadataProbe=Join-Path ([IO.Path]::GetTempPath()) ('sm-build-metadata-'+[guid]::NewGuid().ToString('N'))
+                New-Item -ItemType Directory -Path $metadataProbe|Out-Null
+                try {
+                    foreach($metadataName in $metadataNames){
+                        $entry=$zip.GetEntry($metadataName);if(-not $entry -or $entry.Length -gt 1MB){throw 'Build metadata is missing or exceeds size limit.'}
+                        $inputStream=$entry.Open();$outputStream=[IO.File]::Create((Join-Path $metadataProbe $metadataName))
+                        try{$inputStream.CopyTo($outputStream)}finally{$inputStream.Dispose();$outputStream.Dispose()}
+                    }
+                    & "$PSScriptRoot/verify-build-metadata.ps1" -Directory $metadataProbe -ExpectedVersion $Version -ExpectedSourceCommit $ExpectedSourceCommit -RequireCleanSource:$RequireCleanSource
+                }finally{foreach($metadataName in $metadataNames){$path=Join-Path $metadataProbe $metadataName;if(Test-Path -LiteralPath $path){Remove-Item -LiteralPath $path}};Remove-Item -LiteralPath $metadataProbe}
+            }
             $signing=$null
             $signingEntry=$zip.GetEntry('SIGNING.json')
             if($signingEntry){

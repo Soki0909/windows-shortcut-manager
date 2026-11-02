@@ -1,6 +1,16 @@
 # Shortcut Manager Verification
 
-Updated: 2026-11-02 (Asia/Tokyo)
+Updated: 2026-11-03 (Asia/Tokyo)
+
+## ビルド依存の保守・SBOM/来歴 / #60/#139（2026-11-03、未公開）
+
+- SDK 10.0.403（従来latestFeatureで実際に使用されていた版）をglobal.jsonで厳密固定し、CI/Releaseも同じ入力を使う。既存majorの公式Action tagをAPIでcommitへ解決しSHA固定。DependabotでAction/NuGet/SDKを毎週確認し、Innoはread-onlyの定期workflowで公式latestと比較する。自動merge/download更新なし。
+- 初回Inno照会で6.7.3より新しい7.1.1を検出し#139へ記録。公式変更履歴・対応Windows・利用条件と公開digestを確認。公式x64 EXEのSHA-256 `8a5a6711c3766a6e5fb74f280ba0e3551e719ce94538d901fdbd1f8f9920b3f0`とAuthenticode Validを検証してworkspaceのビルドツールを更新。製品Setupの実行ではない。
+- 実deps.json由来の自作3projectと.NET runtime pack 2個（10.0.14）、nuspecのlicense、cacheのNuGet SHA-512、依存辺からSPDX 2.3を生成。ビルド元commit/dirty、SDK、deps/SBOM hashも同梱し、個人パス・設定・環境変数・tokenを出力しない。runtimeの原文noticeは維持。
+- メタデータ境界8件passed（正常、deps hash、版、package欠落、依存辺欠落、package hash、dirty、commit不一致）。原本hash不変。公式SPDX v2.3 schemaをローカルだけに取得し、PowerShell標準Test-Json成功。schema SHA-256は`239208b7ac287b3cf5d9a9af23f9d69863971102a5e1587a27a398b43490b89b`。追加の製品/テストライブラリは導入しない。
+- 新しいmetadata付きRelease ZIPとInno 7.1.1 Setupを生成。配布検査と7サイズのexe/Setup embedded icon、3hashの照合passed。App/SetupはNotSigned。ローカル成果物のSourceDirtyはtrueと正しく表示し、正式成果物の証拠には使わない。
+- Release workflowへ公式actions/attestをSHA固定で追加。最終4assetの来歴をrepository/workflow/commit/ref/hosted runner付きで検証し、公開時にはdraft再downloadにも検証を適用する。実GitHub attestation生成/確認はCI後のworkflow_dispatchで追跡する。tag/public release/日常製品の更新はしていない。
+- #138 CI 41485546790成功後main `abcd9c6b2bed614779e9c8c9d9f9aa60bbe19fb8`へ統合。#59/#93 close。#50/追加#140は実署名経路の未完了項目を明示してopen。
 
 ## 配布の署名準備・報告/貢献導線（2026-11-02、未公開）
 

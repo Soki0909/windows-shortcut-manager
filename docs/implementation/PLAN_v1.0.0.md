@@ -4,6 +4,9 @@
 
 ## Progress
 
+- [x] #59/#93: PR #138、CI 41485546790全対象success後main `abcd9c6`へ統合。#50は実署名未確認でopenを維持。
+- [x] #60のSDK/Action固定、DependabotとInno更新監視、実publishのSPDX/ビルド元記録、GitHub署名来歴の生成/検証を実装。追加#139のInno 7.1.1へ更新し、ローカル配布検査passed。CIと非公開のworkflow_dispatchで運用経路を追跡する。
+
 - [x] #43/#44/#137: PR #136のCI 41456172398（英語Windowsの実installer smokeを含む）成功後、main `34be17f`へ統合。#42/#81/#83/#134もPR #135、CI 41447382802成功後main `49e16be`へ統合済み。
 - [x] #59/#93の不具合/機能フォーム・非公開脆弱性報告設定・CONTRIBUTING/PR基準を準備。#50は証明書未用意という回答に従い、候補比較・申請情報・証明書ストア経路と署名後検査を実装。外部署名成功は未実施でIssueを維持する。
 
@@ -33,6 +36,8 @@
 - [ ] 現製品のバックアップ、公式Setupによる更新、設定/管理リンク不変と起動確認、拡張更新/実行版確認、公開後記録。
 
 ## Discoveries
+
+- 公式Inno最新確認で6.7.3→7.1.1を検出し#139を作成。7.1.1の公式release digest/実体SHA/Authenticode/利用条件を確認し固定を更新。履歴からSetup後付け署名だけでは内部コピーとUninstallが未署名になる注意も発見し#140を追加。#50の実署名前に統合する。
 
 - #136の英語Windows installer smokeで、日本語名lnkをWScript経由で読むと実行先・引数が空になる課題を発見。日本語PCでも非BMP名への変更で再現し#137を作成。原本と同一バイトのASCII名コピーならCIで正しく読めることを確認し、製品は回避コピーを使わず標準IShellLinkW/IPersistFileへ置換。Unicode専用7件と関連10件、単独コンパイル/読戻し、Debug read-only scanを確認し、同じPRへまとめて修正する。
 

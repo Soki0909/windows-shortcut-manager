@@ -1,4 +1,4 @@
-param([ValidateSet('Release')][string]$Configuration = 'Release',[string]$Version = '0.3.1',[ValidateSet('Unsigned','Certificate')][string]$SigningMode='Unsigned',[switch]$RequireSigned)
+param([ValidateSet('Release')][string]$Configuration = 'Release',[string]$Version = '0.3.1',[ValidateSet('Unsigned','Certificate')][string]$SigningMode='Unsigned',[switch]$RequireSigned,[switch]$RequireCleanSource)
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path "$PSScriptRoot\.."
 $artifacts = Join-Path $root 'artifacts'
@@ -38,6 +38,7 @@ foreach ($runtime in @('Microsoft.NETCore.App.Runtime.win-x64','Microsoft.Window
     foreach ($notice in $notices) { Copy-Item -LiteralPath $notice.FullName -Destination (Join-Path $licenseDirectory ($runtime + '-' + $notice.Name)) }
 }
 New-Item -ItemType Directory -Force -Path $artifacts | Out-Null
+& "$PSScriptRoot/write-build-metadata.ps1" -Version $Version -PublishDirectory $publish -RequireCleanSource:$RequireCleanSource
 $windowsZip = Join-Path $artifacts "ShortcutManager-win-x64-v$Version.zip"
 $extensionZip = Join-Path $artifacts "ShortcutManager-TabBridge-v$Version.zip"
 Remove-Item -LiteralPath $windowsZip,$extensionZip -Force -ErrorAction SilentlyContinue
