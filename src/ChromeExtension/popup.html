@@ -6,6 +6,15 @@
   <p>Protocol v1対応。開閉HotKeyはManager v0.2.0以降、旧版の「開く」も利用できます。</p>
   <label class="setting"><input id="collapse-startup" type="checkbox"> Chrome 起動時に全グループを折りたたむ</label>
   <label class="setting"><input id="debug-mode" type="checkbox"> 失敗ページに診断情報を表示する</label>
+  <details class="privacy"><summary>保存する情報と履歴の管理</summary>
+    <p>最後に使ったタブへ戻るため、グループ名・タブID・URL・記録時刻をこのChromeプロファイルの拡張ローカル領域に保存します。新しいものから最大100グループ分です。外部送信や同期はしません。</p>
+    <label class="setting"><input id="remember-urls" type="checkbox"> タブIDが変わったときの復帰補助にURLを保存する</label>
+    <p>オフにすると保存済みURLも除去します。タブIDでの復帰と通常の切替は使えます。診断表示にURL履歴は含めません。</p>
+    <p id="history-count" aria-live="polite">保存件数を確認中…</p>
+    <label class="setting"><input id="confirm-clear" type="checkbox"> 保存したタブ復帰履歴をすべて消去する</label>
+    <button id="clear-history" class="secondary" disabled>履歴を消去</button>
+    <p>タブやグループは閉じません。消去後のタブ操作で再記録されます。URLを残したくない場合は、上のURL保存をオフにしてください。</p>
+  </details>
   <div class="toolbar"><button id="refresh">更新</button><button id="collapse-all" class="secondary">すべて折りたたむ</button></div>
   <h2>現在開いているグループ</h2><div id="groups" class="groups">読み込み中…</div>
   <p id="status" aria-live="polite"></p>

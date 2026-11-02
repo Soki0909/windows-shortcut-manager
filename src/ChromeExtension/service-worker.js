@@ -18,11 +18,13 @@ const STARTUP_DEADLINE_KEY = "startupCollapseUntil";
 const EXPLICIT_GROUPS_KEY = "startupExplicitGroupIds";
 let historyQueue = Promise.resolve();
 let explicitGroupCache;
-const DEFAULT_SETTINGS = { collapseOnStartup: false, startupCollapseWindowMs: 20000, debugMode: false };
+const DEFAULT_SETTINGS = { collapseOnStartup: false, startupCollapseWindowMs: 20000, debugMode: false, rememberTabUrls: true };
 
 async function getSettings() {
   const data = await chrome.storage.local.get(SETTINGS_KEY);
-  return { ...DEFAULT_SETTINGS, ...(data[SETTINGS_KEY] ?? {}) };
+  const settings = { ...DEFAULT_SETTINGS, ...(data[SETTINGS_KEY] ?? {}) };
+  settings.rememberTabUrls = settings.rememberTabUrls === true;
+  return settings;
 }
 
 async function getLastFocusedWindowId() {
@@ -31,15 +33,39 @@ async function getLastFocusedWindowId() {
   } catch { return null; }
 }
 
-async function readLastTabs() {
+async function readLastTabs(settings = null) {
+  settings ??= await getSettings();
   const data = await chrome.storage.local.get(LAST_TAB_KEY);
-  return data[LAST_TAB_KEY] ?? {};
+  const stored = data[LAST_TAB_KEY];
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+  return Object.fromEntries(Object.entries(stored).filter(([, value]) => value && typeof value === "object" && !Array.isArray(value))
+    .map(([title, value]) => [title, { tabId: value.tabId, savedAt: value.savedAt, ...(settings.rememberTabUrls && typeof value.url === "string" ? { url: value.url } : {}) }]));
 }
 
-function rememberTab(tab) {
-  const result = historyQueue.then(() => rememberTabCore(tab));
+function queueHistory(operation) {
+  const result = historyQueue.then(operation);
   historyQueue = result.catch(() => {});
   return result;
+}
+function rememberTab(tab) { return queueHistory(() => rememberTabCore(tab)); }
+
+async function privacyStatus() {
+  const settings = await getSettings();
+  const map = await readLastTabs(settings);
+  return { ok: true, settings: { collapseOnStartup: settings.collapseOnStartup === true,
+    debugMode: settings.debugMode === true, rememberTabUrls: settings.rememberTabUrls }, historyCount: Object.keys(map).length,
+    urlCount: Object.values(map).filter(record => typeof record.url === "string").length };
+}
+
+async function updateSettings(patch) {
+  const allowed = ["collapseOnStartup", "debugMode", "rememberTabUrls"];
+  if (!patch || typeof patch !== "object" || Array.isArray(patch) || Object.keys(patch).some(key => !allowed.includes(key) || typeof patch[key] !== "boolean")) {
+    return failure("invalid-settings", "設定の変更内容が不正です。");
+  }
+  const settings = { ...(await getSettings()), ...patch };
+  const map = await readLastTabs(settings);
+  await chrome.storage.local.set({ [SETTINGS_KEY]: settings, [LAST_TAB_KEY]: map });
+  return privacyStatus();
 }
 
 async function rememberTabCore(tab) {
@@ -48,8 +74,9 @@ async function rememberTabCore(tab) {
     const group = await chrome.tabGroups.get(tab.groupId);
     const title = normalizeGroupTitle(group.title);
     if (!title) return;
-    const map = await readLastTabs();
-    map[title] = { tabId: tab.id, url: tab.url ?? null, savedAt: Date.now() };
+    const settings = await getSettings();
+    const map = await readLastTabs(settings);
+    Object.defineProperty(map, title, { value: { tabId: tab.id, savedAt: Date.now(), ...(settings.rememberTabUrls && typeof tab.url === "string" ? { url: tab.url } : {}) }, enumerable: true, configurable: true });
     const entries = Object.entries(map).sort((a, b) => (b[1].savedAt ?? 0) - (a[1].savedAt ?? 0)).slice(0, 100);
     await chrome.storage.local.set({ [LAST_TAB_KEY]: Object.fromEntries(entries) });
   } catch { /* Tabs can disappear during event handling. */ }
@@ -149,7 +176,10 @@ async function collapseAll(automatic = false) {
     message: `${succeeded} 個を折りたたみました。失敗 ${failed} 個、消滅 ${disappeared} 個。` };
 }
 
-chrome.tabs.onActivated.addListener(({ tabId }) => void chrome.tabs.get(tabId).then(rememberTab).catch(() => {}));
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  // Reserve event order before the asynchronous tab read, including privacy changes.
+  void queueHistory(async () => rememberTabCore(await chrome.tabs.get(tabId))).catch(() => {});
+});
 
 chrome.runtime.onStartup.addListener(() => {
   void queueDispatch(async () => {
@@ -173,6 +203,14 @@ chrome.tabGroups.onCreated.addListener((group) => {
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "privacy-status" || message?.type === "update-settings" || message?.type === "clear-tab-history") {
+    queueHistory(async () => {
+      if (message.type === "update-settings") return updateSettings(message.patch);
+      if (message.type === "clear-tab-history") await chrome.storage.local.set({ [LAST_TAB_KEY]: {} });
+      return privacyStatus();
+    }).then(sendResponse).catch(() => sendResponse(failure("history-storage-failed", "保存情報を読み書きできませんでした。状態を更新して確認してください。")));
+    return true;
+  }
   if (message?.type === "dispatch") {
     if (message.protocolVersion !== DISPATCH_PROTOCOL_VERSION) { sendResponse(failure("invalid-protocol", "Dispatcher protocol v1 が必要です。")); return false; }
     if (![FOCUS_GROUP_ACTION, TOGGLE_GROUP_ACTION].includes(message.action)) { sendResponse(failure("invalid-action", "未対応の action です。")); return false; }
