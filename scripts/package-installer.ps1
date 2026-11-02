@@ -17,7 +17,9 @@ if (-not $SkipPublish) {
 if (-not (Test-Path -LiteralPath "$publish\ShortcutManager.exe")) { throw 'Published app is missing.' }
 $signingRecord=Get-Content -LiteralPath (Join-Path $publish 'SIGNING.json') -Raw|ConvertFrom-Json
 if($signingRecord.Mode -ne $SigningMode -or $RequireSigned -and $SigningMode -ne 'Certificate'){throw 'Published app signing policy does not match Setup signing policy.'}
-& $CompilerPath "/DAppVersion=$Version" "/DPublishDir=$publish" "$root\installer\ShortcutManager.iss"
+$payloadManifest=Join-Path $root 'artifacts/installer-payload.ini'
+& "$PSScriptRoot/write-installer-payload.ps1" -Version $Version -PublishDirectory $publish -OutputPath $payloadManifest
+& $CompilerPath "/DAppVersion=$Version" "/DPublishDir=$publish" "/DPayloadManifest=$payloadManifest" "$root\installer\ShortcutManager.iss"
 if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
 $artifacts = Join-Path $root 'artifacts'
 $setup=Join-Path $artifacts "ShortcutManager-Setup-win-x64-v$Version.exe"

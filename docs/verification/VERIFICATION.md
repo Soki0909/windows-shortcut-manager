@@ -2,6 +2,15 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
+## インストール/更新の保持と旧payload整理 / #56/#91（2026-11-03、CI追跡中）
+
+- 実publishのUnicode相対パス/SHA-256から配置receiptを生成。旧receiptが現在保存先に結び付く場合だけ、新版にない一致ファイルを新規の退避フォルダへコピー・hash再検証してから削除する。旧receiptを退避し、新receiptは同じvolume内で原子的に切り替える。改変/不明/receiptなし/破損/過大/重複/途中変更は保持する。新しい製品依存なし。
+- 配置先/新版file先のreparseや照会不能は書込み前に拒否。旧不要file側は追跡しない。config/state/バックアップ/管理HotKey/Chrome storageは整理対象外。uninstallには保持説明と既定キャンセルを追加し、silent時も従来どおり保持する。完全削除の一括UIは#52の未完了として維持。
+- `test-installer-payload.ps1` 7件passed（Unicode BOM/相対パス/hash、予約名、空/不正版、reparse/祖先、拒否時の元manifest・外部file保持）。scripts parser、CI scope20件、7 YAML parse、diff check passed。
+- 製品Setupと同じnative処理のハーネスをコンパイル確認し、12保護fixtureを使い捨てrunnerへ追加。ローカルでは実行していない。公開v0.3.1 Setupの既知SHAから、旧CLI Applyで作ったfixtureと管理外lnkを保持したupgrade/reinstall/uninstall/reinstall、実構成差を持つ旧fixture Setup→新SetupもCIへ追加。
+- 各runner限定scriptをローカルで呼び、実行前に停止することを確認。guard回避なし。Release Setupのコンパイルと配布物構造/hash検査passed（ローカルpayloadは以前のビルドを使った構造確認であり、正式release/sourceの一致証拠にはしない）。日常製品のSetup実行・個人HotKeyやChromeデータ変更はしていない。
+- CIでのnative12件とライフサイクル実行は未確認のため、Issue/main統合は成功結果を待つ。
+
 ## Chromeの復帰履歴管理 / #49（2026-11-03、未公開）
 
 - Popupで保存目的・localのみ・100グループ上限・URL補助のオフ/既存URL除去・確認付き全履歴消去を案内。消去がタブ/グループ/他設定を変更せず、以降は再記録されることも明示。manifest権限とprotocolは変更なし。

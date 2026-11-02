@@ -52,6 +52,8 @@ jobs:
         run: ./scripts/test-cli.ps1
       - shell: pwsh
         run: ./scripts/test-signing.ps1
+      - shell: pwsh
+        run: ./scripts/test-installer-payload.ps1
       - run: dotnet build tests/ShortcutManager.LiveDriver/ShortcutManager.LiveDriver.csproj -c Debug --nologo
       - shell: pwsh
         run: ./scripts/package.ps1 -Configuration Release -Version 0.3.1
@@ -63,6 +65,8 @@ jobs:
           ./scripts/verify-release-artifacts.ps1 -Version 0.3.1 -RunInstallerSmoke -RequireMetadata -ExpectedSourceCommit $env:GITHUB_SHA -RequireCleanSource
           ./scripts/test-release-signing.ps1 -Version 0.3.1
           ./scripts/test-build-metadata.ps1 -Version 0.3.1
+          ./scripts/test-installer-maintenance.ps1
+          ./scripts/test-installer-lifecycle.ps1 -Version 0.3.1
   extension:
     needs: changes
     if: needs.changes.outputs.extension == 'true'
@@ -72,6 +76,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+          package-manager-cache: false
       - run: node --test tests/ChromeExtension.Tests/protocol.test.js tests/ChromeExtension.Tests/worker-regressions.test.js
       - run: node --check scripts/test-chrome-live.mjs
       - shell: pwsh
