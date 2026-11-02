@@ -6,7 +6,7 @@ Status: Accepted — implementation of #53 in the owner-authorized v1.0.0 readin
 
 All published v0.1.0–v0.3.1 versions use `schemaVersion=1` and `dispatchProtocolVersion=1`. v1.0.0 retains both. Product SemVer, config schema, backup format and dispatch protocol are separate contracts. A product version bump alone never rewrites config. Known numeric enum values remain readable; unknown fields/types are rejected rather than silently discarded.
 
-Read the version header before polymorphic deserialization. An incompatible integer version is a distinct error even when a future config contains unknown target types or members. Reject it on Load, Apply, Restore, SaveAtomic and recovery initialization. Startup audit must not run with an incompatible config. Do not label it corrupt, copy it to a `.broken` file, or initialize it as empty. Offer a diagnostic directing the user to a compatible newer application.
+Read the version header before polymorphic deserialization. An incompatible numeric version (including fractions, exponent notation and values outside Int32) is a distinct error even when a future config contains unknown target types or members. Bound the displayed numeric text. Reject it on Load, Apply, Restore, SaveAtomic and recovery initialization. Startup audit must not run with an incompatible config. Do not label it corrupt, copy it to a `.broken` file, or initialize it as empty. Offer a diagnostic directing the user to a compatible newer application.
 
 ## Future schema migration contract
 

@@ -2,6 +2,12 @@
 
 Updated: 2026-11-02 (Asia/Tokyo)
 
+## version header数値境界 / #125（2026-11-02、未公開）
+
+- 継続レビューで `TryGetInt32=false` の数値が専用の未対応形式エラーにならず、明示復旧で上書き可能になる境界を発見してIssue化。
+- int32範囲外、小数、指数表現を含む未対応versionを全書込み経路で拒否し、極端な数値の表示を32文字に制限。
+- `dotnet test tests/ShortcutManager.Windows.Tests/ShortcutManager.Windows.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~ConfigCompatibilityTests --nologo`: 11/11 passed。旧設定/marker/stateのバイト不変、4096桁数値の診断長、通常schema 1と破損JSON復旧の維持を確認。その他テストは反復せず。
+
 ## unpacked拡張の安全な更新 / #119（2026-11-02、未公開）
 
 - [ADR-012](../architecture/ADR-012-unpacked-extension-update.md)、[更新/復旧手順](EXTENSION_UPDATE.md)。直接source上書きをやめ、新旧公式ZIP+公開SHA確認、完全stage、before/after journal、旧フォルダ退避、同じパスへの切替、再実行可能な復旧を実装。未知/改変ファイルは保護し、旧不要ファイルは旧ZIPとの一致でのみ整理。既存keyは維持。

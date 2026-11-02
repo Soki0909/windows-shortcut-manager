@@ -35,8 +35,13 @@ public static class ConfigJson
     {
         if (root.ValueKind != JsonValueKind.Object) return;
         foreach (var (name, supported) in new[] { ("schemaVersion", SupportedSchemaVersion), ("dispatchProtocolVersion", SupportedDispatchProtocolVersion) })
-            if (root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var version) && version != supported)
-                throw new UnsupportedConfigVersionException($"$.{name}: この版が対応する形式は{supported}、設定は{version}です。対応する新版で開いてください。この版からの反映・初期化・復元は行いません。");
+            if (root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number
+                && (!value.TryGetInt32(out var version) || version != supported))
+            {
+                var declared = value.GetRawText();
+                if (declared.Length > 32) declared = declared[..32] + "…";
+                throw new UnsupportedConfigVersionException($"$.{name}: この版が対応する形式は{supported}、設定は{declared}です。対応する新版で開いてください。この版からの反映・初期化・復元は行いません。");
+            }
     }
 
     private static JsonSerializerOptions CreateOptions()

@@ -16,10 +16,15 @@ public sealed class ConfigCompatibilityTests : IDisposable
     public ConfigCompatibilityTests() => Directory.CreateDirectory(root);
 
     [Theory]
-    [InlineData("schemaVersion", 2)]
-    [InlineData("schemaVersion", 0)]
-    [InlineData("dispatchProtocolVersion", 2)]
-    public async Task UnsupportedVersionCannotBeOverwrittenByApplyRestoreSaveOrInitialize(string property, int version)
+    [InlineData("schemaVersion", "2")]
+    [InlineData("schemaVersion", "0")]
+    [InlineData("dispatchProtocolVersion", "2")]
+    [InlineData("schemaVersion", "2147483648")]
+    [InlineData("schemaVersion", "-2147483649")]
+    [InlineData("schemaVersion", "1.5")]
+    [InlineData("schemaVersion", "1e100")]
+    [InlineData("dispatchProtocolVersion", "1e100")]
+    public async Task UnsupportedVersionCannotBeOverwrittenByApplyRestoreSaveOrInitialize(string property, string version)
     {
         var paths = new ApplicationPaths(root, Path.Combine(root, "config.json"), Path.Combine(root, "state.json"), Path.Combine(root, "log.txt"), Path.Combine(root, "backups"), Path.Combine(root, "stage"), Path.Combine(root, "managed"));
         var repository = new ConfigRepository(paths.ConfigPath);
@@ -75,6 +80,14 @@ public sealed class ConfigCompatibilityTests : IDisposable
         var repository = new ConfigRepository(Path.Combine(root, "new-config.json"));
         Assert.Throws<UnsupportedConfigVersionException>(() => repository.SaveAtomic(new() { SchemaVersion = 2 }));
         Assert.False(File.Exists(repository.Path));
+    }
+
+    [Fact]
+    public void ExtremeVersionNumberHasBoundedDiagnostic()
+    {
+        var json = ConfigJson.Serialize(new ShortcutConfig()).Replace("\"schemaVersion\": 1", "\"schemaVersion\": " + new string('9', 4096));
+        var error = Assert.Throws<UnsupportedConfigVersionException>(() => ConfigJson.Deserialize(json));
+        Assert.True(error.Message.Length < 256);
     }
 
     public void Dispose() => Directory.Delete(root, true);
