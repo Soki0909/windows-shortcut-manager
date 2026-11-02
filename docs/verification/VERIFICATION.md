@@ -2,6 +2,15 @@
 
 Updated: 2026-11-02 (Asia/Tokyo)
 
+## unpacked拡張の安全な更新 / #119（2026-11-02、未公開）
+
+- [ADR-012](../architecture/ADR-012-unpacked-extension-update.md)、[更新/復旧手順](EXTENSION_UPDATE.md)。直接source上書きをやめ、新旧公式ZIP+公開SHA確認、完全stage、before/after journal、旧フォルダ退避、同じパスへの切替、再実行可能な復旧を実装。未知/改変ファイルは保護し、旧不要ファイルは旧ZIPとの一致でのみ整理。既存keyは維持。
+- `scripts/test-extension-deployment.ps1`: 28/28 passed。copy/write例外6地点、プロセス強制終了7地点と復旧中2地点、同一版再実行、旧版バイト照合、unknown/空フォルダ保持、改変/ZIP/hash/key/junction拒否、中断後の編集・旧退避改変・metadata破損の書込み停止を隔離fixtureで確認。後二者は復旧不能を成功扱いせず証拠を保持する。
+- PowerShell parser / `git diff --check` passed。CIへ専用テストを追加。ディスク更新完了とChrome実行版確認を明確に区別。実際の個人Chrome・製品環境への更新は正式リリース時に実施する。
+- 検証は変更したscriptだけに限定。コード・UI・manifestの動作変更がないため、ローカル.NET全体/Chrome runtime回帰を重ねていない。物理電源断の保証ではなく、アプリケーションプロセス中断を実証した。
+
+設定互換保護 [PR #123](https://github.com/Soki0909/windows-shortcut-manager/pull/123)は[CI 41403674393](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/41403674393)成功後にmain `c2d57748a865434445f8f6c6ae3bfcc379a548b0`へ統合。[main CI 41404154559](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/41404154559)もpassed。
+
 ## 設定互換性 / #53（2026-11-02、未公開）
 
 - [ADR-011](../architecture/ADR-011-config-compatibility-and-downgrade.md)でschema 1/protocol 1の継続対応、将来の隣接段階移行・移行前バックアップ・ジャーナル復旧・downgrade拒否を定義。実在しない旧schemaを作らず、全既存公開版は無変換で読み込む。

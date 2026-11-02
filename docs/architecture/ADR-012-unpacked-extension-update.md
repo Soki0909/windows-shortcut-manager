@@ -1,0 +1,17 @@
+# ADR-012: Recoverable unpacked-extension updates
+
+Status: Accepted — implementation of owner-authorized issue #119. The Store remains the intended general distribution path; this supports the owner's existing unpacked installation.
+
+The update helper requires new and previous official release ZIPs and their independently verified SHA-256 values. Source-folder overwrite is removed. Validate bounded archives, relative paths, duplicates, MV3 policy, required files and manifest assets before staging. Reject reparse points in source/archive/destination/transaction ancestry and refuse unknown or modified file collisions. Preserve a pre-existing manifest key; reject introduction/change of a new key that could change identity. Do not touch Chrome profiles, storage or Windows HotKeys.
+
+Stage a complete directory beside the destination on the same volume, including unknown files/empty directories. Remove an obsolete file only when its path and bytes match the previous release and it is absent from the new release. Modified obsolete files remain. This is file provenance, not blanket ownership of the folder. Flush the preparation intent before staging and a before/after fingerprint journal before switching. Hold a per-destination mutex for update and recovery.
+
+Switch by moving the original directory to the transaction's `previous`, then moving verified stage to the original path. There are two atomic renames and a possible gap, not an atomic two-directory exchange. Chrome must not be reloaded during update. Only report disk success after the committed tree matches the staged fingerprint. Retain previous data and journal under a unique completed folder; do not recursively delete old or unknown directories.
+
+Recovery uses fixed sibling locations, not arbitrary journal paths. If the destination still matches before, keep it. If destination is absent and previous is intact, move previous back. If the destination matches after and previous is intact, keep the complete new version. Post-interruption edits, changed previous data, malformed/absent metadata or reparse points stop all automatic mutation and preserve evidence. `-RecoverOnly` is repeatable; if it repairs a transaction, the caller reviews that outcome before issuing an update again. Interrupted recovery after moving previous back is recognized on the next run.
+
+Intent preparation interrupted before metadata becomes durable cannot authorize automatic cleanup: the original destination has not been changed, and the helper stops for manual inspection of the incomplete preparation folder. Never infer completion from missing data or advise Chrome reload after an uncertain failure.
+
+Tests use disposable folders and child PowerShell processes killed at staging, switch and recovery checkpoints, plus copy/write exceptions, unknown/modified files, ZIP rejection and junction protection. They prove application-process interruption handling, not physical power-loss behavior of filesystem/controller caches. No fault injection into the daily-use extension.
+
+Disk deployment and the version actually executing in Chrome are separate gates. After a successful disk update, reload the existing extension and verify its running version/ID and a representative dispatch separately. No resident updater or new product dependency is introduced. The repository maintenance helper requires PowerShell 7.4+; the application does not.
