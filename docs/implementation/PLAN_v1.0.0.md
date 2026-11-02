@@ -16,6 +16,8 @@
 
 ## Discoveries
 
+- 継続レビューでint32範囲外のversion headerが破損JSON扱いへ抜ける境界を発見し、#125を追加。小数・指数・極端な数値も未対応として停止し、診断文字数を制限した。
+
 - `set_goal`というツール名は提供されていないため、同等の`create_goal`で目標を設定済み。
 - #1のチェック状態と公開後記録が古い。#120を通じて実際のIssue/CI/公開/製品更新結果と同期する。
 - 自動バックアップ整理はフォルダ内の全ZIPを対象としている。手動・不明・外部コピーを自動削除してはいけない (#41)。
@@ -35,6 +37,8 @@
 - マイルストーンごとに検証してmainへ統合する。利用中環境はリリース用Setupでのみ更新し、更新前バックアップを保持する。
 
 ## Validation Evidence
+
+- #125: 設定互換性の専用11ケースのみ実行してpassed（数値境界5ケース追加と4096桁数値の診断長）。Apply/Restore/保存/初期化/監査からの上書き停止を確認。UI/launch契約に変更がないためGUI/全体回帰は繰り返していない。
 
 - #53 PR #123: CI 41403674393成功後、main `c2d5774`へ統合。main CI 41404154559成功。
 - #119: `scripts/test-extension-deployment.ps1` 28/28 passed。通常/同一版再実行、既存key、unknown/改変/旧不要ファイル、hash/危険ZIP/重複/不足/新key拒否、copy/write例外6段階、process kill7段階、復旧中kill2段階、中断後編集・退避改変・metadata破損・junction保護。raw evidenceはgit管理外。script/ADR/更新手順のみの変更なので、ローカル.NET/拡張runtimeテストは再実行しない。
