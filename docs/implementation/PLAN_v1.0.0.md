@@ -43,6 +43,8 @@
 
 ## Discoveries
 
+- installer receiptの追加検証で、Inno Pascal Scriptの標準文字列検索を介すと補助文字が存在しない`?`として一致し、Unicodeの所有fileを保留するケースを発見。Unicode nativeのStringChangeExとパス分割へ置き換え、専用job 41499714890で12ケース/27保全hashを確認。失敗時も既存fileは削除されていない。installer固有jobを分離し、更新されたPRの古い実行だけを取り消す。
+
 - 公式Inno最新確認で6.7.3→7.1.1を検出し#139を作成。7.1.1の公式release digest/実体SHA/Authenticode/利用条件を確認し固定を更新。履歴からSetup後付け署名だけでは内部コピーとUninstallが未署名になる注意も発見し#140を追加。#50の実署名前に統合する。
 
 - #136の英語Windows installer smokeで、日本語名lnkをWScript経由で読むと実行先・引数が空になる課題を発見。日本語PCでも非BMP名への変更で再現し#137を作成。原本と同一バイトのASCII名コピーならCIで正しく読めることを確認し、製品は回避コピーを使わず標準IShellLinkW/IPersistFileへ置換。Unicode専用7件と関連10件、単独コンパイル/読戻し、Debug read-only scanを確認し、同じPRへまとめて修正する。

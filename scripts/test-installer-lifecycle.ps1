@@ -38,7 +38,7 @@ function Command([string]$Destination,[string[]]$Arguments,[string]$Name){
     $result=Join-Path $temp "$Name.json"
     $commandArgs=@($Arguments)+@('--result',"`"$result`"")
     $process=Start-Process -FilePath (Join-Path $Destination 'ShortcutManager.exe') -ArgumentList $commandArgs -WindowStyle Hidden -Wait -PassThru
-    if($process.ExitCode -ne 0){if(Test-Path -LiteralPath $result){Get-Content -LiteralPath $result};throw "Installed CLI $Name failed."}
+    if($process.ExitCode -ne 0){if(Test-Path -LiteralPath $result){Write-Host ([IO.File]::ReadAllText($result))};throw "Installed CLI $Name failed."}
     Get-Content -LiteralPath $result -Raw|ConvertFrom-Json
 }
 $protected=@{}
