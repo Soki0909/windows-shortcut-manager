@@ -36,23 +36,31 @@ begin
   Result := False;
 end;
 
+function PayloadHas(Name, Needle: String): Boolean;
+begin
+  // StringChangeEx is the Unicode native support function. Pascal Script Pos
+  // can narrow non-ANSI text (notably supplementary characters) to question marks.
+  Result := StringChangeEx(Name, Needle, '', True) <> 0;
+end;
+
 function PayloadSafeRelative(Name: String): Boolean;
-var Part, Rest: String; Sep, I: Integer;
+var Part, Rest, Parent: String; I: Integer;
 begin
   Result := False;
   PayloadPathRejection := 'absolute/empty/separator';
-  if (Name = '') or (Pos('/', Name) <> 0) or (Pos(':', Name) <> 0) or (Copy(Name, 1, 1) = '\') then exit;
+  if (Name = '') or PayloadHas(Name, '/') or PayloadHas(Name, ':') or (Copy(Name, 1, 1) = '\') then exit;
   Rest := Name;
   repeat
-    Sep := Pos('\', Rest);
-    if Sep = 0 then Part := Rest else Part := Copy(Rest, 1, Sep - 1);
+    Part := ExtractFileName(Rest);
     PayloadPathRejection := 'component';
     if (Part = '') or (Part = '.') or (Part = '..') or (Copy(Part, 1, 1) = ' ') or (Copy(Part, Length(Part), 1) = ' ') or (Copy(Part, Length(Part), 1) = '.') then exit;
     // Keep Unicode path characters as strings; do not narrow them through Char.
-    for I := 0 to 31 do if Pos(Chr(I), Part) <> 0 then begin PayloadPathRejection := 'control ' + IntToStr(I); exit; end;
-    for I := 1 to Length('"|?*') do if Pos(Copy('"|?*', I, 1), Part) <> 0 then begin PayloadPathRejection := 'reserved character ' + IntToStr(I); exit; end;
-    if Sep = 0 then break;
-    Rest := Copy(Rest, Sep + 1, Length(Rest));
+    for I := 0 to 31 do if PayloadHas(Part, Chr(I)) then begin PayloadPathRejection := 'control ' + IntToStr(I); exit; end;
+    for I := 1 to Length('"|?*') do if PayloadHas(Part, Copy('"|?*', I, 1)) then begin PayloadPathRejection := 'reserved character ' + IntToStr(I); exit; end;
+    Parent := ExtractFileDir(Rest);
+    if Parent = '' then break;
+    if CompareText(Parent, Rest) = 0 then exit;
+    Rest := Parent;
   until False;
   PayloadPathRejection := 'reserved metadata name';
   if CompareText(Copy(Name, 1, 18), '.shortcut-manager-') = 0 then exit;
