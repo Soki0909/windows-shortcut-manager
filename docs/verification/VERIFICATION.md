@@ -2,6 +2,20 @@
 
 Updated: 2026-11-02 (Asia/Tokyo)
 
+## 配布の署名準備・報告/貢献導線（2026-11-02、未公開）
+
+- #59/#93: 公開フォームに版/導入形態/再現/期待実結果/個人情報除去、機能の受け入れ条件、非公開報告先を設定。CONTRIBUTING/PR templateは要件・ADR・実機分離・fixture・対象検証・秘密情報・依存基準を案内。YAMLは既存環境のPyYAMLで5ファイルparse成功。
+- GitHub private-vulnerability-reporting設定をAPIでfalseからtrueへ変更し、GETのenabled:trueで有効化を確認。非公開reportの送信は行っていない。サインインが必要な新規報告フォームの実送信/UI確認は未実施で、公開ページ取得のcache missをフォームの失敗とは判定していない。
+- #50: 所有者は証明書/契約未用意と回答。[CODE_SIGNING](../design/CODE_SIGNING.md)に適格性と申請情報を整理。SignPathの審査/承認、CAの本人確認/契約、Microsoftの地域/主体条件を区別し、未採択の提供表記や新契約を行っていない。
+- 証明書ストア経路は対象root/EXE/DLL/reparse保護、正確なthumbprint/秘密鍵/有効期間/EKU、SHA-256/RFC3161、署名後の信頼/発行元/timestampを要求。自作4バイナリとSetupのみ署名対象、runtimeの再署名なし。ZIP記録の署名後hashと実体を照合し、署名必須検査はpublish時の再downloadにも引き継げる。
+- `test-signing.ps1` 11件passed。sandboxではreparse fixture作成が権限制約で失敗したため通常ユーザー権限で再実行し、11件の実行結果を確認。symlink権限を必須にしないjunction fixtureを使用。証明書の生成/取込み、秘密鍵の送付、timestamp通信、署名は行っていない。
+- Release ZIP/Setupを再生成、`verify-release-artifacts.ps1 -Version 0.3.1` passed。両方のAuthenticodeはNotSignedと明示。`test-release-signing.ps1`は記録hash改変・署名状態偽装・重複・署名必須時の未署名拒否の4件passed。fixtureのみ変更し元3成果物のSHA不変。全scripts parserとdiff check passed。ローカルSetup実行/製品更新はしていない。
+- 実証明書による成功系、署名サービスとGitHub連携、署名済み公開物の実ダウンロード/発行元確認は未実施。#50は未完了。runtime変更がないためローカルCore/Windows/拡張の全回帰を繰り返していない。CIは配布の統合検査を追跡する。
+
+## PR #136 統合確認
+
+- CI 41456172398 success（Unicodeリンクをそのまま読む英語Windows installer smokeを含む）。main `34be17feeca7a6c29b6d98efa424480e65470ef5`へ統合。#43/#44/#137をclose。製品版はv0.3.1のままで未更新。
+
 ## UnicodeのShell Link読取り / 追加#137（2026-11-02、PR #136へ統合）
 
 - CI 41450882258/41453135967/41454138947の使い捨て英語Windowsで、存在する日本語名のSetup専用lnkからWScriptが空の実行先/引数を返した。1243 byte・正しいShell Linkヘッダーを持ち、同じバイトをASCII名へコピーすると正しいTarget/`--audit-only`/HotKeyなしを返すことを確認。検証の比較を緩めず、原本の読取り経路を修正した。

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: セキュリティ・脆弱性の非公開報告
+    url: https://github.com/Soki0909/windows-shortcut-manager/security/advisories/new
+    about: 機密の再現例や脆弱性は公開Issueに投稿せず、この非公開窓口を使ってください。
+  - name: 使い方・復旧手順
+    url: https://github.com/Soki0909/windows-shortcut-manager#readme
+    about: 初回導入、HotKey、Chrome連携、バックアップの説明です。

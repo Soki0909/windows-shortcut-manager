@@ -1,4 +1,4 @@
-param([string]$Version = '0.3.1', [string]$CompilerPath, [switch]$SkipPublish)
+param([string]$Version = '0.3.1', [string]$CompilerPath, [switch]$SkipPublish,[ValidateSet('Unsigned','Certificate')][string]$SigningMode='Unsigned',[switch]$RequireSigned)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path "$PSScriptRoot\..").Path
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Version must be X.Y.Z.' }
@@ -11,13 +11,18 @@ if (-not $CompilerPath) {
 if (-not $CompilerPath) { throw 'Inno Setup 6 is required for installer builds. Pass -CompilerPath <ISCC.exe>.' }
 $publish = Join-Path $root 'artifacts\publish\win-x64'
 if (-not $SkipPublish) {
-    & "$PSScriptRoot\package.ps1" -Version $Version
+    & "$PSScriptRoot\package.ps1" -Version $Version -SigningMode $SigningMode -RequireSigned:$RequireSigned
     if ($LASTEXITCODE -ne 0) { throw 'Package generation failed.' }
 }
 if (-not (Test-Path -LiteralPath "$publish\ShortcutManager.exe")) { throw 'Published app is missing.' }
+$signingRecord=Get-Content -LiteralPath (Join-Path $publish 'SIGNING.json') -Raw|ConvertFrom-Json
+if($signingRecord.Mode -ne $SigningMode -or $RequireSigned -and $SigningMode -ne 'Certificate'){throw 'Published app signing policy does not match Setup signing policy.'}
 & $CompilerPath "/DAppVersion=$Version" "/DPublishDir=$publish" "$root\installer\ShortcutManager.iss"
 if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
 $artifacts = Join-Path $root 'artifacts'
+$setup=Join-Path $artifacts "ShortcutManager-Setup-win-x64-v$Version.exe"
+$setupSignature=@(& "$PSScriptRoot/sign-files.ps1" -Path @($setup) -AllowedRoot $artifacts -Mode $SigningMode -RequireSigned:$RequireSigned)
+[IO.File]::WriteAllText((Join-Path $artifacts 'SIGNING-SETUP.json'),(@{FormatVersion=1;Mode=$SigningMode;Files=$setupSignature}|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
 $files = @("ShortcutManager-win-x64-v$Version.zip", "ShortcutManager-TabBridge-v$Version.zip", "ShortcutManager-Setup-win-x64-v$Version.exe")
 $checksums = foreach ($name in $files) {
     $hash = Get-FileHash -LiteralPath (Join-Path $artifacts $name) -Algorithm SHA256

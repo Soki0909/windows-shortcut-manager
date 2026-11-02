@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][string]$Tag)
+param([Parameter(Mandatory)][string]$Tag,[switch]$RequireSigned,[string]$ExpectedSignerThumbprint=$env:CODE_SIGN_THUMBPRINT)
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 if ($Tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw 'Release tag must be vX.Y.Z.' }
@@ -24,6 +24,6 @@ if (-not $existing) {
         if ((Get-FileHash -LiteralPath "artifacts/$name").Hash -ne (Get-FileHash -LiteralPath (Join-Path $download $name)).Hash) { throw "Downloaded asset differs: $name" }
     }
 }
-& "$PSScriptRoot/verify-release-artifacts.ps1" -Version $version -ArtifactDirectory $download -RunInstallerSmoke
+& "$PSScriptRoot/verify-release-artifacts.ps1" -Version $version -ArtifactDirectory $download -RunInstallerSmoke -RequireSigned:$RequireSigned -ExpectedSignerThumbprint $ExpectedSignerThumbprint
 gh release edit $Tag --draft=false --latest
 Write-Host "Published verified release: $Tag"
