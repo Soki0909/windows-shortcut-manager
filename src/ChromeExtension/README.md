@@ -8,3 +8,5 @@ Protocol v1の新action `toggle-group`は、前面アプリに関係なくcollap
 
 開発時は `chrome://extensions` でデベロッパーモードを有効にし、このディレクトリを「パッケージ化されていない拡張機能」として読み込みます。Popup に表示される Extension ID を Shortcut Manager に設定してください。
 
+Popupの「IDをコピー」と「導入・接続の確認手順」から、オフラインの[導入ガイド](help.html)を利用できます。Managerの「設定」および「使い方と製品情報」→「Chrome」にも案内があります。GitHub ZIPは開発・試用向けで、Chrome Web Storeの正式導入URLはまだ公開していません（#46）。
+

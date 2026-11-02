@@ -8,7 +8,18 @@ const rememberUrls = document.querySelector("#remember-urls");
 const confirmClear = document.querySelector("#confirm-clear");
 const clearHistory = document.querySelector("#clear-history");
 const manifest = chrome.runtime.getManifest();
-document.querySelector("#identity").textContent = `v${manifest.version} / Protocol v1 / ${chrome.runtime.id}`;
+document.querySelector("#identity").textContent = `v${manifest.version} / Protocol v1`;
+const extensionId = document.querySelector("#extension-id");
+extensionId.value = chrome.runtime.id;
+document.querySelector("#copy-id").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(chrome.runtime.id);
+    document.querySelector("#copy-status").textContent = "拡張IDをコピーしました。Managerの設定へ貼り付けてください。";
+  } catch {
+    extensionId.focus(); extensionId.select();
+    document.querySelector("#copy-status").textContent = "コピーできませんでした。選択したIDをCtrl+Cでコピーしてください。";
+  }
+});
 const send = message => runtimeRequest(value => chrome.runtime.sendMessage(value), message);
 let busy = false;
 let savedSettings = {};
@@ -16,10 +27,10 @@ let settingsLoaded = false;
 async function run(operation) {
   if (busy) return;
   busy = true;
-  document.querySelectorAll("button,input").forEach(control => { control.disabled = true; });
+  document.querySelectorAll("button,input").forEach(control => { if (control !== extensionId && control.id !== "copy-id") control.disabled = true; });
   try { await operation(); }
   catch { statusElement.textContent = "操作に失敗しました。「更新」で状態を確認して再試行してください。"; }
-  finally { busy = false; document.querySelectorAll("button,input").forEach(control => { control.disabled = control.tagName === "INPUT" && !settingsLoaded; }); clearHistory.disabled = !settingsLoaded || !confirmClear.checked; }
+  finally { busy = false; document.querySelectorAll("button,input").forEach(control => { control.disabled = control !== extensionId && control.tagName === "INPUT" && !settingsLoaded; }); clearHistory.disabled = !settingsLoaded || !confirmClear.checked; }
 }
 async function refresh() {
   const response = await send({ type: "list-groups" });

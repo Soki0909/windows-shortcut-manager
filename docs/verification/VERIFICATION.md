@@ -2,11 +2,21 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
+
 ## Store提出資料 / #46（2026-11-03、準備段階）
 
 - `PRIVACY.md`と提出原稿を、拡張のlocal設定/最大100グループ履歴、起動期限、session保護ID、通知、診断、URL除去/履歴消去と照合。Managerのログ/backup/journal保持、アンインストール時保持、Chrome storageとの分離も記載。README/SECURITYから到達可能。
 - 公式の掲載/プライバシー/開示資料を参照し、提出文面・権限理由・架空データによる審査手順・公開ID変更時のバックアップ/明示変更/rollbackを用意。文書のみの変更のため製品テストを反復しない。
 - 掲載用の実画面、所有者アカウント確認、規約同意/支払い、ZIP提出、審査、正式公開URLは未完了。#46はopenを維持する。公開後にmain上のポリシーURLを到達確認する。資格情報や個人履歴は資料へ含めていない。
+
+## Chrome導入・IDコピー / #45（2026-11-03、main統合済み）
+
+- PR #147のhead cda5231、CI 41505807728全4job success後main 443c800へ統合。拡張テスト/更新保護、Windows build/test/package/Setup更新経路がpassed。
+
+- `node --test tests/ChromeExtension.Tests/worker-regressions.test.js`: 16/16 passed。clipboardはfixtureだけを使用し、Worker設定の読込待ち/失敗でもID欄とコピーが有効、コピー拒否は欄の選択とCtrl+C案内になることを確認。実際の個人clipboardを読書きしていない。
+- `scripts/run-debug.ps1 -NoLaunch`: Debug build警告0/エラー0。架空パスだけでWPFを非表示描画し、設定700x500/説明展開480x360/Chromeヘルプ750x620を目視確認。小画面の本文はスクロール可能。ウィンドウ表示や個人config読込/保存はしていない。
+- headless shellで実Popup/help HTML/CSSを描画して確認。静的fixtureのためChrome API/実グループ/OS clipboardの実動作証拠ではなく、それらはNode fixtureと別の手動条件。新権限・製品依存・常駐通信なし。Setup/日常製品/個人Chromeデータは未変更。
+
 
 ## インストール/更新の保持と旧payload整理 / #56/#91（2026-11-03、main統合済み）
 
