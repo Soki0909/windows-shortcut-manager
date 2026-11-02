@@ -66,9 +66,6 @@ $settings=[ordered]@{schemaVersion=1;dispatchProtocolVersion=1;settings=@{manage
 [IO.File]::WriteAllText($source,($settings|ConvertTo-Json -Depth 10),[Text.UTF8Encoding]::new($false))
 $applied=Command $app @('--apply-config',"`"$source`"") 'legacy-apply'
 if(-not $applied.succeeded){throw 'Official previous edition could not establish the isolated config/managed HotKey fixture.'}
-$ownerConfig=Get-Content -LiteralPath $config -Raw|ConvertFrom-Json
-$ownerConfig|Add-Member -NotePropertyName retainedFutureField -NotePropertyValue @{keep=$true}
-[IO.File]::WriteAllText($config,($ownerConfig|ConvertTo-Json -Depth 15),[Text.UTF8Encoding]::new($false))
 $backup=Join-Path $data 'backups/manual-retain-fixture.zip'
 Compress-Archive -LiteralPath $config -DestinationPath $backup
 foreach($file in @((Get-Item -LiteralPath $config),(Get-Item -LiteralPath (Join-Path $data 'state.json')))+(Get-ChildItem -LiteralPath $managed -File)+(Get-ChildItem -LiteralPath (Join-Path $data 'backups') -File)){$protected[$file.FullName]=(Get-FileHash -LiteralPath $file.FullName).Hash}
@@ -97,6 +94,21 @@ if(Test-Path -LiteralPath (Join-Path $lab 'obsolete-owned.dat')){throw 'Unchange
 if((Get-FileHash -LiteralPath $edited).Hash -ne $editedHash -or (Get-FileHash -LiteralPath $userFile).Hash -ne $userHash){throw 'Changed-payload upgrade removed edited or unmanaged files.'}
 $retired=@(Get-ChildItem -LiteralPath $lab -Directory -Filter '.shortcut-manager-retired-*'|ForEach-Object {Join-Path $_.FullName 'files/obsolete-owned.dat'}|Where-Object {Test-Path -LiteralPath $_})
 if($retired.Count -ne 1 -or (Get-FileHash -LiteralPath $retired[0]).Hash -ne (Get-FileHash -LiteralPath (Join-Path $labPublish 'obsolete-owned.dat')).Hash){throw 'Retired payload backup missing or different.'}
+# Unsupported fields are preserved by Setup but correctly rejected by the application.
+$supportedBytes=[IO.File]::ReadAllBytes($config)
+$supportedHash=$protected[$config]
+try{
+    $unknownConfig=Get-Content -LiteralPath $config -Raw|ConvertFrom-Json
+    $unknownConfig|Add-Member -NotePropertyName retainedFutureField -NotePropertyValue @{keep=$true}
+    [IO.File]::WriteAllText($config,($unknownConfig|ConvertTo-Json -Depth 15),[Text.UTF8Encoding]::new($false))
+    $protected[$config]=(Get-FileHash -LiteralPath $config).Hash
+    Install $setup $lab 'unsupported-config-retaining-reinstall'
+    Assert-Protected
+    $rejection=Join-Path $temp 'unsupported-config-validation.json'
+    $process=Start-Process -FilePath (Join-Path $lab 'ShortcutManager.exe') -ArgumentList @('--validate-config',"`"$config`"",'--result',"`"$rejection`"") -WindowStyle Hidden -Wait -PassThru
+    if($process.ExitCode -eq 0 -or -not (Test-Path -LiteralPath $rejection) -or (Get-Content -LiteralPath $rejection -Raw|ConvertFrom-Json).ok -ne $false){throw 'Unsupported config was not rejected without rewriting it.'}
+    Assert-Protected
+}finally{[IO.File]::WriteAllBytes($config,$supportedBytes);$protected[$config]=$supportedHash}
 Uninstall $lab 'changed-payload-uninstall';Assert-Protected
 if((Get-FileHash -LiteralPath $userFile).Hash -ne $userHash -or -not (Test-Path -LiteralPath $retired[0])){throw 'Uninstall removed unmanaged additions or retired backup.'}
 Write-Host 'Changed-payload Setup upgrade passed: owned obsolete file backed up/retired; edited obsolete and unmanaged files preserved during upgrade; backups/unmanaged files retained at uninstall.'
