@@ -2,6 +2,13 @@
 
 Updated: 2026-11-02 (Asia/Tokyo)
 
+## 公開後記録の同期 / #120（2026-11-02）
+
+- [公開後索引と毎回のチェックリスト](../releases/POST_RELEASE.md)を追加。準備記録と実際の公開/所有者PC更新を区別し、公開後にmainへ記録する担当・タイミングを定義。
+- [v0.3.0](../releases/post-release/v0.3.0.md)、[v0.3.1](../releases/post-release/v0.3.1.md)について、実在するtag/main SHA、成功CI/Release、公開日時/URL、3ペイロードSHA、既存ローカル証拠の所有者PC更新/拡張再読み込み確認を個人パスなしで記録。
+- 全6ペイロードを現在のGitHub asset digestと保管済み公式checksumで再照合して全一致。過去のPC更新証拠の追記であり、この作業でPCを再更新していない。公開済みtag/配布物を変更していない。
+- `scripts/sync-roadmap.ps1` は子Issueの実open/closedに合わせ#1のcheckboxだけを更新し、前後を再照合する。本文の製品スコープは変更しない。履歴上の初期105件と後発Issueの現在総数を混同しない。
+
 ## version header数値境界 / #125（2026-11-02、未公開）
 
 - 継続レビューで `TryGetInt32=false` の数値が専用の未対応形式エラーにならず、明示復旧で上書き可能になる境界を発見してIssue化。

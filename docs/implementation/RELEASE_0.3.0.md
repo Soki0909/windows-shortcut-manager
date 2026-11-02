@@ -8,7 +8,7 @@
 - [x] #84: collapse-all separates success, failure, disappearance and skipped automatic targets.
 - [x] #85: serialize history read/modify/write and preserve the 100-title cap.
 - [x] #86: serialize startup/group-created work with explicit operations and retain explicit protection through Worker restart in session storage.
-- Publication and installed-product update are tracked through the PR, tagged Release workflow and private local update evidence. Keep the owner's existing 22 keys and four empty keys.
+- [x] Published and updated the owner's installed product, preserving 22 keys and four empty keys. Public hashes, main/tag/workflow links and owner extension confirmation: [post-release report](../releases/post-release/v0.3.0.md).
 
 ## Discoveries and decisions
 
