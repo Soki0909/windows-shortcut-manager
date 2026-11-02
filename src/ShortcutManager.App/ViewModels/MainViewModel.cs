@@ -215,35 +215,39 @@ public sealed class MainViewModel : ObservableObject
         Status = IsDirty ? "設定を変更しました。「変更を反映」で保存してください。" : "設定の差分はありません。";
     }
 
-    public async Task<IReadOnlyList<ShortcutInventoryItem>> ScanAsync()
+    public InventoryScanReport? LastScanReport { get; private set; }
+    public IReadOnlyList<ShortcutInventoryItem> ConflictingItems {get;private set;}=[];
+    public async Task<IReadOnlyList<ShortcutInventoryItem>> ScanAsync(IEnumerable<string>? roots = null)
     {
         if (IsBusy) return [];
         IsBusy = true;
         Status = "既存 .lnk / .url をスキャンしています…";
         try
         {
-            var results = await scanner.ScanDefaultAsync(ManagedDirectory);
-            Status = $"{results.Count} 件を検出しました。";
-            logger.Info($"Inventory scan: {results.Count} items");
-            return results;
+            LastScanReport = await scanner.ScanReportAsync(roots ?? ShortcutInventoryScanner.DefaultRoots,ManagedDirectory);
+            Status = LastScanReport.Summary;
+            logger.Info($"Inventory scan: {LastScanReport.Items.Count} items, {LastScanReport.Issues.Count} excluded ranges");
+            return LastScanReport.Items;
         }
         finally { IsBusy = false; }
     }
 
-    public void Import(ShortcutInventoryItem item)
+    public bool Import(ShortcutInventoryItem item, string? key = null)
     {
-        if (!CanModify) return;
-        var key = ExtractKey(item.Hotkey);
-        if (key is null || candidate.Shortcuts.Any(existing => existing.Enabled && existing.Hotkey.Key == key))
-            key = Enumerable.Range('A', 26).Select(value => ((char)value).ToString()).FirstOrDefault(value => candidate.Shortcuts.All(existing => !existing.Enabled || existing.Hotkey.Key != value));
-        if (key is null) { Status = "空きキーがありません。"; return; }
+        if (!CanModify) return false;
+        if (candidate.Shortcuts.Count>=26) {Status="割当は最大26件です。不要な候補を整理してから移行してください。";return false;}
+        if (!ImportKeyChoices.CanImport(item)) { Status="この項目は移行できません。読取り結果と元ファイルを確認してください。";return false; }
+        var inventory=(LastScanReport?.Items ?? []).Append(item).DistinctBy(entry=>entry.SourcePath,StringComparer.OrdinalIgnoreCase).ToArray();
+        if (key is null || !ImportKeyChoices.Build(candidate,inventory).Any(choice=>choice.Key==key && choice.Available)) { Status = "元キーの外部競合を避け、移行先の文字キーを明示的に選んでください。"; return false; }
         Upsert(importer.CreateProposal(item, key));
         Status = $"{item.DisplayName} を {key} にインポートしました。元ファイルは変更していません。";
+        return true;
     }
 
     public async Task<bool> ApplyAsync()
     {
         if (IsBusy) return false;
+        ConflictingItems=[];
         if (RecoveryRequired) { Status = "復旧モードでは反映できません。バックアップ復元または設定修復後の再読込が必要です。"; return false; }
         if (!IsDirty) { Status = "保存済みとの差分はありません。反映は行いませんでした。"; return false; }
         if (!explicitRecoveryInitialization && !CheckSavedSourceUnchanged()) return false;
@@ -251,10 +255,12 @@ public sealed class MainViewModel : ObservableObject
         Status = "入力と既存キーを確認し、自動バックアップして変更を反映しています…";
         try
         {
-            var scan = await scanner.ScanDefaultAsync(ManagedDirectory);
+            LastScanReport = await scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots.Concat(LastScanReport?.Roots ?? []),ManagedDirectory);
+            var scan = LastScanReport.Items;
+            ConflictingItems=scan.Where(item=>!item.IsManaged && candidate.Shortcuts.Any(entry=>entry.Enabled && entry.Hotkey.Canonical.Equals(item.Hotkey,StringComparison.OrdinalIgnoreCase))).ToArray();
             var external = scan.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
             var result = await Task.Run(() => applier.Apply(candidate, ManagedDirectory, external));
-            Status = result.Message;
+            Status = result.Message + (LastScanReport.IsComplete ? string.Empty : "\n"+LastScanReport.Summary);
             logger.Info($"Apply: success={result.Succeeded}, generated={result.GeneratedCount}, backup={result.BackupPath}");
             if (result.Succeeded)
             {
@@ -525,13 +531,6 @@ public sealed class MainViewModel : ObservableObject
     {
         target.Clear();
         foreach (var value in values) target.Add(value);
-    }
-
-    private static string? ExtractKey(string hotkey)
-    {
-        var parts = hotkey.Split('+');
-        var key = parts.LastOrDefault();
-        return parts.Contains("CTRL") && parts.Contains("ALT") && key is { Length: 1 } && key[0] is >= 'A' and <= 'Z' ? key : null;
     }
 
     private static string TargetSummary(ShortcutTarget target) => target switch

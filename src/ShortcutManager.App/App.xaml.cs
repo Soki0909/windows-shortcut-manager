@@ -132,8 +132,8 @@ public partial class App : Application
             }
             else if (scanRequested)
             {
-                var items = scanner.ScanDefaultAsync(paths.ManagedShortcutDirectory).GetAwaiter().GetResult();
-                result = new { ok = true, count = items.Count, items };
+                var report = scanner.ScanReportAsync(ShortcutManager.Windows.Inventory.ShortcutInventoryScanner.DefaultRoots,paths.ManagedShortcutDirectory).GetAwaiter().GetResult();
+                result = new { ok = true, complete = report.IsComplete, count = report.Items.Count, items = report.Items, summary = report.Summary, scanIssues = report.Issues, readFailureCount = report.ReadFailureCount, roots = report.Roots };
             }
             else
             {

@@ -50,6 +50,8 @@ public static class ConfigJson
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = true,
+            AllowOutOfOrderMetadataProperties = true,
+            AllowDuplicateProperties = false,
             UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         };
         // Preserve known legacy numeric values; ConfigStructure rejects undefined values.
