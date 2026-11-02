@@ -4,6 +4,8 @@
 
 ## Progress
 
+- [x] #9/#10/#13/#24/#69: 初回ガイド、空状態、オフラインFAQ/製品情報、実HotKeyを押さないキー一覧を実装/Debug GUI確認。main統合はPR CIで追跡。
+
 - [x] 追加#128のCI範囲判定を実装/ローカル検証。文書/管理記録はruntime検証なし、Windows・拡張・拡張配置を別jobへ振り分け、比較不能/共有設定変更は全検証へfallback。新しい依存なし。
 
 - [x] #120 公開後レポート・担当/タイミング・毎回のチェックリスト・ロードマップ同期手順を追加。v0.3.0/v0.3.1の公開digestと過去の製品更新証拠を再照合。
@@ -41,6 +43,12 @@
 - マイルストーンごとに検証してmainへ統合する。利用中環境はリリース用Setupでのみ更新し、更新前バックアップを保持する。
 
 ## Validation Evidence
+
+- #120 PR #127: CI 41406522663成功後、main `40d3dd0`へ統合。公開後索引とロードマップ同期運用を反映。
+- #128 PR #129: CI 41407105770成功後、main `d989c39`へ統合。
+- 初回導入UI: Debug build 0 warnings/errors、空状態3導線、候補登録で空状態が隠れる、U一覧選択による未保存候補作成（実Ctrl+Altなし）、ガイドの無効/有効条件、スキップ・ヘルプから再開、オフラインヘルプ、実EXE版と製品情報の一致を確認。新規設定なしのDebug起動でガイド自動表示、既存設定時は自動表示なしも確認。
+- UI確認用の未保存候補は破棄。初回probeで退避した元Debug設定はバイト復元・SHA一致。製品設定/Chrome/実HotKey/Explorerは変更せず。既存Apply/起動を呼ぶ配線と案内の確認に限定し、個人環境での実起動・新キーApply・Shell再起動を繰り返していない。
+- Debug終了操作が1回失敗してEXEロックの再ビルドエラーとなった。対象ウィンドウを再選択し正常終了を確認後、再ビルドpassed。UIAのモーダルindex/geometry不足はfresh screenshot座標で解決。製品コードの障害として扱わない。
 
 - #128: CI範囲判定19ケース、実gitのdocs-only差分（3jobともfalse）、全maintenance scriptのparser、diff check passed。CI定義変更なのでPR CIで全jobの配線を検証する。Release workflowの包括ゲートは維持。
 

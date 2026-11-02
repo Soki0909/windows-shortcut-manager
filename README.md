@@ -11,6 +11,8 @@ Windows の `Ctrl+Alt+A-Z` を、常駐プロセスなしで Website / Applicati
 
 ## クイックスタート
 
+初回はアプリのガイドでWebサイト1件の登録から案内します。閉じた後も「使い方」から再開できます。キーは一覧から選べるので、登録時に実際のCtrl+Altを押す必要はありません。オフラインの症状別ヘルプと「情報」からの版確認も利用できます。
+
 1. `ShortcutManager-Setup-win-x64-v0.3.1.exe` を実行してインストールし、スタートメニューの「Shortcut Manager」から起動します。従来のportable ZIPを展開して起動する方法も利用できます。
 2. Chromeを使う場合は `ShortcutManager-TabBridge-v0.3.1.zip` を展開し、`chrome://extensions` のデベロッパーモードからフォルダを読み込みます。
 3. Extension Popupに表示される32文字のIDをManagerの「設定」に入力します。

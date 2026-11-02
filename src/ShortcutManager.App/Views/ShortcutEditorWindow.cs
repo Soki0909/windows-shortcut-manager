@@ -12,6 +12,7 @@ public sealed class ShortcutEditorWindow : Window
     private readonly TextBox name = new();
     private readonly CheckBox enabled = new() { Content = "有効", IsChecked = true };
     private readonly TextBox hotkey = new() { IsReadOnly = true };
+    private readonly ComboBox keyChoice = new() { DisplayMemberPath = nameof(KeyChoice.Label), SelectedValuePath = nameof(KeyChoice.Key) };
     private readonly ComboBox type = new() { ItemsSource = new[] { "Website", "Application", "BAT/CMD", "Chrome Tab Group" }, SelectedIndex = 0 };
     private readonly ComboBox launchMode = new() { ItemsSource = Enum.GetValues<ApplicationLaunchMode>() };
     private readonly TextBox target = new();
@@ -24,22 +25,36 @@ public sealed class ShortcutEditorWindow : Window
 
     public ShortcutDefinition? Result { get; private set; }
 
-    public ShortcutEditorWindow(ShortcutDefinition? definition, string? preselectedKey, IReadOnlyDictionary<string, string>? usedKeys = null)
+    public ShortcutEditorWindow(ShortcutDefinition? definition, string? preselectedKey, IReadOnlyDictionary<string, string>? usedKeys = null, int initialType = 0)
     {
         this.usedKeys = usedKeys ?? new Dictionary<string, string>();
+        keyChoice.ItemsSource = Enumerable.Range('A', 26).Select(value => ((char)value).ToString()).Select(key => new KeyChoice(key, this.usedKeys.TryGetValue(key, out var assigned) ? $"{key} — この設定では「{assigned}」が使用中" : $"{key} — この設定では空き")).ToArray();
+        System.Windows.Automation.AutomationProperties.SetName(keyChoice, "割り当てる文字キー");
+        keyChoice.SelectionChanged += (_, _) => { if (keyChoice.SelectedValue is string key) hotkey.Text = $"CTRL+ALT+{key}"; };
         id = definition?.Id ?? Guid.NewGuid();
         Title = definition is null ? "ショートカットを追加" : "ショートカットを編集";
         Width = 620; Height = 540; WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize;
         for (var index = 0; index < 9; index++) form.RowDefinitions.Add(new() { Height = GridLength.Auto });
         form.ColumnDefinitions.Add(new() { Width = new(155) }); form.ColumnDefinitions.Add(new() { Width = new(1, GridUnitType.Star) });
-        AddRow(0, "Name", name); AddRow(1, "", enabled); AddRow(2, "HotKey", hotkey); AddRow(3, "Type", type); AddRow(4, "Launch mode", launchMode); AddRow(5, "URL / Path / Group", TargetPanel()); AddRow(6, "Arguments", arguments); AddRow(7, "Working directory", workingDirectory); AddRow(8, "BAT window", windowMode);
+        AddRow(0, "Name", name); AddRow(1, "", enabled); AddRow(2, "HotKey", KeyPanel()); AddRow(3, "Type", type); AddRow(4, "Launch mode", launchMode); AddRow(5, "URL / Path / Group", TargetPanel()); AddRow(6, "Arguments", arguments); AddRow(7, "Working directory", workingDirectory); AddRow(8, "BAT window", windowMode);
         hotkey.PreviewKeyDown += Hotkey_PreviewKeyDown; type.SelectionChanged += (_, _) => UpdateVisibility();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         var cancel = new Button { Content = "キャンセル", Padding = new(14, 7, 14, 7), Margin = new(4) }; cancel.Click += (_, _) => DialogResult = false;
         var ok = new Button { Content = "OK", Padding = new(18, 7, 18, 7), Margin = new(4), IsDefault = true }; ok.Click += Save_Click;
         buttons.Children.Add(cancel); buttons.Children.Add(ok);
         var panel = new DockPanel { Margin = new(18) }; DockPanel.SetDock(buttons, Dock.Bottom); panel.Children.Add(buttons); DockPanel.SetDock(hint, Dock.Bottom); panel.Children.Add(hint); panel.Children.Add(form); Content = panel;
-        Load(definition, preselectedKey); UpdateVisibility();
+        Load(definition, preselectedKey);
+        if (definition is null) type.SelectedIndex = initialType;
+        UpdateVisibility();
+    }
+
+    private FrameworkElement KeyPanel()
+    {
+        var panel = new StackPanel();
+        panel.Children.Add(new TextBlock { Text = "Ctrl + Alt + 選んだ文字（登録時に同時押しは不要）", TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(keyChoice);
+        panel.Children.Add(new Expander { Header = "実キー入力（既存の割当が起動する場合あり）", Content = hotkey });
+        return panel;
     }
 
     private FrameworkElement TargetPanel()
@@ -58,8 +73,9 @@ public sealed class ShortcutEditorWindow : Window
 
     private void Load(ShortcutDefinition? definition, string? key)
     {
-        if (definition is null) { hotkey.Text = key is null ? "クリックして Ctrl+Alt+A-Z を入力" : $"CTRL+ALT+{key}"; launchMode.SelectedItem = ApplicationLaunchMode.Executable; windowMode.SelectedItem = BatWindowMode.Normal; return; }
+        if (definition is null) { keyChoice.SelectedValue = key ?? Enumerable.Range('A',26).Select(value => ((char)value).ToString()).FirstOrDefault(value => !usedKeys.ContainsKey(value)); launchMode.SelectedItem = ApplicationLaunchMode.Executable; windowMode.SelectedItem = BatWindowMode.Normal; return; }
         name.Text = definition.Name; enabled.IsChecked = definition.Enabled; hotkey.Text = definition.Hotkey.Canonical;
+        keyChoice.SelectedValue = definition.Hotkey.Key;
         switch (definition.Target)
         {
             case WebsiteTarget item: type.SelectedIndex = 0; target.Text = item.Url; break;
@@ -75,6 +91,7 @@ public sealed class ShortcutEditorWindow : Window
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
         if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt)) != (ModifierKeys.Control | ModifierKeys.Alt) || key is < Key.A or > Key.Z) { hint.Text = "Ctrl + Alt + A-Z のみ登録できます。"; return; }
         hotkey.Text = $"CTRL+ALT+{key}";
+        keyChoice.SelectedValue = key.ToString();
         hint.Text = usedKeys.TryGetValue(key.ToString(), out var assignedName) ? $"警告: {key} は「{assignedName}」で使用中です。" : string.Empty;
     }
 
@@ -103,4 +120,6 @@ public sealed class ShortcutEditorWindow : Window
         Result = new() { Id = id, Name = name.Text.Trim(), Enabled = enabled.IsChecked == true, Hotkey = new() { Key = key }, Target = shortcutTarget };
         DialogResult = true;
     }
+
+    private sealed record KeyChoice(string Key, string Label);
 }
