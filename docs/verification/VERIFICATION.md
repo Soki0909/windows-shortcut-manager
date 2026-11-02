@@ -2,7 +2,10 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
-## インストール/更新の保持と旧payload整理 / #56/#91（2026-11-03、CI追跡中）
+## インストール/更新の保持と旧payload整理 / #56/#91（2026-11-03、main統合済み）
+
+- PR #145の最終head `34158cb1180bd7ddeea9b0d2570756e1b5e33a65`で、統合CI 41500960914全4jobとnative 41500960938 success。公開v0.3.1→新版→同版再導入→uninstall→reinstallがpassed。旧CLIのApplyが生成したconfig/state/backup/managed lnkと管理外lnkの全byte hash、Q/V HotKey属性を保持。新しいexe/commit/HKCU/audit-only link/CLI検査もpassed。
+- 実file構成が異なる旧fixture Setup→新Setupでは、所有が一致する不要物の退避/削除と改変/ユーザー追加物の保持を確認。未対応項目を持つconfigはreinstallがbyte保持し、CLIが非ゼロ・ok:falseで上書きせず拒否した。uninstallでもバックアップ/管理内外lnk/追加物/退避物を保持する判定がpassed。main `450a52006ec2c9fbcb6c374c884f1f77c1ef8ea8`へ統合し#56/#91 close。対話uninstallの実UIと物理キーは別の未実施条件。
 
 - 専用`Installer payload safeguards` job 41499714890 success。native12ケース・保持対象27 hash・generator7件passed。初期CI 41495659650/41496966503/41498442981/41498978251ではUnicode名の判定で安全側へ保留し、データを削除していない。fixtureのUnicode名自体は正しく読め、禁止文字検出で存在しない`?`へ一致することをログで確認。標準PosをUnicode native StringChangeEx、分割をnativeパス関数へ置換してpassed。Trim equalityは0であり、Trimが文字を失ったという仮説を確定原因にはしていない。
 - CI 41499714927では、保持検査用の未対応root項目を正常系configへ混ぜたfixtureがCLIで拒否された。旧CLI生成の正常configの更新成功と、別ケースの未対応config保全/拒否へ期待値を修正。UnmappedMemberHandling等の製品側の安全基準は変更しない。旧Setup→新版の統合検査を継続する。
@@ -13,7 +16,13 @@ Updated: 2026-11-03 (Asia/Tokyo)
 - `test-installer-payload.ps1` 7件passed（Unicode BOM/相対パス/hash、予約名、空/不正版、reparse/祖先、拒否時の元manifest・外部file保持）。scripts parser、CI scope20件、7 YAML parse、diff check passed。
 - 製品Setupと同じnative処理のハーネスをコンパイル確認し、12保護fixtureを使い捨てrunnerへ追加。ローカルでは実行していない。公開v0.3.1 Setupの既知SHAから、旧CLI Applyで作ったfixtureと管理外lnkを保持したupgrade/reinstall/uninstall/reinstall、実構成差を持つ旧fixture Setup→新SetupもCIへ追加。
 - 各runner限定scriptをローカルで呼び、実行前に停止することを確認。guard回避なし。Release Setupのコンパイルと配布物構造/hash検査passed（ローカルpayloadは以前のビルドを使った構造確認であり、正式release/sourceの一致証拠にはしない）。日常製品のSetup実行・個人HotKeyやChromeデータ変更はしていない。
-- CIでのnative12件とライフサイクル実行は未確認のため、Issue/main統合は成功結果を待つ。
+- 初回記録時はCI実行前だったが、上記の最終headでnative12件/27保全hashと実Setup lifecycleの成功を確認してからmainへ統合した。日常製品へのインストールや正式版公開は行っていない。
+
+## テスト依存更新 / PR #144（2026-11-03）
+
+- Microsoft.NET.Test.Sdk17.14.1→18.11.0（MIT）、xunit.runner.visualstudio3.1.4→4.0.1（Apache-2.0）。xUnit2.9.3と.NET SDK10.0.403は維持。実restore済みnuspecとhashを確認し、公式NuGet archiveのSHA-512と実体が一致。両方の`dotnet nuget verify --all` passed。
+- CI 41493712002の実出力でCore39/39、Windows170/170を確認。別worktreeでsolution6projectの推移依存をNuGet vulnerability auditし、既知脆弱性検出0。テスト専用で製品のcsproj/manifest/runtime依存は増えない。main `31bbc0055913f6346e6707d8aaae0bb20598f478`へ手動統合。
+- flat-containerの`.sha512` URL照会はBlobNotFoundだったため、それを検証成功とは扱わず、公式`.nupkg`そのものを取得してSHA-512と署名を照合した。raw cache/証拠はgit管理外。
 
 ## Chromeの復帰履歴管理 / #49（2026-11-03、未公開）
 

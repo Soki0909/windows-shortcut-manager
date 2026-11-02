@@ -5,7 +5,8 @@
 ## Progress
 
 - [x] #49: PR #143、CI 41490714974全対象success後main `35e12ec`へ統合。#142のAction更新も公式tag/SHA/MIT/互換性を手動確認し、CI 41489075505成功後統合済み。ロードマップ15 checkboxを同期・再照合。
-- [ ] #56/#91をinstaller lifecycleバッチで実装中。相対パス/hashの配置receipt、不要物の一致確認と退避、reparse拒否、公開旧Setupからの保持付き更新、構成差fixtureを追加。#52の保持説明と完全削除の設計もまとめるが未実装UIを完了扱いしない。
+- [x] #56/#91: PR #145、最新head34158cbの統合CI 41500960914とnative 41500960938成功後main `450a520`へ統合。公開旧Setupからの保持付き更新と構成差fixtureもpassed。#52の保持説明/設計は反映したが完全削除UIは未実装でopen。
+- [x] PR #144: テスト専用SDK18.11.0/VS runner4.0.1のlicense、公式archive SHA-512、署名、脆弱性audit0件、CI実件数Core39/Windows170を確認後main `31bbc00`へ統合。製品依存追加なし。
 
 - [x] #60/#139: PR #141のCI 41487695479全jobとRelease workflow_dispatch 41487722103（公開なし・4asset署名来歴生成/検証）success後、main `dd5201a`へ統合。#140は内部Setup/Uninstall署名の未完了として維持。
 - [x] #49: URL補助の保存/既存URL除去・履歴の明示消去・100件と保存範囲の説明・診断URL抑制を実装。関連Worker 15件、protocol等13件、静的headless描画を確認。CI/main統合を追跡する。
