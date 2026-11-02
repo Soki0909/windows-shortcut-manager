@@ -34,6 +34,8 @@ public sealed class MainViewModel : ObservableObject
     private bool isDirty;
     private bool configLoaded;
     private bool recoveryRequired;
+    private bool shellReflectionPending;
+    private string restoreSummary = string.Empty;
 
     public MainViewModel(ApplicationPaths paths, ConfigRepository repository, ConfigValidator validator, LaunchSpecResolver resolver, ProcessLauncher launcher, ShortcutInventoryScanner scanner, ShortcutImporter importer, BackupService backups, ManagedShortcutApplier applier, RestoreService restore, FileLogger logger, IExplorerShellReloader shellReloader)
     {
@@ -58,6 +60,8 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<KeyTile> BottomRowKeys { get; } = [];
     public ShortcutRow? Selected { get => selected; set => Set(ref selected, value); }
     public string Status { get => status; private set => Set(ref status, value); }
+    public bool ShellReflectionPending { get => shellReflectionPending; private set { if (Set(ref shellReflectionPending, value)) Raise(nameof(RestoreNotice)); } }
+    public string RestoreNotice => restoreSummary + (ShellReflectionPending ? "\nHotKeyはExplorerへの反映待ちです。「Explorerを再起動」から反映を試すか、Windowsを再起動してください。" : string.Empty);
     public bool IsBusy { get => isBusy; private set { if (Set(ref isBusy, value)) { Raise(nameof(CanInteract)); Raise(nameof(CanApply)); } } }
     public bool CanInteract => !IsBusy;
     public bool IsDirty { get => isDirty; private set => Set(ref isDirty, value); }
@@ -117,6 +121,7 @@ public sealed class MainViewModel : ObservableObject
             var result = await new StartupShortcutReconciler(auditor, applier).ReconcileAsync(candidate, ManagedDirectory, () => scanner.ScanDefaultAsync(ManagedDirectory));
             logger.Info($"Startup audit: repaired={result.Repaired}, differences={result.Differences}, backup={result.BackupPath}, message={result.Message}");
             Status = result.Message;
+            if (result.Repaired) ShellReflectionPending = true;
             return result.Repaired;
         }
         catch (Exception error)
@@ -197,7 +202,13 @@ public sealed class MainViewModel : ObservableObject
             var result = await Task.Run(() => applier.Apply(candidate, ManagedDirectory, external));
             Status = result.Message;
             logger.Info($"Apply: success={result.Succeeded}, generated={result.GeneratedCount}, backup={result.BackupPath}");
-            if (result.Succeeded) IsDirty = false;
+            if (result.Succeeded)
+            {
+                IsDirty = false;
+                restoreSummary = string.Empty;
+                ShellReflectionPending = true;
+                Raise(nameof(RestoreNotice));
+            }
             Refresh();
             return result.Succeeded;
         }
@@ -220,6 +231,7 @@ public sealed class MainViewModel : ObservableObject
         {
             var result = await shellReloader.ReloadAsync();
             Status = result.Message;
+            if (result.Succeeded) ShellReflectionPending = false;
             logger.Info($"Shell reload completed: success={result.Succeeded}, previousPid={result.PreviousProcessId?.ToString() ?? "unknown"}, currentPid={result.CurrentProcessId?.ToString() ?? "unknown"}, message={result.Message}");
         }
         catch (Exception error)
@@ -261,9 +273,11 @@ public sealed class MainViewModel : ObservableObject
         return path;
     }
 
-    public async Task RestoreAsync(string path)
+    public string PreviewRestore(string path) => restore.Preview(path);
+
+    public async Task<bool> RestoreAsync(string path)
     {
-        if (IsBusy) return;
+        if (IsBusy) return false;
         IsBusy = true;
         Status = "バックアップを検証して復元しています…";
         try
@@ -273,12 +287,23 @@ public sealed class MainViewModel : ObservableObject
             var result = await Task.Run(() => restore.Restore(path, ManagedDirectory, external));
             Status = result.Message;
             logger.Info($"Restore: success={result.Succeeded}, source={path}");
-            if (result.Succeeded) { IsBusy = false; Load(); }
+            if (result.Succeeded)
+            {
+                IsBusy = false;
+                Load();
+                ShellReflectionPending = true;
+                restoreSummary = $"復元しました: {result.GeneratedCount} 件。復元前バックアップ: {result.BackupPath}";
+                Raise(nameof(RestoreNotice));
+                if (RecoveryRequired) { Status = restoreSummary + "\n復元後の読込に失敗しました。" + Status; return false; }
+                Status = "バックアップの復元が完了しました。";
+            }
+            return result.Succeeded;
         }
         catch (Exception error)
         {
             Status = $"復元に失敗しました: {error.Message}";
             logger.Error("Restore failed", error);
+            return false;
         }
         finally { IsBusy = false; }
     }

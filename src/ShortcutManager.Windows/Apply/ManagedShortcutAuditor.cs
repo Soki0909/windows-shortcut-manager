@@ -31,13 +31,7 @@ public sealed class ManagedShortcutAuditor(ConfigValidator validator, LaunchSpec
             try
             {
                 var actual = links.Read(path);
-                if (!SamePath(actual.TargetPath, expected.TargetPath)
-                    || actual.Arguments != expected.Arguments
-                    || !SamePath(actual.WorkingDirectory, expected.WorkingDirectory)
-                    || !actual.Hotkey.Equals(expected.Hotkey, StringComparison.OrdinalIgnoreCase)
-                    || !NormalizeIcon(actual.IconLocation).Equals(NormalizeIcon(expected.IconLocation), StringComparison.OrdinalIgnoreCase)
-                    || actual.Description != expected.Description
-                    || actual.WindowStyle != expected.WindowStyle)
+                if (!ShellLinkComparison.Matches(actual, expected))
                     differences.Add($"{name}: 保存済み設定と一致しません。");
             }
             catch (Exception error) when (error is not OutOfMemoryException)
@@ -61,8 +55,4 @@ public sealed class ManagedShortcutAuditor(ConfigValidator validator, LaunchSpec
         return new(differences);
     }
 
-    private static bool SamePath(string left, string right) =>
-        string.Equals(left.Length == 0 ? left : Path.GetFullPath(left), right.Length == 0 ? right : Path.GetFullPath(right), StringComparison.OrdinalIgnoreCase);
-
-    private static string NormalizeIcon(string value) => value.EndsWith(",0", StringComparison.Ordinal) ? value[..^2] : value;
 }

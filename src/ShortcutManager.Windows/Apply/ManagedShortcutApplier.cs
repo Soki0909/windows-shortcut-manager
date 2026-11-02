@@ -96,7 +96,7 @@ public sealed class ManagedShortcutApplier(
                 var path = System.IO.Path.Combine(stage, ManagedFilename.For(item));
                 shellLinks.Write(path, new(launch.TargetPath, launch.Arguments, launch.WorkingDirectory, launch.Hotkey, launch.IconLocation, launch.Description, launch.WindowStyle));
                 var read = shellLinks.Read(path);
-                if (!Same(read.TargetPath, launch.TargetPath) || read.Arguments != launch.Arguments || NormalizeHotkey(read.Hotkey) != launch.Hotkey) throw new InvalidDataException($"Staged shortcut verification failed: {path}");
+                if (!ShellLinkComparison.Matches(read, launch)) throw new InvalidDataException($"Staged shortcut verification failed: {path}");
                 using var stagedFile = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
                 stagedFile.Flush(true);
             }
@@ -138,6 +138,13 @@ public sealed class ManagedShortcutApplier(
             }
             ApplyJournal.AtomicRestore(priorMarkerPath, markerBytes);
             RecordCheckpoint("new-moved");
+            foreach (var item in config.Shortcuts.Where(item => item.Enabled))
+            {
+                var path = System.IO.Path.Combine(managedDirectory, ManagedFilename.For(item));
+                if (!ShellLinkComparison.Matches(shellLinks.Read(path), resolver.Resolve(config, item)))
+                    throw new InvalidDataException($"Committed shortcut verification failed: {path}");
+            }
+            RecordCheckpoint("commit-verified");
             foreach (var path in committedNew) shellNotifier?.NotifyItemChanged(path);
             shellNotifier?.NotifyDirectoryChanged(managedDirectory);
             ApplyJournal.AtomicRestore(statePath, stateBytes);
@@ -279,15 +286,4 @@ public sealed class ManagedShortcutApplier(
         ApplyJournal.AtomicRestore(path, bytes);
     }
 
-    private static bool Same(string left, string right) => string.Equals(System.IO.Path.GetFullPath(left), System.IO.Path.GetFullPath(right), StringComparison.OrdinalIgnoreCase);
-    private static string NormalizeHotkey(string value)
-    {
-        var parts = value.Replace(" ", string.Empty, StringComparison.Ordinal).ToUpperInvariant().Split('+', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var result = new List<string>();
-        if (parts.Contains("CTRL")) result.Add("CTRL");
-        if (parts.Contains("ALT")) result.Add("ALT");
-        if (parts.Contains("SHIFT")) result.Add("SHIFT");
-        result.AddRange(parts.Where(part => part is not "CTRL" and not "ALT" and not "SHIFT").Order(StringComparer.Ordinal));
-        return string.Join('+', result);
-    }
 }

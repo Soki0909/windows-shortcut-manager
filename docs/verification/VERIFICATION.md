@@ -1,6 +1,14 @@
 # Shortcut Manager Verification
 
-Updated: 2026-10-29 (Asia/Tokyo)
+Updated: 2026-11-02 (Asia/Tokyo)
+
+## v0.3.1 Apply/Restore safety release (2026-11-02)
+
+- Core 27/27, Windows 98/98, extension 22/22 passed. All launch properties are checked before and after commit; the new post-verification kill checkpoint recovers the previous complete state. Transaction test classes share a nonparallel collection because production deliberately uses a single Apply mutex.
+- Fake Shell host covers exit timeout, explicit cancellation before/after termination, return timeout, termination error, failed recovery and another-session guard. No live desktop fault injection.
+- Missing external BAT and referenced lnk prevent Restore without changing current config. Restored-result and Shell-pending notices survive reload and failed restart; successful restart clears only the pending flag.
+- Native Debug GUI covered backup scope, actual ZIP save, restore preview, empty-config Restore, restart offer and decline with persistent notice. No production config was copied to Debug; no owner keys or live Shell restart changed by this check. Duplicate notice/status text was simplified afterward and focused tests rerun.
+- Release ZIP/Setup, version/manifest contract, seven-frame icons and three artifact SHA checks passed locally. App/Setup remain intentionally NotSigned. Final CI/publication/installed update is tracked through [RELEASE_0.3.1.md](../implementation/RELEASE_0.3.1.md) and GitHub workflow results.
 
 ## v0.3.0 responsiveness release (2026-10-30)
 

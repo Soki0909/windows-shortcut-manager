@@ -12,6 +12,7 @@ using ShortcutManager.Windows.Storage;
 
 namespace ShortcutManager.Windows.Tests;
 
+[Collection("Apply transactions")]
 public sealed class WindowsTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), $"shortcut-manager-tests-{Guid.NewGuid():N}");
@@ -600,6 +601,7 @@ public sealed class WindowsTests : IDisposable
     [InlineData("old-moved")]
     [InlineData("new-item-moved")]
     [InlineData("new-moved")]
+    [InlineData("commit-verified")]
     [InlineData("state-saved")]
     [InlineData("committed")]
     [InlineData("cleanup-intent-removed")]
