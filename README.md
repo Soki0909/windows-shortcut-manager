@@ -1,5 +1,8 @@
 # Shortcut Manager
 
+ソースコード: [MIT License](LICENSE)。再配布するruntime・素材の表記は [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) を参照してください。
+v1.0.0に向けた進捗・判断・実行済み検証は [実装計画](docs/implementation/PLAN_v1.0.0.md) で追跡します。
+
 v0.3.1では、変更反映後の全属性読戻し、Explorer再起動失敗時の復旧、復元結果とバックアップ範囲の案内を改善しました。タブグループの開閉・キー割り当て・Protocol v1は維持します。インストール済み製品は開発ビルドで自動更新しません。
 
 Windows の `Ctrl+Alt+A-Z` を、常駐プロセスなしで Website / Application / BAT・CMD / Chrome タブグループへ割り当てるローカル管理ツールです。Windows Shell の Start Menu `.lnk` HotKey を利用するため、Managerを閉じてもショートカットは動き続けます。

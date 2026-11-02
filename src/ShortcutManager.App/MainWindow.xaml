@@ -128,6 +128,9 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
         <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,10,0"/>
         <StackPanel Grid.Column="1">
+          <TextBlock Text="{Binding LogWarning}" TextWrapping="Wrap" Foreground="{StaticResource WarningBrush}">
+            <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding LogWarning}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+          </TextBlock>
           <TextBlock Text="{Binding RestoreNotice}" TextWrapping="Wrap" FontWeight="SemiBold">
             <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding RestoreNotice}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
           </TextBlock>

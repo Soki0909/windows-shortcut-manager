@@ -10,6 +10,10 @@ AppId={{B51D02E8-2292-464D-B2CD-1486E5315750}
 AppName=Shortcut Manager
 AppVersion={#AppVersion}
 AppPublisher=Shortcut Manager
+AppPublisherURL=https://github.com/Soki0909/windows-shortcut-manager
+AppSupportURL=https://github.com/Soki0909/windows-shortcut-manager/issues
+AppUpdatesURL=https://github.com/Soki0909/windows-shortcut-manager/releases
+LicenseFile=..\LICENSE
 DefaultDirName={localappdata}\Programs\Shortcut Manager
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
@@ -29,8 +33,8 @@ RestartApplications=no
 SetupLogging=yes
 
 [Languages]
-Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
-Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"; InfoBeforeFile: "info-ja.txt"
+Name: "english"; MessagesFile: "compiler:Default.isl"; InfoBeforeFile: "info-en.txt"
 
 [Tasks]
 Name: "desktopicon"; Description: "デスクトップにショートカットを作成する"; Flags: unchecked

@@ -2,6 +2,17 @@
 
 Updated: 2026-11-02 (Asia/Tokyo)
 
+## v1.0.0へ向けた第1単位（未公開、2026-11-02）
+
+- #41: 自動生成receiptとZIP名・SHA-256・manifestを照合できるapply/restoreだけを整理する。手動、外部コピー、旧版/不明ZIP、改変/破損receiptは保存。時刻が同一でも順序が安定し、最低1世代を保持する。
+- #36: ログ保存不能を操作結果から分離して警告表示。設定読込不能+ログ不能+初期化バックアップ不能のfixtureで元設定を保全し反映停止を確認。Startup/Dispatcher例外は保存せず通知・終了し、再起動時ジャーナル復旧へ委ねる。
+- 追加発見 #121: コマンド失敗は非0。成功/不正設定/引数欠落/結果指定なし/未知引数/結果出力不能のDebugプロセス6件が終了し、入力不変。CIに `scripts/test-cli.ps1` を追加。
+- #51: 所有者が推奨を採用しMITを追加。Windows ZIP/SetupはMIT、依存物表、ロゴ出所、実際の.NET runtime LICENSE/NOTICESを含み、拡張ZIPにもMITを同梱。欠落を配布物検査で拒否。
+- #90: Setupに製品/サポート/更新URLと日英の設定保持・別途Chrome拡張導入説明を追加。per-user/PrivilegesRequired=lowestを維持。
+- 実行: Release `dotnet test ShortcutManager.sln --no-restore` Core 27/27、Windows 104/104。Debug build 0 warnings/errors。Node 22/22（拡張コード変更なし）。ローカルpackage/Setup、7サイズのEXE/Setupアイコン、全3SHA、ZIP/manifest/ライセンス検査passed。署名はNotSigned。インストール試験は使い捨てCI runner限定で、main統合前PR CIが実行する。
+- Debug通常画面・分離識別表示をcomputer-useで目視確認し正常終了。Apply mutex保持中の起動停止、多重起動停止も観測。ログ警告は隔離ViewModel回帰で確認し、GUI故障注入は未実施。製品設定・管理リンク・Chromeには変更せず。
+- 追跡: [v1.0.0計画](../implementation/PLAN_v1.0.0.md)。この時点では正式版の公開・製品更新は未実施。
+
 ## v0.3.1 Apply/Restore safety release (2026-11-02)
 
 - Core 27/27, Windows 98/98, extension 22/22 passed. All launch properties are checked before and after commit; the new post-verification kill checkpoint recovers the previous complete state. Transaction test classes share a nonparallel collection because production deliberately uses a single Apply mutex.

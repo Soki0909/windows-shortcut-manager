@@ -19,6 +19,8 @@ Done requires:
 
 ## Progress
 
+- [ ] v1.0.0に向けた継続開発を開始。現行計画・発見・判断・検証は [PLAN_v1.0.0.md](PLAN_v1.0.0.md) を参照。v0.1.0の完了済みマイルストーンは保持する。
+
 - [x] v0.3.1実装・ローカル検証: P1 #62/#64/#65/#66の反映・復元の安全性改善。公開・製品更新の追跡は [RELEASE_0.3.1.md](RELEASE_0.3.1.md)。
 
 - [x] v0.3.0: #115の実HotKey比較・Shell応答診断と、#47/#48/#84/#85/#86のChrome安定化。詳細は [RELEASE_0.3.0.md](RELEASE_0.3.0.md)、実測は [LATENCY_2026-10-30.md](../verification/LATENCY_2026-10-30.md)。
