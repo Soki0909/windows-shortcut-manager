@@ -2,6 +2,16 @@
 
 Updated: 2026-11-02 (Asia/Tokyo)
 
+## UnicodeのShell Link読取り / 追加#137（2026-11-02、PR #136へ統合）
+
+- CI 41450882258/41453135967/41454138947の使い捨て英語Windowsで、存在する日本語名のSetup専用lnkからWScriptが空の実行先/引数を返した。1243 byte・正しいShell Linkヘッダーを持ち、同じバイトをASCII名へコピーすると正しいTarget/`--audit-only`/HotKeyなしを返すことを確認。検証の比較を緩めず、原本の読取り経路を修正した。
+- 日本語PCでも、正常なASCII名lnkを同じ一時フォルダで`リンク🧪.lnk`へ変更すると、926 byteの原本に対しWScriptは空の実行先/引数を返すことを再現。利用中リンクは変更していない。
+- ShellLinkServiceをUnicode版IShellLinkW/IPersistFileへ置換。全項目をUnicodeで保存/読戻しし、HotKeyのWORDとicon indexを保持する。読取りではRAWPATHを使い、Resolve・対象起動・元ファイル変更・別フォルダへの回避移動をしない。Managerで割当可能なキーは従来どおりCtrl+Alt+A–Zのみ。
+- Unicodeのファイル名/対象/引数/作業フォルダ/説明/icon/HotKey/表示方法、原本SHAと更新日時不変、旧WScript生成物と逆方向互換、未設定キーと壊れたlnkの対象7ケースpassed。関連する監査・復元・所有確認・元lnk保持の10ケースpassed。
+- PowerShellから同じ製品ソースを単独Add-Typeする経路もUnicode fixtureでpassed。installer smokeはこの読取りを使い、原本の名前を変えずtarget/args/HotKeyを検証する。smoke自体は使い捨てrunner限定のまま。
+- worktreeのDebug build 0 warnings/errors。read-only CLI scan exit0 / 248件 / 読取り失敗3 / 未走査・除外2、元Debug configのSHA不変。日常製品の更新・キー入力・Explorer再起動・Setup実行はしていない。
+- 新しいworktreeで最初の`--no-restore`は資産未復元のためテスト実行表示なしで終了し、合格扱いしていない。対象プロジェクトをrestoreしてから実際の7件/10件の実行出力を確認した。
+
 ## 監査の権限・詳細履歴・保留 / #43/#44（2026-11-02、未公開）
 
 - 監査の各実行先/引数/作業フォルダ/HotKey/アイコン/説明/表示方法とファイル欠落等について、実際/期待する値を記録。ローカル履歴に操作・結果・修復前後・バックアップを保存し、壊れた1件を隔離して最新50件を表示。履歴から復旧ヘルプ/既存の確認付き復元へ進める。外部送信や自動履歴削除は追加しない。

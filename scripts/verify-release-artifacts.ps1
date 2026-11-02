@@ -61,26 +61,13 @@ if ($RunInstallerSmoke) {
         if ((Get-Item -LiteralPath $exe).VersionInfo.ProductVersion.Split('+')[0] -ne $Version) { throw 'Installed version mismatch.' }
         $auditLinkPath = Join-Path ([Environment]::GetFolderPath('Programs')) 'Shortcut Manager (監査のみ).lnk'
         if (-not (Test-Path -LiteralPath $auditLinkPath)) { throw 'Audit-only Start Menu shortcut is missing.' }
-        $shortcutShell = New-Object -ComObject WScript.Shell
-        $auditLink = $null
-        try {
-            $auditLink = $shortcutShell.CreateShortcut($auditLinkPath)
-            $actual = [pscustomobject]@{ Target=$auditLink.TargetPath; ExpectedTarget=$exe; Arguments=$auditLink.Arguments; Hotkey=$auditLink.Hotkey }
-            Write-Host ($actual | ConvertTo-Json -Compress)
-            if (-not $actual.Target) {
-                $bytes=[IO.File]::ReadAllBytes($auditLinkPath)
-                Write-Host ("Shortcut bytes: " + $bytes.Length + '; header: ' + [Convert]::ToHexString($bytes[0..([Math]::Min(19,$bytes.Length-1))]))
-                $asciiCopy=Join-Path $temp 'audit-shortcut-copy.lnk'
-                [IO.File]::WriteAllBytes($asciiCopy,$bytes)
-                $copy=$shortcutShell.CreateShortcut($asciiCopy)
-                try { Write-Host ([pscustomobject]@{CopyTarget=$copy.TargetPath;CopyArguments=$copy.Arguments;CopyHotkey=$copy.Hotkey}|ConvertTo-Json -Compress) }
-                finally {[void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($copy)}
-            }
-            if ($actual.Target -ne $exe -or $actual.Arguments -ne '--audit-only' -or $actual.Hotkey) { throw 'Audit-only shortcut target, arguments or HotKey are incorrect; see the readback above.' }
-        } finally {
-            if ($auditLink) { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($auditLink) }
-            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcutShell)
+        # WScript loses paths outside the runner's ANSI code page. Compile the
+        # same Unicode reader as the product; never rename or modify the source.
+        if (-not ('ShortcutManager.Windows.ShellLinks.ShellLinkService' -as [type])) {
+            Add-Type -Path (Join-Path $PSScriptRoot '../src/ShortcutManager.Windows/ShellLinks/ShellLinkService.cs')
         }
+        $auditLink = [ShortcutManager.Windows.ShellLinks.ShellLinkService]::new().Read($auditLinkPath)
+        if ($auditLink.TargetPath -ne $exe -or $auditLink.Arguments -ne '--audit-only' -or $auditLink.Hotkey) { throw 'Audit-only shortcut target, arguments or HotKey are incorrect.' }
         $fixture = Join-Path $temp 'empty.json'
         [IO.File]::WriteAllText($fixture, '{"schemaVersion":1,"dispatchProtocolVersion":1,"settings":{},"shortcuts":[]}')
         $result = Join-Path $temp 'validate.json'
