@@ -1,0 +1,56 @@
+name: 不具合を報告
+description: 個人情報を除いて再現手順と期待する動作を報告します。
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        このフォームは公開されます。秘密鍵、トークン、個人名、個人用パス、業務URL、タブ履歴、設定やログの原本を貼らないでください。
+        脆弱性や機密情報は[非公開報告](https://github.com/Soki0909/windows-shortcut-manager/security/advisories/new)へ送ってください。
+        実データを壊して再現する必要はありません。架空のURLと一時フォルダの最小例を使ってください。
+  - type: input
+    id: version
+    attributes:
+      label: 実行中の版
+      description: Managerの「情報」、またはTab BridgeのPopupに表示された版。分からない場合は「不明」。
+      placeholder: vX.Y.Z (+commit)
+    validations:
+      required: true
+  - type: dropdown
+    id: edition
+    attributes:
+      label: 導入形態
+      options:
+        - Windows Setup
+        - Windows ZIP
+        - Debug
+        - Tab Bridge（Chrome拡張）
+        - 不明
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現する操作
+      description: 最初の状態から押したボタン・保存/テスト/実キーの違いを順番に記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: expected_actual
+    attributes:
+      label: 期待した結果と実際の結果
+      description: エラー文は個人情報を伏せて記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 関連する環境・補足
+      description: Windows/Chromeの版、関係する場合のみDPI・画面・入力配列。設定原本やURL履歴の添付は不要です。
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 公開前の確認
+      options:
+        - label: 個人情報・業務情報・秘密情報を除き、公開してよい内容だけを記載しました。
+          required: true

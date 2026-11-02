@@ -1,4 +1,4 @@
-param([ValidateSet('Release')][string]$Configuration = 'Release',[string]$Version = '0.3.1')
+param([ValidateSet('Release')][string]$Configuration = 'Release',[string]$Version = '0.3.1',[ValidateSet('Unsigned','Certificate')][string]$SigningMode='Unsigned',[switch]$RequireSigned)
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path "$PSScriptRoot\.."
 $artifacts = Join-Path $root 'artifacts'
@@ -12,6 +12,10 @@ New-Item -ItemType Directory -Force -Path $publish | Out-Null
 & dotnet publish "$root\src\ShortcutManager.App\ShortcutManager.App.csproj" -c $Configuration -r win-x64 --self-contained true -o $publish --nologo
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 if (-not (Test-Path -LiteralPath (Join-Path $publish 'ShortcutManager.exe'))) { throw 'Published ShortcutManager.exe was not found.' }
+$ownedBinaries=@('ShortcutManager.exe','ShortcutManager.dll','ShortcutManager.Core.dll','ShortcutManager.Windows.dll')|ForEach-Object {Join-Path $publish $_}
+$signatures=@(& "$PSScriptRoot/sign-files.ps1" -Path $ownedBinaries -AllowedRoot $publish -Mode $SigningMode -RequireSigned:$RequireSigned)
+$signingRecord=@{FormatVersion=1;Mode=$SigningMode;Files=$signatures}
+[IO.File]::WriteAllText((Join-Path $publish 'SIGNING.json'),($signingRecord|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE'),(Join-Path $root 'THIRD-PARTY-NOTICES.md') -Destination $publish
 Copy-Item -LiteralPath (Join-Path $root 'assets/branding/README.md') -Destination (Join-Path $publish 'BRANDING.md')
 # Use the exact runtime packages selected by publish, including transitive notices.

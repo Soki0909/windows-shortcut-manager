@@ -1,7 +1,12 @@
-param([Parameter(Mandatory)][string]$Version, [string]$ArtifactDirectory = "$PSScriptRoot/../artifacts", [switch]$RunInstallerSmoke)
+param([Parameter(Mandatory)][string]$Version, [string]$ArtifactDirectory = "$PSScriptRoot/../artifacts", [switch]$RunInstallerSmoke,[switch]$RequireSigned,[string]$ExpectedSignerThumbprint=$env:CODE_SIGN_THUMBPRINT)
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid release version.' }
+if($RequireSigned -and $ExpectedSignerThumbprint -notmatch '^[0-9a-fA-F]{40}$'){throw 'Signed-release verification requires the approved publisher thumbprint.'}
+function Assert-ReleaseSignature($Signature,[bool]$Mandatory,[string]$Thumbprint){
+    if($Signature.Status -notin 'NotSigned','Valid'){throw "Invalid artifact signature: $($Signature.Status)"}
+    if($Mandatory -and ($Signature.Status -ne 'Valid' -or $null -eq $Signature.TimeStamperCertificate -or $Signature.SignerCertificate.Thumbprint -ne $Thumbprint)){throw 'Artifact must have a trusted, timestamped signature from the approved publisher.'}
+}
 $ArtifactDirectory = (Resolve-Path -LiteralPath $ArtifactDirectory).Path
 $expected = @("ShortcutManager-win-x64-v$Version.zip", "ShortcutManager-TabBridge-v$Version.zip", "ShortcutManager-Setup-win-x64-v$Version.exe")
 $lines = @(Get-Content -LiteralPath (Join-Path $ArtifactDirectory 'SHA256SUMS.txt'))
@@ -31,6 +36,28 @@ foreach ($name in $expected | Where-Object { $_.EndsWith('.zip') }) {
                 if ($required -notin $names) { throw "Windows notice missing: $required" }
             }
             if ('ShortcutManager.exe' -notin $names -or 'ShortcutManager.runtimeconfig.json' -notin $names) { throw 'Windows payload missing.' }
+            $signing=$null
+            $signingEntry=$zip.GetEntry('SIGNING.json')
+            if($signingEntry){
+                if($signingEntry.Length -gt 65536){throw 'Signing record exceeds size limit.'}
+                $reader=[IO.StreamReader]::new($signingEntry.Open());try{$signing=$reader.ReadToEnd()|ConvertFrom-Json}finally{$reader.Dispose()}
+                if($signing.FormatVersion -ne 1 -or $signing.Mode -notin 'Unsigned','Certificate' -or @($signing.Files).Count -ne 4){throw 'Invalid Windows signing record.'}
+                $owned=@('ShortcutManager.exe','ShortcutManager.dll','ShortcutManager.Core.dll','ShortcutManager.Windows.dll')
+                $seenOwned=@{}
+                foreach($record in $signing.Files){
+                    if($record.Name -notin $owned -or $seenOwned.ContainsKey($record.Name)){throw 'Unexpected or duplicate signing record entry.'};$seenOwned[$record.Name]=$true
+                    $entry=$zip.GetEntry($record.Name);if(-not $entry -or $entry.Length -gt 64MB){throw 'Owned binary is missing or too large.'}
+                    $signedProbe=Join-Path ([IO.Path]::GetTempPath()) ('sm-signature-'+[guid]::NewGuid().ToString('N')+[IO.Path]::GetExtension($record.Name))
+                    try {
+                        $inputStream=$entry.Open();$outputStream=[IO.File]::Create($signedProbe);try{$inputStream.CopyTo($outputStream)}finally{$inputStream.Dispose();$outputStream.Dispose()}
+                        if((Get-FileHash -LiteralPath $signedProbe).Hash -ne $record.Sha256){throw 'Packaged binary differs from its post-signing hash.'}
+                        $actualSignature=Get-AuthenticodeSignature -LiteralPath $signedProbe
+                        $publisher=if($RequireSigned){$ExpectedSignerThumbprint}else{$record.SignerThumbprint}
+                        Assert-ReleaseSignature $actualSignature ($RequireSigned -or $signing.Mode -eq 'Certificate') $publisher
+                        if($actualSignature.Status.ToString() -ne $record.Status -or ($null -ne $actualSignature.TimeStamperCertificate) -ne $record.Timestamped){throw 'Packaged signature differs from the signing record.'}
+                    } finally {if(Test-Path -LiteralPath $signedProbe){Remove-Item -LiteralPath $signedProbe}}
+                }
+            }elseif($RequireSigned){throw 'Signed Windows ZIP must include its signing record.'}
             $probe = Join-Path ([IO.Path]::GetTempPath()) ("sm-version-" + [Guid]::NewGuid().ToString('N') + '.exe')
             try {
                 $inputStream = $zip.GetEntry('ShortcutManager.exe').Open()
@@ -38,7 +65,7 @@ foreach ($name in $expected | Where-Object { $_.EndsWith('.zip') }) {
                 try { $inputStream.CopyTo($outputStream) } finally { $inputStream.Dispose(); $outputStream.Dispose() }
                 if ((Get-Item -LiteralPath $probe).VersionInfo.ProductVersion.Split('+')[0] -ne $Version) { throw 'Windows ZIP version mismatch.' }
                 $appSignature = Get-AuthenticodeSignature -LiteralPath $probe
-                if ($appSignature.Status -notin @('NotSigned','Valid')) { throw "Invalid app signature: $($appSignature.Status)" }
+                Assert-ReleaseSignature $appSignature $RequireSigned $ExpectedSignerThumbprint
                 Write-Host "App Authenticode: $($appSignature.Status)"
             } finally { if (Test-Path -LiteralPath $probe) { Remove-Item -LiteralPath $probe } }
         }
@@ -46,7 +73,7 @@ foreach ($name in $expected | Where-Object { $_.EndsWith('.zip') }) {
 }
 $setup = Join-Path $ArtifactDirectory $expected[2]
 $signature = Get-AuthenticodeSignature -LiteralPath $setup
-if ($signature.Status -notin @('NotSigned','Valid')) { throw "Invalid Setup signature: $($signature.Status)" }
+Assert-ReleaseSignature $signature $RequireSigned $ExpectedSignerThumbprint
 # Unsigned is the declared distribution policy, never presented as signed.
 Write-Host "Setup Authenticode: $($signature.Status)"
 if ($RunInstallerSmoke) {
