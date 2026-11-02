@@ -11,7 +11,7 @@ jobs:
       extension: ${{ steps.scope.outputs.extension }}
       deployment: ${{ steps.scope.outputs.deployment }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - shell: pwsh
@@ -39,10 +39,10 @@ jobs:
     if: needs.changes.outputs.windows == 'true'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
-          dotnet-version: 10.0.x
+          global-json-file: global.json
       - run: dotnet restore ShortcutManager.sln
       - run: dotnet build ShortcutManager.sln -c Release --no-restore
       - run: dotnet test ShortcutManager.sln -c Release --no-build
@@ -60,15 +60,16 @@ jobs:
           ./scripts/prepare-installer-tools.ps1
           ./scripts/package-installer.ps1 -Version 0.3.1 -SkipPublish
           ./scripts/verify-branding.ps1 -Version 0.3.1
-          ./scripts/verify-release-artifacts.ps1 -Version 0.3.1 -RunInstallerSmoke
+          ./scripts/verify-release-artifacts.ps1 -Version 0.3.1 -RunInstallerSmoke -RequireMetadata -ExpectedSourceCommit $env:GITHUB_SHA -RequireCleanSource
           ./scripts/test-release-signing.ps1 -Version 0.3.1
+          ./scripts/test-build-metadata.ps1 -Version 0.3.1
   extension:
     needs: changes
     if: needs.changes.outputs.extension == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: node --test tests/ChromeExtension.Tests/protocol.test.js tests/ChromeExtension.Tests/worker-regressions.test.js
@@ -80,7 +81,7 @@ jobs:
     if: needs.changes.outputs.deployment == 'true'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - shell: pwsh
         run: ./scripts/test-extension-deployment.ps1
 

@@ -41,4 +41,6 @@ GitHub-hosted runnerへ証明書は用意されていない。現Release workflo
 
 ## 実施済みと残る検証
 
+継続レビューで、Setupのコンパイル後署名だけでは内部コピーとUninstallが未署名のままになる注意を公式Inno履歴から確認し#140を追加した。Inno内のSignTool/SignedUninstaller統合は、正式署名経路を有効にする前の未完了項目として扱う。
+
 11境界ケースで未署名検査の原本不変、署名必須時のfallback拒否、範囲外/欠損/非EXE/不正証明書/timestamp/junction拒否を確認。実証明書による署名成功、timestamp到達性、失効/信頼チェーン、GitHubからの署名付き再download、実機での発行元確認は外部前提が未用意のため未実施。#50は開いたまま維持する。

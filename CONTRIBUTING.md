@@ -30,3 +30,5 @@ dotnet test tests/ShortcutManager.Windows.Tests/ShortcutManager.Windows.Tests.cs
 新しい製品依存は必要性を先に説明し、標準機能や既存依存を優先します。ビルドツール・Actionの更新は固定元、ハッシュ/署名、ライセンス、影響するテストとパッケージを確認します。実施していない確認を完了にせず、[VERIFICATION](docs/verification/VERIFICATION.md)と現行実装計画へ実行証拠を記録してください。
 
 脆弱性は [Security Policy](SECURITY.md) の非公開窓口へ報告してください。
+
+SDK/Action/依存/installer tool更新、SBOMと来歴は [配布とビルド依存の保守](docs/design/SUPPLY_CHAIN.md)を参照してください。

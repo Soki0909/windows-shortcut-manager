@@ -8,7 +8,7 @@ if (-not $CompilerPath) {
     $CompilerPath = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
     if (-not $CompilerPath) { $CompilerPath = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source }
 }
-if (-not $CompilerPath) { throw 'Inno Setup 6 is required for installer builds. Pass -CompilerPath <ISCC.exe>.' }
+if (-not $CompilerPath) { throw 'The pinned Inno Setup tool is required. Run prepare-installer-tools.ps1 or pass -CompilerPath <ISCC.exe>.' }
 $publish = Join-Path $root 'artifacts\publish\win-x64'
 if (-not $SkipPublish) {
     & "$PSScriptRoot\package.ps1" -Version $Version -SigningMode $SigningMode -RequireSigned:$RequireSigned
