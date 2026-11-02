@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Text.Json;
+using ShortcutManager.Core.Serialization;
 using ShortcutManager.Core.Models;
 using ShortcutManager.Core.Validation;
 using ShortcutManager.Core.Utilities;
@@ -37,6 +39,15 @@ public sealed class MainViewModel : ObservableObject
     private bool incompatibleConfig;
     private bool shellReflectionPending;
     private string restoreSummary = string.Empty;
+    private string savedJson = ConfigJson.Serialize(new());
+    private Dictionary<Guid, string> savedEntries = [];
+    private string savedSettings = JsonSerializer.Serialize(new ShortcutSettings(), ConfigJson.Options);
+    private readonly Dictionary<Guid, string> physicalConfirmations = [];
+    private bool explicitRecoveryInitialization;
+    private bool savedConfigChangedExternally;
+    private bool savedLinksVerified;
+    private bool shellReloadCompleted;
+    private string auditNotice = "保存リンク: 未監査。物理キーの状態は別に確認してください。";
 
     public MainViewModel(ApplicationPaths paths, ConfigRepository repository, ConfigValidator validator, LaunchSpecResolver resolver, ProcessLauncher launcher, ShortcutInventoryScanner scanner, ShortcutImporter importer, BackupService backups, ManagedShortcutApplier applier, RestoreService restore, FileLogger logger, IExplorerShellReloader shellReloader)
     {
@@ -60,16 +71,39 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<KeyTile> TopRowKeys { get; } = [];
     public ObservableCollection<KeyTile> HomeRowKeys { get; } = [];
     public ObservableCollection<KeyTile> BottomRowKeys { get; } = [];
-    public ShortcutRow? Selected { get => selected; set => Set(ref selected, value); }
+    public ShortcutRow? Selected
+    {
+        get => selected;
+        set
+        {
+            if (ReferenceEquals(selected, value)) return;
+            selected = value;
+            Raise();
+            foreach (var tile in TopRowKeys.Concat(HomeRowKeys).Concat(BottomRowKeys)) tile.IsSelected = value is not null && tile.Key == value.Key;
+            RaiseActionState();
+        }
+    }
     public string Status { get => status; private set => Set(ref status, value); }
     public string LogWarning => logger.LastFailure ?? string.Empty;
-    public bool ShellReflectionPending { get => shellReflectionPending; private set { if (Set(ref shellReflectionPending, value)) Raise(nameof(RestoreNotice)); } }
-    public string RestoreNotice => restoreSummary + (ShellReflectionPending ? "\nHotKeyはExplorerへの反映待ちです。「Explorerを再起動」から反映を試すか、Windowsを再起動してください。" : string.Empty);
-    public bool IsBusy { get => isBusy; private set { if (Set(ref isBusy, value)) { Raise(nameof(CanInteract)); Raise(nameof(CanApply)); Raise(nameof(CanInitializeRecovery)); } } }
+    public bool ShellReflectionPending { get => shellReflectionPending; private set { if (Set(ref shellReflectionPending, value)) { Raise(nameof(RestoreNotice)); RaiseActionState(); } } }
+    public string RestoreNotice => restoreSummary + (ShellReflectionPending ? "\n保存済みのHotKeyはExplorerへの反映が未確認です。実キーが反応しない場合に「Explorerを再起動」を試してください。" : string.Empty);
+    public bool IsBusy { get => isBusy; private set { if (Set(ref isBusy, value)) { Raise(nameof(CanInteract)); Raise(nameof(CanInitializeRecovery)); RaiseActionState(); } } }
     public bool CanInteract => !IsBusy;
-    public bool IsDirty { get => isDirty; private set => Set(ref isDirty, value); }
-    public bool RecoveryRequired { get => recoveryRequired; private set { if (Set(ref recoveryRequired, value)) { Raise(nameof(CanApply)); Raise(nameof(CanInitializeRecovery)); Raise(nameof(ShowEmptyState)); } } }
-    public bool CanApply => !RecoveryRequired && !IsBusy;
+    public bool IsDirty { get => isDirty; private set { if (Set(ref isDirty, value)) RaiseActionState(); } }
+    public bool RecoveryRequired { get => recoveryRequired; private set { if (Set(ref recoveryRequired, value)) { RaiseActionState(); Raise(nameof(CanInitializeRecovery)); Raise(nameof(ShowEmptyState)); } } }
+    public bool CanApply => !RecoveryRequired && !IsBusy && IsDirty && !savedConfigChangedExternally;
+    public bool CanModify => !RecoveryRequired && !IsBusy;
+    public bool CanRestore => !IsBusy && !incompatibleConfig;
+    public bool CanEditSelected => !RecoveryRequired && !IsBusy && Selected is not null;
+    public bool CanConfirmHotkey => CanEditSelected && !IsDirty && !savedConfigChangedExternally && savedLinksVerified && Selected!.Enabled;
+    public bool CanAuditSaved => !IsBusy && configLoaded;
+    public int PendingChangeCount { get; private set; }
+    public string ReloadLabel => IsDirty ? "編集を破棄して再読込" : "保存済みを再読込";
+    public string SelectionText => Selected is null ? "一覧またはキー枠から対象を選んでください。" : $"選択: {Selected.Hotkey} → {Selected.Name}";
+    public string EditingNotice => RecoveryRequired ? "復旧モード: 変更の反映は停止しています。" : savedConfigChangedExternally ? "保存設定が外部で変わりました。候補を保全してから再読込してください。反映は停止中です。" : IsDirty ? $"未保存: {PendingChangeCount} 項目。まだWindowsには反映されていません。" : configLoaded ? "保存済み設定を表示中です。保存だけで実キー確認済みとは判断しません。" : "保存済み設定はありません。最初の候補を追加してください。";
+    public string AuditNotice => auditNotice;
+    public string ShellNotice => ShellReflectionPending ? "Explorer反映: 未確認（再起動を見送った場合や失敗した場合も保持）。" : shellReloadCompleted ? "Explorerは再起動済み。物理キー動作は別に確認してください。" : "Explorerの有効キー一覧は取得できません。物理キー動作は別に確認してください。";
+    public string PhysicalConfirmationNotice => $"今回の起動中に利用者が実キー確認済みと申告した割当: {candidate.Shortcuts.Count(item => physicalConfirmations.TryGetValue(item.Id, out var proof) && proof == DefinitionVersion(item))} 件。保存・対象テスト・Explorer再起動からは推定しません。";
     public bool CanInitializeRecovery => RecoveryRequired && !incompatibleConfig && !IsBusy;
     public ShortcutConfig Candidate => candidate;
     public string ConfigPath => paths.ConfigPath;
@@ -81,15 +115,20 @@ public sealed class MainViewModel : ObservableObject
         if (IsBusy) return;
         configLoaded = false;
         incompatibleConfig = false;
+        explicitRecoveryInitialization = false;
+        savedConfigChangedExternally = false;
+        savedLinksVerified = false;
+        auditNotice = "保存リンク: 再読込後は未監査です。編集の破棄とリンク監査は別の操作です。";
         try
         {
             candidate = repository.Load();
             var validation = validator.Validate(candidate, checkFileSystem: false);
             if (!validation.IsValid) throw new InvalidDataException(string.Join(Environment.NewLine, validation.Issues.Select(issue => issue.Message)));
+            CaptureSaved();
+            configLoaded = File.Exists(paths.ConfigPath);
             Refresh();
             IsDirty = false;
             RecoveryRequired = false;
-            configLoaded = File.Exists(paths.ConfigPath);
             Status = File.Exists(paths.ConfigPath) ? "config.json を読み込みました。" : "初回起動: ショートカットを追加するか既存をスキャンしてください。";
         }
         catch (Exception error)
@@ -99,12 +138,14 @@ public sealed class MainViewModel : ObservableObject
             try { if (!incompatibleConfig && File.Exists(paths.ConfigPath)) File.Copy(paths.ConfigPath, $"{paths.ConfigPath}.broken-{Guid.NewGuid():N}.json", false); }
             catch (Exception preservationError) { Status = $"破損設定のコピーを保存できません。元ファイルは保全しています: {preservationError.Message}"; }
             candidate = new();
+            CaptureSaved();
             Refresh();
             Status = $"復旧モード: 反映は停止中です。「復元」でバックアップを選ぶか、config.jsonを修復して「再読込」してください。既存ショートカットは変更していません: {error.Message}";
             if (incompatibleConfig) Status = error.Message;
             logger.Error("Config load failed", error);
         }
         Raise(nameof(CanInitializeRecovery));
+        RaiseActionState();
     }
 
     public void InitializeRecovery()
@@ -116,7 +157,7 @@ public sealed class MainViewModel : ObservableObject
         backups.Create("recovery-initialize", paths.ConfigPath, paths.ManagedShortcutDirectory, paths.StatePath);
         candidate = new();
         RecoveryRequired = false;
-        IsDirty = true;
+        explicitRecoveryInitialization = true;
         Refresh();
         Status = "破損設定をバックアップし、空の候補を準備しました。既存リンクの削除は「変更を反映」まで行いません。";
     }
@@ -131,46 +172,47 @@ public sealed class MainViewModel : ObservableObject
             var result = await new StartupShortcutReconciler(auditor, applier).ReconcileAsync(candidate, ManagedDirectory, () => scanner.ScanDefaultAsync(ManagedDirectory));
             logger.Info($"Startup audit: repaired={result.Repaired}, differences={result.Differences}, backup={result.BackupPath}, message={result.Message}");
             Status = result.Message;
-            if (result.Repaired) ShellReflectionPending = true;
+            savedLinksVerified = result.Repaired || result.Differences == 0;
+            auditNotice = savedLinksVerified ? "保存リンク: 設定と一致しています。実キー動作は未確認です。" : "保存リンク: 不一致が残っています。";
+            if (result.Repaired) { physicalConfirmations.Clear(); ShellReflectionPending = true; }
             return result.Repaired;
         }
         catch (Exception error)
         {
+            savedLinksVerified = false;
+            auditNotice = "保存リンク: 起動時監査が完了していません。";
             Status = $"起動時監査: 自動修復を中止しました。{error.Message}";
             logger.Error("Startup audit failed", error);
             return false;
         }
-        finally { IsBusy = false; }
+        finally { IsBusy = false; Refresh(); }
     }
 
     public void Upsert(ShortcutDefinition definition)
     {
-        if (IsBusy) return;
+        if (!CanModify) return;
         var index = candidate.Shortcuts.FindIndex(item => item.Id == definition.Id);
         if (index >= 0) candidate.Shortcuts[index] = definition;
         else candidate.Shortcuts.Add(definition);
-        IsDirty = true;
         Refresh();
-        Status = "未適用の変更があります。";
+        Status = IsDirty ? "未保存の変更があります。" : "保存済みとの差分はありません。";
     }
 
     public void DeleteSelected()
     {
-        if (IsBusy) return;
+        if (!CanModify) return;
         if (Selected is null) return;
         candidate.Shortcuts.RemoveAll(item => item.Id == Selected.Definition.Id);
-        IsDirty = true;
         Refresh();
-        Status = "削除は次回 Apply で反映されます。";
+        Status = IsDirty ? "削除は次回「変更を反映」で保存されます。" : "候補を元に戻したため、保存済みとの差分はありません。";
     }
 
     public void UpdateSettings(string? chromePath, string extensionId)
     {
-        if (IsBusy) return;
+        if (!CanModify) return;
         candidate = candidate with { Settings = candidate.Settings with { Chrome = new() { ExecutablePath = string.IsNullOrWhiteSpace(chromePath) ? null : chromePath.Trim(), ExtensionId = extensionId.Trim() } } };
-        IsDirty = true;
         Refresh();
-        Status = "設定を変更しました。Apply で反映してください。";
+        Status = IsDirty ? "設定を変更しました。「変更を反映」で保存してください。" : "設定の差分はありません。";
     }
 
     public async Task<IReadOnlyList<ShortcutInventoryItem>> ScanAsync()
@@ -190,7 +232,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void Import(ShortcutInventoryItem item)
     {
-        if (IsBusy) return;
+        if (!CanModify) return;
         var key = ExtractKey(item.Hotkey);
         if (key is null || candidate.Shortcuts.Any(existing => existing.Enabled && existing.Hotkey.Key == key))
             key = Enumerable.Range('A', 26).Select(value => ((char)value).ToString()).FirstOrDefault(value => candidate.Shortcuts.All(existing => !existing.Enabled || existing.Hotkey.Key != value));
@@ -203,6 +245,8 @@ public sealed class MainViewModel : ObservableObject
     {
         if (IsBusy) return false;
         if (RecoveryRequired) { Status = "復旧モードでは反映できません。バックアップ復元または設定修復後の再読込が必要です。"; return false; }
+        if (!IsDirty) { Status = "保存済みとの差分はありません。反映は行いませんでした。"; return false; }
+        if (!explicitRecoveryInitialization && !CheckSavedSourceUnchanged()) return false;
         IsBusy = true;
         Status = "validate → scan → stage → backup → apply を実行しています…";
         try
@@ -214,7 +258,13 @@ public sealed class MainViewModel : ObservableObject
             logger.Info($"Apply: success={result.Succeeded}, generated={result.GeneratedCount}, backup={result.BackupPath}");
             if (result.Succeeded)
             {
-                IsDirty = false;
+                CaptureSaved();
+                configLoaded = true;
+                explicitRecoveryInitialization = false;
+                physicalConfirmations.Clear();
+                savedLinksVerified = true;
+                auditNotice = "保存リンク: 反映後の読戻しで一致を確認しました。実キー動作は未確認です。";
+                shellReloadCompleted = false;
                 restoreSummary = string.Empty;
                 ShellReflectionPending = true;
                 Raise(nameof(RestoreNotice));
@@ -241,7 +291,7 @@ public sealed class MainViewModel : ObservableObject
         {
             var result = await shellReloader.ReloadAsync();
             Status = result.Message;
-            if (result.Succeeded) ShellReflectionPending = false;
+            if (result.Succeeded) { ShellReflectionPending = false; shellReloadCompleted = true; }
             logger.Info($"Shell reload completed: success={result.Succeeded}, previousPid={result.PreviousProcessId?.ToString() ?? "unknown"}, currentPid={result.CurrentProcessId?.ToString() ?? "unknown"}, message={result.Message}");
         }
         catch (Exception error)
@@ -249,12 +299,12 @@ public sealed class MainViewModel : ObservableObject
             Status = $"Windows Shellの再読み込みに失敗しました: {error.Message}";
             logger.Error("Shell reload failed", error);
         }
-        finally { IsBusy = false; }
+        finally { IsBusy = false; Refresh(); }
     }
 
     public void Test(ShortcutDefinition definition)
     {
-        if (IsBusy) return;
+        if (!CanModify) return;
         try
         {
             var result = validator.Validate(candidate);
@@ -285,6 +335,61 @@ public sealed class MainViewModel : ObservableObject
 
     public string PreviewRestore(string path) => restore.Preview(path);
 
+    public async Task AuditSavedAsync(ManagedShortcutAuditor auditor)
+    {
+        if (!CanAuditSaved) return;
+        IsBusy = true;
+        savedLinksVerified = false;
+        Status = "保存済みの設定とリンクを監査しています。編集中の候補は変更しません…";
+        try
+        {
+            var result = await Task.Run(() =>
+            {
+                var saved = repository.Load();
+                return (Config: saved, Audit: auditor.Audit(saved, paths.ResolveManagedDirectory(saved.Settings.ManagedShortcutDirectory)));
+            });
+            var inventory = await scanner.ScanDefaultAsync(paths.ResolveManagedDirectory(result.Config.Settings.ManagedShortcutDirectory));
+            var external = inventory.Where(item => !item.IsManaged).Select(item => item.Hotkey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var conflicts = result.Config.Shortcuts.Count(item => item.Enabled && external.Contains(item.Hotkey.Canonical));
+            savedLinksVerified = result.Audit.Matches;
+            savedConfigChangedExternally = ConfigJson.Serialize(result.Config) != savedJson;
+            if (!savedLinksVerified || conflicts > 0 || savedConfigChangedExternally) physicalConfirmations.Clear();
+            auditNotice = $"保存済みのみ監査: リンク差分 {result.Audit.Differences.Count} 件 / 外部キー競合 {conflicts} 件。編集中の候補は未反映です。";
+            Status = auditNotice + (savedConfigChangedExternally ? " 保存設定が外部で変わりました。候補を保全してから再読込してください。" : string.Empty);
+            logger.Info($"Manual persisted audit: differences={result.Audit.Differences.Count}, conflicts={conflicts}, editedCandidatePreserved=True");
+        }
+        catch (Exception error)
+        {
+            auditNotice = "保存リンク: 監査できませんでした。候補と保存データは変更していません。";
+            Status = auditNotice + error.Message;
+            logger.Error("Manual persisted audit failed", error);
+        }
+        finally { IsBusy = false; Refresh(); }
+    }
+
+    // Called only after an explicit user declaration, never after Test/Apply/reload.
+    public void ConfirmSelectedHotkey()
+    {
+        if (!CanConfirmHotkey) return;
+        physicalConfirmations[Selected!.Definition.Id] = DefinitionVersion(Selected.Definition);
+        Status = $"{Selected.Hotkey} の実キー動作を、今回の起動中に利用者が確認したと記録しました。";
+        Refresh();
+    }
+
+    public bool SelectKey(string key)
+    {
+        if (!CanModify) return false;
+        var matches = Shortcuts.Where(row => row.Key == key).ToArray();
+        if (matches.Length > 1)
+        {
+            if (Selected?.Key == key) return true;
+            Status = $"{key} は {matches.Length} 件の割当があります。一覧で編集する対象を選んでください。";
+            return false;
+        }
+        Selected = matches.SingleOrDefault();
+        return true;
+    }
+
     public async Task<bool> RestoreAsync(string path)
     {
         if (IsBusy) return false;
@@ -301,6 +406,10 @@ public sealed class MainViewModel : ObservableObject
             {
                 IsBusy = false;
                 Load();
+                physicalConfirmations.Clear();
+                savedLinksVerified = !RecoveryRequired;
+                auditNotice = "保存リンク: 復元後の読戻しで一致を確認しました。実キー動作は未確認です。";
+                shellReloadCompleted = false;
                 ShellReflectionPending = true;
                 restoreSummary = $"復元しました: {result.GeneratedCount} 件。復元前バックアップ: {result.BackupPath}";
                 Raise(nameof(RestoreNotice));
@@ -315,30 +424,72 @@ public sealed class MainViewModel : ObservableObject
             logger.Error("Restore failed", error);
             return false;
         }
-        finally { IsBusy = false; }
+        finally { IsBusy = false; Refresh(); }
+    }
+
+    private void CaptureSaved()
+    {
+        savedJson = ConfigJson.Serialize(candidate);
+        savedEntries = candidate.Shortcuts.ToDictionary(item => item.Id, item => JsonSerializer.Serialize(item, ConfigJson.Options));
+        savedSettings = JsonSerializer.Serialize(candidate.Settings, ConfigJson.Options);
+    }
+
+    private bool CheckSavedSourceUnchanged()
+    {
+        try
+        {
+            if (ConfigJson.Serialize(repository.Load()) == savedJson) return true;
+            Status = "保存設定が読込み後に変わったため、上書きせず反映を停止しました。未保存候補は保持しています。";
+        }
+        catch (Exception error) { Status = "保存設定を再確認できないため、上書きせず反映を停止しました。" + error.Message; }
+        savedConfigChangedExternally = true;
+        RaiseActionState();
+        return false;
+    }
+
+    private string DefinitionVersion(ShortcutDefinition item) => JsonSerializer.Serialize(item, ConfigJson.Options)
+        + (item.Target is ChromeTabGroupTarget ? JsonSerializer.Serialize(candidate.Settings.Chrome, ConfigJson.Options) : string.Empty);
+
+    private void RaiseActionState()
+    {
+        foreach (var name in new[] { nameof(CanApply), nameof(CanModify), nameof(CanRestore), nameof(CanEditSelected), nameof(CanConfirmHotkey), nameof(CanAuditSaved), nameof(PendingChangeCount), nameof(ReloadLabel), nameof(SelectionText), nameof(EditingNotice), nameof(AuditNotice), nameof(ShellNotice), nameof(PhysicalConfirmationNotice) }) Raise(name);
     }
 
     private void Refresh()
     {
+        var selectedId = Selected?.Definition.Id;
+        var current = candidate.Shortcuts.ToDictionary(item => item.Id, item => JsonSerializer.Serialize(item, ConfigJson.Options));
+        var settingsChanged = savedSettings != JsonSerializer.Serialize(candidate.Settings, ConfigJson.Options);
+        PendingChangeCount = current.Keys.Union(savedEntries.Keys).Count(id => !current.TryGetValue(id, out var value) || !savedEntries.TryGetValue(id, out var prior) || value != prior) + (settingsChanged ? 1 : 0);
+        if (explicitRecoveryInitialization && PendingChangeCount == 0) PendingChangeCount = 1;
+        IsDirty = PendingChangeCount > 0;
         var validation = validator.Validate(candidate, checkFileSystem: true);
         Shortcuts.Clear();
         foreach (var definition in candidate.Shortcuts.OrderBy(item => item.Hotkey.Key))
         {
             var issues = validation.Issues.Where(issue => issue.ShortcutId == definition.Id).ToArray();
-            Shortcuts.Add(new(definition, TargetSummary(definition.Target), !definition.Enabled ? "Disabled" : issues.Length > 0 ? "Error" : IsDirty ? "Unapplied Changes" : "Ready", string.Join(" / ", issues.Select(issue => issue.Message))));
+            var changed = !savedEntries.TryGetValue(definition.Id, out var saved) || current[definition.Id] != saved || (settingsChanged && definition.Target is ChromeTabGroupTarget);
+            var confirmed = physicalConfirmations.TryGetValue(definition.Id, out var proof) && proof == DefinitionVersion(definition);
+            var code = !definition.Enabled ? "Disabled" : issues.Length > 0 ? "Error" : changed ? "Unapplied Changes" : "Ready";
+            var label = changed ? "未保存" : !definition.Enabled ? "無効" : issues.Length > 0 ? "入力要確認" : confirmed ? "実キー確認済み（今回の申告）" : ShellReflectionPending ? "保存済み・反映未確認" : savedLinksVerified ? "保存済み・実キー未確認" : "保存済み・リンク未確認";
+            Shortcuts.Add(new(definition, TargetSummary(definition.Target), code, string.Join(" / ", issues.Select(issue => issue.Message)), label));
         }
         var tiles = KeyboardLayout.Keys.ToDictionary(
             key => key,
             key =>
             {
-                var row = Shortcuts.FirstOrDefault(item => item.Key == key);
-                return new KeyTile(key, row?.Name ?? "空き", row?.Status ?? "Empty", row);
+                var group = Shortcuts.Where(item => item.Key == key).ToArray();
+                var row = group.FirstOrDefault(item => item.Enabled) ?? group.FirstOrDefault();
+                var code = group.Any(item => item.Status == "Error") ? "Error" : group.Any(item => item.StateLabel == "未保存") ? "Unapplied Changes" : row?.Status ?? "Empty";
+                return new KeyTile(key, group.Length > 1 ? $"{group.Length}件の割当" : row?.Name ?? "空き", code, row, group.Length, group.Length > 1 ? string.Join("\n\n", group.Select(item => item.FullDescription + (item.Enabled ? "\n有効" : "\n無効"))) : null);
             });
         Replace(TopRowKeys, KeyboardLayout.Rows[0].Select(key => tiles[key.ToString()]));
         Replace(HomeRowKeys, KeyboardLayout.Rows[1].Select(key => tiles[key.ToString()]));
         Replace(BottomRowKeys, KeyboardLayout.Rows[2].Select(key => tiles[key.ToString()]));
+        Selected = Shortcuts.FirstOrDefault(row => row.Definition.Id == selectedId);
         Raise(nameof(ManagedDirectory));
         Raise(nameof(ShowEmptyState));
+        RaiseActionState();
     }
 
     private static void Replace(ObservableCollection<KeyTile> target, IEnumerable<KeyTile> values)
@@ -364,20 +515,29 @@ public sealed class MainViewModel : ObservableObject
     };
 }
 
-public sealed record ShortcutRow(ShortcutDefinition Definition, string Target, string Status, string Error)
+public sealed record ShortcutRow(ShortcutDefinition Definition, string Target, string Status, string Error, string StateLabel)
 {
     public bool Enabled => Definition.Enabled;
     public string Key => Definition.Hotkey.Key;
     public string Hotkey => Definition.Hotkey.Canonical;
     public string Name => Definition.Name;
     public string Type => Definition.Target switch { WebsiteTarget => "Website", ApplicationTarget => "Application", BatTarget => "BAT/CMD", ChromeTabGroupTarget => "Chrome Group", _ => "Unknown" };
+    public string FullDescription => $"{Hotkey} → {Name}\n{Target}\n{StateLabel}" + (string.IsNullOrEmpty(Error) ? string.Empty : "\n" + Error);
 }
 
-public sealed record KeyTile(string Key, string Name, string Status, ShortcutRow? Row)
+public sealed class KeyTile(string key, string name, string status, ShortcutRow? row, int entryCount = 0, string? description = null) : ObservableObject
 {
+    public string Key { get; } = key;
+    public string Name { get; } = name;
+    public string Status { get; } = status;
+    public ShortcutRow? Row { get; } = row;
+    public int EntryCount { get; } = entryCount;
+    private bool isSelected;
+    public bool IsSelected { get => isSelected; set => Set(ref isSelected, value); }
+    public string Description => description ?? Row?.FullDescription ?? $"Ctrl+Alt+{Key}: 空きキーに追加";
     public string StatusLabel => Status switch
     {
-        "Ready" => "使用中",
+        "Ready" => "保存済み",
         "Disabled" => "無効",
         "Error" => "要確認",
         "Unapplied Changes" => "未反映",

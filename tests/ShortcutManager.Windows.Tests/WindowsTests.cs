@@ -696,7 +696,7 @@ public sealed class WindowsTests : IDisposable
         Assert.Empty(await vm.ScanAsync()); Assert.Throws<InvalidOperationException>(() => vm.Backup());
         Assert.Single(vm.Candidate.Shortcuts); Assert.False(vm.IsDirty); Assert.Equal(1, reloader.Calls);
         reloader.Complete.SetResult(new(true, "test")); await task;
-        Assert.False(vm.IsBusy); Assert.True(vm.CanApply);
+        Assert.False(vm.IsBusy); Assert.False(vm.CanApply); // No candidate changes: a completed reload does not enable Apply.
         vm.Upsert(Entry("Z", new WebsiteTarget { Url = "https://example.com" })); Assert.True(vm.IsDirty);
     }
 
