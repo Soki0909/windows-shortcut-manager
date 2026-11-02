@@ -4,6 +4,8 @@
 
 ## Progress
 
+- [x] 追加#128のCI範囲判定を実装/ローカル検証。文書/管理記録はruntime検証なし、Windows・拡張・拡張配置を別jobへ振り分け、比較不能/共有設定変更は全検証へfallback。新しい依存なし。
+
 - [x] #120 公開後レポート・担当/タイミング・毎回のチェックリスト・ロードマップ同期手順を追加。v0.3.0/v0.3.1の公開digestと過去の製品更新証拠を再照合。
 
 - [x] 要件、ADR、既存実装、未解決Issue 84件を確認。基準main: `236d1c6` (v0.3.1)。
@@ -39,6 +41,8 @@
 - マイルストーンごとに検証してmainへ統合する。利用中環境はリリース用Setupでのみ更新し、更新前バックアップを保持する。
 
 ## Validation Evidence
+
+- #128: CI範囲判定19ケース、実gitのdocs-only差分（3jobともfalse）、全maintenance scriptのparser、diff check passed。CI定義変更なのでPR CIで全jobの配線を検証する。Release workflowの包括ゲートは維持。
 
 - #119 PR #124: CI 41405355432成功後にmain `391bfc8`へ統合。専用28ケースのCI再検証もpassed。
 - #125 PR #126: CI 41405709157成功後にmainへ統合。
