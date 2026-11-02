@@ -53,6 +53,8 @@ public sealed class ManagedShortcutApplier(
 
     private ApplyResult ApplyCore(ShortcutConfig config, string managedDirectory, IReadOnlyCollection<string> externalConflictHotkeys, string backupReason)
     {
+        try { configRepository.EnsureCompatibleVersion(); }
+        catch (UnsupportedConfigVersionException error) { return new(false, error.Message); }
         var validation = validator.Validate(config);
         if (!validation.IsValid) return new(false, string.Join(Environment.NewLine, validation.Issues.Select(issue => issue.Message)));
         if (Directory.Exists(workingRoot))

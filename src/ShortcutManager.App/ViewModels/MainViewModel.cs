@@ -34,6 +34,7 @@ public sealed class MainViewModel : ObservableObject
     private bool isDirty;
     private bool configLoaded;
     private bool recoveryRequired;
+    private bool incompatibleConfig;
     private bool shellReflectionPending;
     private string restoreSummary = string.Empty;
 
@@ -64,11 +65,12 @@ public sealed class MainViewModel : ObservableObject
     public string LogWarning => logger.LastFailure ?? string.Empty;
     public bool ShellReflectionPending { get => shellReflectionPending; private set { if (Set(ref shellReflectionPending, value)) Raise(nameof(RestoreNotice)); } }
     public string RestoreNotice => restoreSummary + (ShellReflectionPending ? "\nHotKeyはExplorerへの反映待ちです。「Explorerを再起動」から反映を試すか、Windowsを再起動してください。" : string.Empty);
-    public bool IsBusy { get => isBusy; private set { if (Set(ref isBusy, value)) { Raise(nameof(CanInteract)); Raise(nameof(CanApply)); } } }
+    public bool IsBusy { get => isBusy; private set { if (Set(ref isBusy, value)) { Raise(nameof(CanInteract)); Raise(nameof(CanApply)); Raise(nameof(CanInitializeRecovery)); } } }
     public bool CanInteract => !IsBusy;
     public bool IsDirty { get => isDirty; private set => Set(ref isDirty, value); }
-    public bool RecoveryRequired { get => recoveryRequired; private set { if (Set(ref recoveryRequired, value)) Raise(nameof(CanApply)); } }
+    public bool RecoveryRequired { get => recoveryRequired; private set { if (Set(ref recoveryRequired, value)) { Raise(nameof(CanApply)); Raise(nameof(CanInitializeRecovery)); } } }
     public bool CanApply => !RecoveryRequired && !IsBusy;
+    public bool CanInitializeRecovery => RecoveryRequired && !incompatibleConfig && !IsBusy;
     public ShortcutConfig Candidate => candidate;
     public string ConfigPath => paths.ConfigPath;
     public string ManagedDirectory => paths.ResolveManagedDirectory(candidate.Settings.ManagedShortcutDirectory);
@@ -77,6 +79,7 @@ public sealed class MainViewModel : ObservableObject
     {
         if (IsBusy) return;
         configLoaded = false;
+        incompatibleConfig = false;
         try
         {
             candidate = repository.Load();
@@ -90,20 +93,24 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (Exception error)
         {
+            incompatibleConfig = error is Core.Serialization.UnsupportedConfigVersionException;
             RecoveryRequired = true;
-            try { if (File.Exists(paths.ConfigPath)) File.Copy(paths.ConfigPath, $"{paths.ConfigPath}.broken-{Guid.NewGuid():N}.json", false); }
+            try { if (!incompatibleConfig && File.Exists(paths.ConfigPath)) File.Copy(paths.ConfigPath, $"{paths.ConfigPath}.broken-{Guid.NewGuid():N}.json", false); }
             catch (Exception preservationError) { Status = $"破損設定のコピーを保存できません。元ファイルは保全しています: {preservationError.Message}"; }
             candidate = new();
             Refresh();
             Status = $"復旧モード: 反映は停止中です。「復元」でバックアップを選ぶか、config.jsonを修復して「再読込」してください。既存ショートカットは変更していません: {error.Message}";
+            if (incompatibleConfig) Status = error.Message;
             logger.Error("Config load failed", error);
         }
+        Raise(nameof(CanInitializeRecovery));
     }
 
     public void InitializeRecovery()
     {
         if (IsBusy) return;
         if (!RecoveryRequired) return;
+        repository.EnsureCompatibleVersion();
         // Preserve the broken source in a verified ZIP before allowing an empty candidate.
         backups.Create("recovery-initialize", paths.ConfigPath, paths.ManagedShortcutDirectory, paths.StatePath);
         candidate = new();
