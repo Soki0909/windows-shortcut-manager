@@ -67,6 +67,15 @@ if ($RunInstallerSmoke) {
             $auditLink = $shortcutShell.CreateShortcut($auditLinkPath)
             $actual = [pscustomobject]@{ Target=$auditLink.TargetPath; ExpectedTarget=$exe; Arguments=$auditLink.Arguments; Hotkey=$auditLink.Hotkey }
             Write-Host ($actual | ConvertTo-Json -Compress)
+            if (-not $actual.Target) {
+                $bytes=[IO.File]::ReadAllBytes($auditLinkPath)
+                Write-Host ("Shortcut bytes: " + $bytes.Length + '; header: ' + [Convert]::ToHexString($bytes[0..([Math]::Min(19,$bytes.Length-1))]))
+                $asciiCopy=Join-Path $temp 'audit-shortcut-copy.lnk'
+                [IO.File]::WriteAllBytes($asciiCopy,$bytes)
+                $copy=$shortcutShell.CreateShortcut($asciiCopy)
+                try { Write-Host ([pscustomobject]@{CopyTarget=$copy.TargetPath;CopyArguments=$copy.Arguments;CopyHotkey=$copy.Hotkey}|ConvertTo-Json -Compress) }
+                finally {[void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($copy)}
+            }
             if ($actual.Target -ne $exe -or $actual.Arguments -ne '--audit-only' -or $actual.Hotkey) { throw 'Audit-only shortcut target, arguments or HotKey are incorrect; see the readback above.' }
         } finally {
             if ($auditLink) { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($auditLink) }
