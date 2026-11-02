@@ -4,7 +4,39 @@ on:
     branches: [main]
   pull_request:
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      windows: ${{ steps.scope.outputs.windows }}
+      extension: ${{ steps.scope.outputs.extension }}
+      deployment: ${{ steps.scope.outputs.deployment }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./scripts/test-ci-scope.ps1
+          foreach ($file in Get-ChildItem scripts -Recurse -File | Where-Object Extension -in '.ps1','.psm1') {
+            $errors = $null
+            [Management.Automation.Language.Parser]::ParseFile($file.FullName,[ref]$null,[ref]$errors) | Out-Null
+            if ($errors.Count) { throw "$($file.Name): $($errors.Message -join ', ')" }
+          }
+      - id: scope
+        shell: pwsh
+        run: |
+          $scope = ./scripts/get-ci-scope.ps1 -Base $env:BASE_SHA -Head $env:HEAD_SHA
+          "windows=$($scope.Windows.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          "extension=$($scope.Extension.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          "deployment=$($scope.Deployment.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          $scope | Format-List
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
   dotnet:
+    needs: changes
+    if: needs.changes.outputs.windows == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,8 +50,6 @@ jobs:
         run: ./scripts/run-debug.ps1 -NoLaunch
       - shell: pwsh
         run: ./scripts/test-cli.ps1
-      - shell: pwsh
-        run: ./scripts/test-extension-deployment.ps1
       - run: dotnet build tests/ShortcutManager.LiveDriver/ShortcutManager.LiveDriver.csproj -c Debug --nologo
       - shell: pwsh
         run: ./scripts/package.ps1 -Configuration Release -Version 0.3.1
@@ -30,6 +60,8 @@ jobs:
           ./scripts/verify-branding.ps1 -Version 0.3.1
           ./scripts/verify-release-artifacts.ps1 -Version 0.3.1 -RunInstallerSmoke
   extension:
+    needs: changes
+    if: needs.changes.outputs.extension == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,6 +69,15 @@ jobs:
         with:
           node-version: 22
       - run: node --test tests/ChromeExtension.Tests/protocol.test.js tests/ChromeExtension.Tests/worker-regressions.test.js
+      - run: node --check scripts/test-chrome-live.mjs
       - shell: pwsh
         run: ./scripts/verify-version.ps1 -ExpectedVersion 0.3.1
+  extension-deployment:
+    needs: changes
+    if: needs.changes.outputs.deployment == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: pwsh
+        run: ./scripts/test-extension-deployment.ps1
 

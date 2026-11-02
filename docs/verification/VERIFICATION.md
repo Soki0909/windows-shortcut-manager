@@ -2,6 +2,12 @@
 
 Updated: 2026-11-02 (Asia/Tokyo)
 
+## 変更範囲に応じたCI / #128（2026-11-02）
+
+- 所有者の検証絞込み指示をCIにも適用。native git差分とPowerShellだけでWindows/拡張/配置helperを振り分ける。文書/管理記録はruntime/Setup検証を省く。比較元不明・取得不能・未知のbuild入力・workflow/共有設定変更は保守的に全チェック。
+- 判定19ケースpassed。文書/Windows/拡張テスト/実拡張ソース/Setup/配置/module/ライセンス/未知ファイル・Windows区切り・比較不能を検証。実際のdocs-onlyコミット差分はWindows/Extension/DeploymentすべてFalse。全PowerShell scriptの構文検査もpassed。
+- 範囲判定jobでmaintenance scriptの構文を確認し、Issue操作はCIから実行しない。配置復旧テストは独立job。正式リリースの包括的な検証workflowは変更しない。PR CIではworkflow自身の変更として全jobを確認する。
+
 ## 公開後記録の同期 / #120（2026-11-02）
 
 - [公開後索引と毎回のチェックリスト](../releases/POST_RELEASE.md)を追加。準備記録と実際の公開/所有者PC更新を区別し、公開後にmainへ記録する担当・タイミングを定義。
