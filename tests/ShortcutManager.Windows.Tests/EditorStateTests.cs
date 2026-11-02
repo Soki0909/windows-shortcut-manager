@@ -159,6 +159,26 @@ public sealed class EditorStateTests : IDisposable
         Assert.Contains("見つからない",vm.Status);
     }
 
+    [Fact]
+    public async Task ImportRequiresExplicitFreeKeyAndApplyRechecksCustomSourceConflicts()
+    {
+        var source=Path.Combine(root,"original.url");File.WriteAllText(source,"[InternetShortcut]\nURL=https://example.com\nHotKey=1621\n");
+        var bytes=File.ReadAllBytes(source);var vm=Model();var item=Assert.Single(await vm.ScanAsync([root]));
+        Assert.False(vm.Import(item));Assert.Empty(vm.Shortcuts);Assert.False(vm.Import(item,"U"));
+        Assert.True(vm.Import(item,"J"));Assert.False(File.Exists(repository.Path));
+        var definition=vm.Candidate.Shortcuts.Single();vm.Upsert(definition with {Hotkey=new() {Key="U"}});
+        Assert.False(await vm.ApplyAsync());Assert.Contains(vm.ConflictingItems,conflict=>conflict.SourcePath==source);
+        Assert.Equal(bytes,File.ReadAllBytes(source));Assert.False(File.Exists(repository.Path));
+    }
+
+    [Fact]
+    public void ImportDoesNotExceedCapacityEvenWhenDisabledEntriesLeaveKeysAvailable()
+    {
+        var vm=Model();foreach(var key in Enumerable.Range('A',26))vm.Upsert(Entry(((char)key).ToString()) with {Enabled=false});
+        var item=new Windows.Inventory.ShortcutInventoryItem(Path.Combine(root,"source.url"),".url","Source","","https://example.com","","","",false);
+        Assert.False(vm.Import(item,"U"));Assert.Equal(26,vm.Shortcuts.Count);Assert.Contains("最大26",vm.Status);
+    }
+
     public void Dispose() => Directory.Delete(root,true);
     private sealed class ResultReloader : IExplorerShellReloader
     {

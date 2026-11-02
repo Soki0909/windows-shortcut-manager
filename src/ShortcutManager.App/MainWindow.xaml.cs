@@ -55,9 +55,14 @@ public partial class MainWindow : Window
 
     private async void Scan_Click(object sender, RoutedEventArgs e)
     {
-        var results = await viewModel.ScanAsync();
-        var dialog = new ImportWindow(results) { Owner = this };
-        if (dialog.ShowDialog() == true && dialog.Selected is not null) viewModel.Import(dialog.Selected);
+        if(!viewModel.CanModify) return;
+        var options=new ScanOptionsWindow {Owner=this};if(options.ShowDialog()!=true)return;
+        try {
+            var results = await viewModel.ScanAsync(options.Roots);
+            var dialog = new ImportWindow(results,viewModel.Candidate,viewModel.LastScanReport) { Owner = this };
+            if (dialog.ShowDialog() == true && dialog.Selected is not null) viewModel.Import(dialog.Selected,dialog.SelectedKey);
+        }
+        catch(Exception error) {MessageBox.Show(this,error.Message,"スキャンできません",MessageBoxButton.OK,MessageBoxImage.Warning);}
     }
 
     private void Backup_Click(object sender, RoutedEventArgs e)
@@ -129,7 +134,16 @@ public partial class MainWindow : Window
 
     private async void Apply_Click(object sender, RoutedEventArgs e)
     {
-        if (!await viewModel.ApplyAsync()) return;
+        if (!await viewModel.ApplyAsync()) {
+            if(viewModel.ConflictingItems.Count>0) {
+                var conflicts=new ConflictWindow(viewModel.ConflictingItems,viewModel.LastScanReport) {Owner=this};
+                if(conflicts.ShowDialog()==true && conflicts.Selected is { } item) {
+                    var row=viewModel.Shortcuts.FirstOrDefault(entry=>entry.Enabled && entry.Hotkey.Equals(item.Hotkey,StringComparison.OrdinalIgnoreCase));
+                    if(row is not null) {viewModel.Selected=row;Edit(row.Definition,null);}
+                }
+            }
+            return;
+        }
         if (ConfirmShellReload()) await viewModel.ReloadShellAsync();
     }
 
