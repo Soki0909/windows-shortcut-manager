@@ -8,6 +8,7 @@ $cases = @(
     @{ Paths=@('tests/ChromeExtension.Tests/protocol.test.js'); Expected=@($false,$true,$false) },
     @{ Paths=@('src/ChromeExtension/service-worker.js'); Expected=@($true,$true,$true) },
     @{ Paths=@('installer/ShortcutManager.iss'); Expected=@($true,$false,$false) },
+    @{ Paths=@('tests/Installer.Tests/PayloadMaintenance.iss'); Expected=@($true,$false,$false) },
     @{ Paths=@('scripts/lib/ExtensionDeployment.psm1'); Expected=@($false,$false,$true) },
     @{ Paths=@('scripts/publish-release.ps1'); Expected=@($true,$false,$false) },
     @{ Paths=@('LICENSE'); Expected=@($true,$false,$false) },

@@ -4,6 +4,9 @@
 
 ## Progress
 
+- [x] #49: PR #143、CI 41490714974全対象success後main `35e12ec`へ統合。#142のAction更新も公式tag/SHA/MIT/互換性を手動確認し、CI 41489075505成功後統合済み。ロードマップ15 checkboxを同期・再照合。
+- [ ] #56/#91をinstaller lifecycleバッチで実装中。相対パス/hashの配置receipt、不要物の一致確認と退避、reparse拒否、公開旧Setupからの保持付き更新、構成差fixtureを追加。#52の保持説明と完全削除の設計もまとめるが未実装UIを完了扱いしない。
+
 - [x] #60/#139: PR #141のCI 41487695479全jobとRelease workflow_dispatch 41487722103（公開なし・4asset署名来歴生成/検証）success後、main `dd5201a`へ統合。#140は内部Setup/Uninstall署名の未完了として維持。
 - [x] #49: URL補助の保存/既存URL除去・履歴の明示消去・100件と保存範囲の説明・診断URL抑制を実装。関連Worker 15件、protocol等13件、静的headless描画を確認。CI/main統合を追跡する。
 
@@ -39,6 +42,8 @@
 - [ ] 現製品のバックアップ、公式Setupによる更新、設定/管理リンク不変と起動確認、拡張更新/実行版確認、公開後記録。
 
 ## Discoveries
+
+- installer receiptの追加検証で、Inno Pascal Scriptの標準文字列検索を介すと補助文字が存在しない`?`として一致し、Unicodeの所有fileを保留するケースを発見。Unicode nativeのStringChangeExとパス分割へ置き換え、専用job 41499714890で12ケース/27保全hashを確認。失敗時も既存fileは削除されていない。installer固有jobを分離し、更新されたPRの古い実行だけを取り消す。
 
 - 公式Inno最新確認で6.7.3→7.1.1を検出し#139を作成。7.1.1の公式release digest/実体SHA/Authenticode/利用条件を確認し固定を更新。履歴からSetup後付け署名だけでは内部コピーとUninstallが未署名になる注意も発見し#140を追加。#50の実署名前に統合する。
 
