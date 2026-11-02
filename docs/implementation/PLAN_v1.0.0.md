@@ -4,7 +4,11 @@
 
 ## Progress
 
-- [x] #45: Popupに実行中runtime.idの読取専用欄/コピー/選択フォールバック、オフライン導入ページを追加。Managerの設定/Chromeヘルプを共通案内へ統一。Worker読込待ち/失敗時にもID操作が可能。関連Node16件、Debug build警告/エラー0、実HTML/CSS headless描画と非表示WPF normal/small描画passed。PR/CI/main統合を追跡する。#46のStore公開・提出素材は継続中。
+
+- [ ] #46: 公開プライバシーポリシー、掲載文面・4権限の理由・審査手順・ID移行/rollback・所有者工程を準備。公式Listing/データ方針を参照し、実装のlocal/session/通知/診断/消去処理と照合。最終実画面素材とアカウント/提出/審査/公開URLは未完了でIssueを維持する。開発用静的描画をStore実画面素材として扱わない。
+
+- [x] #45: Popupに実行中runtime.idの読取専用欄/コピー/選択フォールバック、オフライン導入ページを追加。Managerの設定/Chromeヘルプを共通案内へ統一。Worker読込待ち/失敗時にもID操作が可能。関連Node16件、Debug build警告/エラー0、実HTML/CSS headless描画と非表示WPF normal/small描画passed。PR #147、CI 41505807728全4job成功後main `443c800`へ統合しclose。#46のStore公開・提出素材は継続中。
+
 
 - [x] #49: PR #143、CI 41490714974全対象success後main `35e12ec`へ統合。#142のAction更新も公式tag/SHA/MIT/互換性を手動確認し、CI 41489075505成功後統合済み。ロードマップ15 checkboxを同期・再照合。
 - [x] #56/#91: PR #145、最新head34158cbの統合CI 41500960914とnative 41500960938成功後main `450a520`へ統合。公開旧Setupからの保持付き更新と構成差fixtureもpassed。#52の保持説明/設計は反映したが完全削除UIは未実装でopen。
