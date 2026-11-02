@@ -4,6 +4,9 @@ const groupsElement = document.querySelector("#groups");
 const statusElement = document.querySelector("#status");
 const collapseStartup = document.querySelector("#collapse-startup");
 const debugMode = document.querySelector("#debug-mode");
+const rememberUrls = document.querySelector("#remember-urls");
+const confirmClear = document.querySelector("#confirm-clear");
+const clearHistory = document.querySelector("#clear-history");
 const manifest = chrome.runtime.getManifest();
 document.querySelector("#identity").textContent = `v${manifest.version} / Protocol v1 / ${chrome.runtime.id}`;
 const send = message => runtimeRequest(value => chrome.runtime.sendMessage(value), message);
@@ -16,7 +19,7 @@ async function run(operation) {
   document.querySelectorAll("button,input").forEach(control => { control.disabled = true; });
   try { await operation(); }
   catch { statusElement.textContent = "操作に失敗しました。「更新」で状態を確認して再試行してください。"; }
-  finally { busy = false; document.querySelectorAll("button,input").forEach(control => { control.disabled = control.tagName === "INPUT" && !settingsLoaded; }); }
+  finally { busy = false; document.querySelectorAll("button,input").forEach(control => { control.disabled = control.tagName === "INPUT" && !settingsLoaded; }); clearHistory.disabled = !settingsLoaded || !confirmClear.checked; }
 }
 async function refresh() {
   const response = await send({ type: "list-groups" });
@@ -38,11 +41,17 @@ async function refresh() {
   }
 }
 async function loadSettings() {
-  savedSettings = (await chrome.storage.local.get("settings")).settings ?? {};
+  const result = await send({ type: "privacy-status" });
+  if (!result.ok) throw new Error("Settings unavailable");
+  reflectPrivacy(result);
+}
+function reflectPrivacy(result) {
+  savedSettings = result.settings;
   settingsLoaded = true; reflectSettings();
+  document.querySelector("#history-count").textContent = `保存 ${result.historyCount} グループ / URL補助 ${result.urlCount} 件（最大100グループ）`;
 }
 document.querySelector("#refresh").addEventListener("click", () => void run(async () => {
-  if (!settingsLoaded) { try { await loadSettings(); } catch { statusElement.textContent = "設定を読み込めません。設定の変更は停止しています。"; } }
+  try { await loadSettings(); } catch { settingsLoaded = false; statusElement.textContent = "設定を読み込めません。設定の変更は停止しています。"; }
   await refresh();
 }));
 document.querySelector("#collapse-all").addEventListener("click", () => void run(async () => {
@@ -50,15 +59,26 @@ document.querySelector("#collapse-all").addEventListener("click", () => void run
   statusElement.textContent = result.message ?? (result.ok ? `${result.count} 個を折りたたみました。` : "折りたためませんでした。");
   await refresh();
 }));
-function reflectSettings() { collapseStartup.checked = savedSettings.collapseOnStartup ?? false; debugMode.checked = savedSettings.debugMode ?? false; }
-async function saveSettings() {
+function reflectSettings() { collapseStartup.checked = savedSettings.collapseOnStartup ?? false; debugMode.checked = savedSettings.debugMode ?? false; rememberUrls.checked = savedSettings.rememberTabUrls ?? true; }
+async function saveSettings(patch) {
   if (!settingsLoaded) return;
-  const next = { ...savedSettings, collapseOnStartup: collapseStartup.checked, startupCollapseWindowMs: savedSettings.startupCollapseWindowMs ?? 20000, debugMode: debugMode.checked };
-  try { await chrome.storage.local.set({ settings: next }); savedSettings = next; statusElement.textContent = "設定を保存しました。"; }
-  catch { reflectSettings(); throw new Error("Settings storage failed"); }
+  try {
+    const result = await send({ type: "update-settings", patch });
+    if (!result.ok) throw new Error("Settings storage failed");
+    reflectPrivacy(result); statusElement.textContent = "設定を保存しました。";
+  } catch { reflectSettings(); settingsLoaded = false; throw new Error("Settings storage failed"); }
 }
-collapseStartup.addEventListener("change", () => void run(saveSettings));
-debugMode.addEventListener("change", () => void run(saveSettings));
+collapseStartup.addEventListener("change", () => void run(() => saveSettings({ collapseOnStartup: collapseStartup.checked })));
+debugMode.addEventListener("change", () => void run(() => saveSettings({ debugMode: debugMode.checked })));
+rememberUrls.addEventListener("change", () => void run(() => saveSettings({ rememberTabUrls: rememberUrls.checked })));
+confirmClear.addEventListener("change", () => { clearHistory.disabled = busy || !settingsLoaded || !confirmClear.checked; });
+clearHistory.addEventListener("click", () => void run(async () => {
+  if (!settingsLoaded || !confirmClear.checked) return;
+  const result = await send({ type: "clear-tab-history" });
+  if (!result.ok) { settingsLoaded = false; throw new Error("History clear failed"); }
+  reflectPrivacy(result); confirmClear.checked = false;
+  statusElement.textContent = "タブ復帰履歴を消去しました。開いているタブやグループは保持しています。";
+}));
 await run(async () => {
   try { await loadSettings(); }
   catch { statusElement.textContent = "設定を読み込めませんでした。グループ一覧は更新して再試行できます。"; }

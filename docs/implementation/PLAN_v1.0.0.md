@@ -4,6 +4,9 @@
 
 ## Progress
 
+- [x] #60/#139: PR #141のCI 41487695479全jobとRelease workflow_dispatch 41487722103（公開なし・4asset署名来歴生成/検証）success後、main `dd5201a`へ統合。#140は内部Setup/Uninstall署名の未完了として維持。
+- [x] #49: URL補助の保存/既存URL除去・履歴の明示消去・100件と保存範囲の説明・診断URL抑制を実装。関連Worker 15件、protocol等13件、静的headless描画を確認。CI/main統合を追跡する。
+
 - [x] #59/#93: PR #138、CI 41485546790全対象success後main `abcd9c6`へ統合。#50は実署名未確認でopenを維持。
 - [x] #60のSDK/Action固定、DependabotとInno更新監視、実publishのSPDX/ビルド元記録、GitHub署名来歴の生成/検証を実装。追加#139のInno 7.1.1へ更新し、ローカル配布検査passed。CIと非公開のworkflow_dispatchで運用経路を追跡する。
 

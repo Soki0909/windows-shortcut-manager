@@ -2,6 +2,19 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
+## Chromeの復帰履歴管理 / #49（2026-11-03、未公開）
+
+- Popupで保存目的・localのみ・100グループ上限・URL補助のオフ/既存URL除去・確認付き全履歴消去を案内。消去がタブ/グループ/他設定を変更せず、以降は再記録されることも明示。manifest権限とprotocolは変更なし。
+- remember/設定patch/消去/件数応答を同じqueueへ直列化。追加検証で非同期tabs.getの完了後にqueueへ入れると先行activationが消去の後から書ける問題を検出し、イベント発生時に順番を確保して修正した。
+- 対象Worker/Popup 15件passed（新規6件）。既定互換、遅い先行書込みとURL無効化、Worker再読込み、他設定保持、消去後の切替、保存失敗/不正patch、特殊名、診断へのURL/例外本文非出力、確認前消去停止、URLだけのpatch、失敗後の変更無効/再読込みを確認。protocol/選択等13件も関連する履歴読みへ通るため実行しpassed。
+- 静的Popupの実HTML/CSSを既存Chromium headless shellで400×850へ描画し、展開した説明・折返し・無効な消去ボタン・操作導線をPNG目視。fixtureの件数だけを差し込んだレイアウト検査で、実Chrome extension runtimeの操作とは区別する。
+- インアプリブラウザーはlocalhostへ接続timeout。通常Chrome for Testingのheadless描画も出力不能だったため検証用プロセスだけ終了し、専用headless shellで描画を完了した。localhost server/fixture以外の個人Chrome、URL履歴、実タブ/拡張、製品版には触れていない。実ChromeでのPopup操作・OS clipboard・高DPIの証拠にはしない。
+
+## PR #141 統合確認
+
+- PR CI 41487695479の全jobと、非公開のRelease workflow_dispatch 41487722103がsuccess。Inno7.1.1の使い捨てinstall/audit-only link/CLI/uninstall smoke passed。
+- 最終4assetのGitHub署名来歴を生成し、repository/workflow/commit/ref/hosted runner付きのgh attestation verifyが全件成功。tagでないため公開stepはskipped。main `dd5201ac2df3b139ab234c5c318f25508b66df46`へ統合し#60/#139 close。既存の公開版/日常製品はv0.3.1のまま。
+
 ## ビルド依存の保守・SBOM/来歴 / #60/#139（2026-11-03、未公開）
 
 - SDK 10.0.403（従来latestFeatureで実際に使用されていた版）をglobal.jsonで厳密固定し、CI/Releaseも同じ入力を使う。既存majorの公式Action tagをAPIでcommitへ解決しSHA固定。DependabotでAction/NuGet/SDKを毎週確認し、Innoはread-onlyの定期workflowで公式latestと比較する。自動merge/download更新なし。

@@ -1,5 +1,5 @@
 :root { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color-scheme: light dark; }
-body { margin: 0; width: 370px; }
+body { margin: 0; width: 370px; max-height: 580px; overflow-y: auto; }
 main { padding: 16px; }
 h1 { margin: 0; font-size: 17px; }
 h2 { margin: 16px 0 8px; font-size: 14px; }
@@ -11,4 +11,8 @@ button.secondary { background: #5f6368; }
 .groups { display: grid; gap: 7px; }
 .group { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 8px; border-radius: 7px; background: color-mix(in srgb, CanvasText 8%, Canvas); }
 .state { font-size: 11px; opacity: .7; }
+.privacy { margin: 12px 0; font-size: 12px; line-height: 1.6; }
+summary { cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 2px solid Highlight; outline-offset: 3px; }
 

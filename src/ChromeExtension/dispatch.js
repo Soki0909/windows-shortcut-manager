@@ -1,4 +1,5 @@
 import { parseDispatchQuery, TOGGLE_GROUP_ACTION } from "./lib/dispatch-protocol.js";
+import { dispatchDiagnostic } from "./lib/diagnostics.js";
 
 const status = document.querySelector("#status");
 const details = document.querySelector("#details");
@@ -33,15 +34,15 @@ async function run() {
   const stored = await chrome.storage.local.get("settings");
   if (stored.settings?.debugMode) {
     details.hidden = false;
-    details.textContent = JSON.stringify(response, null, 2);
+    details.textContent = JSON.stringify(dispatchDiagnostic(response), null, 2);
   } else {
     setTimeout(closeSelf, 1500);
   }
 }
 
-run().catch((error) => {
+run().catch(() => {
   status.textContent = "Dispatcher でエラーが発生しました。";
   details.hidden = false;
-  details.textContent = String(error);
+  details.textContent = "dispatcher-error";
   setTimeout(closeSelf, 1500);
 });
