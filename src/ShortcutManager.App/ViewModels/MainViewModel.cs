@@ -51,6 +51,9 @@ public sealed class MainViewModel : ObservableObject
     private string? lastApplyBackupPath;
     private string? lastAppliedSnapshot;
     private string? lastApplyBackupHash;
+    private readonly AuditControlStore auditControls;
+    private bool auditOnly;
+    private string? auditPolicyWarning;
 
     public MainViewModel(ApplicationPaths paths, ConfigRepository repository, ConfigValidator validator, LaunchSpecResolver resolver, ProcessLauncher launcher, ShortcutInventoryScanner scanner, ShortcutImporter importer, BackupService backups, ManagedShortcutApplier applier, RestoreService restore, FileLogger logger, IExplorerShellReloader shellReloader)
     {
@@ -67,6 +70,8 @@ public sealed class MainViewModel : ObservableObject
         this.logger = logger;
         logger.FailureChanged += () => Raise(nameof(LogWarning));
         this.shellReloader = shellReloader;
+        auditControls=new(paths.DataDirectory);
+        var policy=auditControls.ReadPolicy();auditOnly=policy.AuditOnly;auditPolicyWarning=policy.Warning;
         Load();
     }
 
@@ -102,6 +107,19 @@ public sealed class MainViewModel : ObservableObject
     public bool CanEditSelected => !RecoveryRequired && !IsBusy && Selected is not null;
     public bool CanConfirmHotkey => CanEditSelected && !IsDirty && !savedConfigChangedExternally && savedLinksVerified && Selected!.Enabled;
     public bool CanAuditSaved => !IsBusy && configLoaded;
+    public bool CanRepairSaved => CanAuditSaved && !incompatibleConfig && !savedConfigChangedExternally;
+    public bool AuditOnly
+    {
+        get=>auditOnly;
+        set
+        {
+            if(IsBusy || value==auditOnly)return;
+            try {auditControls.SavePolicy(value);auditPolicyWarning=null;Set(ref auditOnly,value);Status=value?"次回起動から監査のみ行い、自動修復を保留します。明示した反映・修復は実行できます。":"次回起動から差分の自動修復を有効にします。同じ差分の再試行や未確認の走査は保留します。";}
+            catch(Exception error){Status="監査方針を保存できません: "+error.Message;logger.Error("Could not save audit policy",error);Raise();}
+        }
+    }
+    public Task<IReadOnlyList<AuditHistoryItem>> ReadAuditHistoryAsync()=>Task.Run(()=>auditControls.ReadHistory());
+    public IReadOnlyList<AuditDifference> LastAuditDetails {get;private set;}=[];
     public int PendingChangeCount { get; private set; }
     public string ReloadLabel => IsDirty ? "編集を破棄して再読込" : "保存済みを再読込";
     public string SelectionText => Selected is null ? "一覧またはキー枠から対象を選んでください。" : $"選択: {Selected.Hotkey} → {Selected.Name}";
@@ -167,17 +185,23 @@ public sealed class MainViewModel : ObservableObject
         Status = "破損設定をバックアップし、空の候補を準備しました。既存リンクの削除は「変更を反映」まで行いません。";
     }
 
-    public async Task<bool> AuditStartupAsync(ManagedShortcutAuditor auditor)
+    public async Task<bool> AuditStartupAsync(ManagedShortcutAuditor auditor,bool auditOnlyOverride=false,bool explicitRepair=false)
     {
-        if (!configLoaded || IsDirty || IsBusy) return false;
+        if (!configLoaded || !explicitRepair && IsDirty || IsBusy) return false;
+        if(explicitRepair && !CheckSavedSourceUnchanged())return false;
         IsBusy = true;
         Status = "起動時監査: 保存済み設定とショートカットを照合しています…";
         try
         {
-            var result = await new StartupShortcutReconciler(auditor, applier).ReconcileAsync(candidate, ManagedDirectory, () => scanner.ScanDefaultAsync(ManagedDirectory));
+            var saved=explicitRepair?repository.Load():candidate;
+            var directory=paths.ResolveManagedDirectory(saved.Settings.ManagedShortcutDirectory);
+            async Task<IReadOnlyList<ShortcutInventoryItem>> Scan() {LastScanReport=await scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots.Concat(LastScanReport?.Roots ?? []),directory);return LastScanReport.Items;}
+            var result = await new StartupShortcutReconciler(auditor, applier).ReconcileAsync(saved,directory,Scan,AuditOnly || auditOnlyOverride,explicitRepair,auditControls,()=>LastScanReport?.IsComplete==true,()=>ConfigJson.Serialize(repository.Load())==ConfigJson.Serialize(saved));
             logger.Info($"Startup audit: repaired={result.Repaired}, differences={result.Differences}, backup={result.BackupPath}, message={result.Message}");
-            Status = result.Message;
-            savedLinksVerified = result.Repaired || result.Differences == 0;
+            Status = result.Message+(auditPolicyWarning is null?string.Empty:" "+auditPolicyWarning);
+            savedLinksVerified = result.LinksMatch;
+            LastAuditDetails=result.Repaired?result.After:result.Before;
+            if(result.SourceChanged)savedConfigChangedExternally=true;
             auditNotice = savedLinksVerified ? "保存リンク: 設定と一致しています。実キー動作は未確認です。" : "保存リンク: 不一致が残っています。";
             if (result.Repaired) { physicalConfirmations.Clear(); ShellReflectionPending = true; }
             return result.Repaired;
@@ -191,6 +215,15 @@ public sealed class MainViewModel : ObservableObject
             return false;
         }
         finally { IsBusy = false; Refresh(); }
+    }
+
+    public async Task RecoverPendingAsync()
+    {
+        if(IsBusy || IsDirty)return;
+        IsBusy=true;
+        try {var result=await Task.Run(()=>applier.RecoverPending());if(result.Succeeded){IsBusy=false;Load();if(result.GeneratedCount>0){physicalConfirmations.Clear();ShellReflectionPending=true;}}Status=result.Message;}
+        catch(Exception error){Status="中断処理の復旧を停止しました: "+error.Message;logger.Error("Explicit pending recovery failed",error);}
+        finally {IsBusy=false;Refresh();}
     }
 
     public void Upsert(ShortcutDefinition definition)
@@ -425,13 +458,18 @@ public sealed class MainViewModel : ObservableObject
                 var saved = repository.Load();
                 return (Config: saved, Audit: auditor.Audit(saved, paths.ResolveManagedDirectory(saved.Settings.ManagedShortcutDirectory)));
             });
-            var inventory = await scanner.ScanDefaultAsync(paths.ResolveManagedDirectory(result.Config.Settings.ManagedShortcutDirectory));
+            LastScanReport=await scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots.Concat(LastScanReport?.Roots ?? []),paths.ResolveManagedDirectory(result.Config.Settings.ManagedShortcutDirectory));
+            var inventory = LastScanReport.Items;
+            LastAuditDetails=result.Audit.Details;
+            ConflictingItems=inventory.Where(item=>!item.IsManaged && result.Config.Shortcuts.Any(entry=>entry.Enabled && entry.Hotkey.Canonical.Equals(item.Hotkey,StringComparison.OrdinalIgnoreCase))).ToArray();
             var external = inventory.Where(item => !item.IsManaged).Select(item => item.Hotkey).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var conflicts = result.Config.Shortcuts.Count(item => item.Enabled && external.Contains(item.Hotkey.Canonical));
             savedLinksVerified = result.Audit.Matches;
             savedConfigChangedExternally = ConfigJson.Serialize(result.Config) != savedJson;
             if (!savedLinksVerified || conflicts > 0 || savedConfigChangedExternally) physicalConfirmations.Clear();
             auditNotice = $"保存済みのみ監査: リンク差分 {result.Audit.Differences.Count} 件 / 外部キー競合 {conflicts} 件。編集中の候補は未反映です。";
+            try {auditControls.Record(new(1,DateTimeOffset.Now,"保存済みの手動監査","監査のみ",result.Audit.Details,result.Audit.Details,null,auditNotice));}
+            catch(Exception error) {logger.Error("Could not save manual audit history",error);auditNotice+=" 履歴を保存できません。";}
             Status = auditNotice + (savedConfigChangedExternally ? " 保存設定が外部で変わりました。候補を保全してから再読込してください。" : string.Empty);
             logger.Info($"Manual persisted audit: differences={result.Audit.Differences.Count}, conflicts={conflicts}, editedCandidatePreserved=True");
         }
@@ -532,7 +570,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void RaiseActionState()
     {
-        foreach (var name in new[] { nameof(CanApply), nameof(CanModify), nameof(CanRestore), nameof(CanUndoLastApply), nameof(CanEditSelected), nameof(CanConfirmHotkey), nameof(CanAuditSaved), nameof(PendingChangeCount), nameof(ReloadLabel), nameof(SelectionText), nameof(EditingNotice), nameof(AuditNotice), nameof(ShellNotice), nameof(PhysicalConfirmationNotice) }) Raise(name);
+        foreach (var name in new[] { nameof(CanApply), nameof(CanModify), nameof(CanRestore), nameof(CanUndoLastApply), nameof(CanEditSelected), nameof(CanConfirmHotkey), nameof(CanAuditSaved), nameof(CanRepairSaved), nameof(PendingChangeCount), nameof(ReloadLabel), nameof(SelectionText), nameof(EditingNotice), nameof(AuditNotice), nameof(ShellNotice), nameof(PhysicalConfirmationNotice) }) Raise(name);
     }
 
     private void Refresh()

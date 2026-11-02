@@ -44,6 +44,7 @@ Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{userprograms}\Shortcut Manager"; Filename: "{app}\ShortcutManager.exe"; WorkingDir: "{app}"
+Name: "{userprograms}\Shortcut Manager (監査のみ)"; Filename: "{app}\ShortcutManager.exe"; Parameters: "--audit-only"; WorkingDir: "{app}"; Comment: "今回の自動修復を保留し、保存済み設定とリンクの差分を確認します。"
 Name: "{userdesktop}\Shortcut Manager"; Filename: "{app}\ShortcutManager.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]

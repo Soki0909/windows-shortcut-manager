@@ -134,6 +134,28 @@ public partial class MainWindow : Window
     }
     private void Reload_Click(object sender, RoutedEventArgs e) { if (!viewModel.IsDirty || MessageBox.Show(this, $"未保存の変更 {viewModel.PendingChangeCount} 項目を破棄し、保存済み設定を読み直しますか？\nWindowsのリンク監査やExplorer再起動は行いません。", "編集を破棄して再読込", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes) viewModel.Load(); }
     private async void AuditSaved_Click(object sender, RoutedEventArgs e) => await viewModel.AuditSavedAsync(auditor);
+    private async void AuditHistory_Click(object sender,RoutedEventArgs e)
+    {
+        if(viewModel.IsBusy)return;
+        try {var dialog=new AuditHistoryWindow(await viewModel.ReadAuditHistoryAsync(),owner=>new HelpWindow(guideOwner=>ShowGettingStarted(guideOwner)){Owner=owner}.ShowDialog()) {Owner=this};if(dialog.ShowDialog()==true && dialog.SelectedBackupPath is { } path)await ShowRestorePreviewAsync(await viewModel.PrepareRestoreAsync(path));}
+        catch(Exception error) {MessageBox.Show(this,error.Message,"監査履歴を確認できません",MessageBoxButton.OK,MessageBoxImage.Warning);}
+    }
+    private async void RepairSaved_Click(object sender,RoutedEventArgs e)
+    {
+        if(!viewModel.CanRepairSaved)return;
+        await viewModel.AuditSavedAsync(auditor);if(!viewModel.CanRepairSaved)return;
+        if(viewModel.ConflictingItems.Count>0) {
+            var conflicts=new ConflictWindow(viewModel.ConflictingItems,viewModel.LastScanReport){Owner=this};
+            if(conflicts.ShowDialog()==true && conflicts.Selected is { } item){var row=viewModel.Shortcuts.FirstOrDefault(entry=>entry.Enabled && entry.Hotkey.Equals(item.Hotkey,StringComparison.OrdinalIgnoreCase));if(row is not null){viewModel.Selected=row;Edit(row.Definition,null);}}
+            return;
+        }
+        if(new AuditRepairWindow(viewModel.LastAuditDetails,viewModel.LastScanReport?.Summary ?? string.Empty){Owner=this}.ShowDialog()==true && await viewModel.AuditStartupAsync(auditor,explicitRepair:true))await OfferShellReloadAsync();
+    }
+    private async void RecoverPending_Click(object sender,RoutedEventArgs e)
+    {
+        if(viewModel.IsBusy || viewModel.IsDirty){MessageBox.Show(this,"未保存の候補がある場合は、先に候補を保全または破棄してください。","中断処理の復旧");return;}
+        if(MessageBox.Show(this,"監査のみの起動では保留した、中断した反映・復元のjournalを明示復旧します。退避した完全な状態へ戻します。続行しますか？","中断処理の復旧",MessageBoxButton.YesNo,MessageBoxImage.Warning)==MessageBoxResult.Yes)await viewModel.RecoverPendingAsync();
+    }
     private void StateDetails_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this, viewModel.EditingNotice + "\n\n" + viewModel.AuditNotice + "\n\n" + viewModel.ShellNotice + "\n\n" + viewModel.PhysicalConfirmationNotice, "保存・リンク・Windowsの状態", MessageBoxButton.OK, MessageBoxImage.Information);
     private void ConfirmHotkey_Click(object sender, RoutedEventArgs e)
     {

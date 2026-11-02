@@ -212,6 +212,19 @@ public sealed class EditorStateTests : IDisposable
         await Assert.ThrowsAsync<InvalidOperationException>(()=>vm.PrepareUndoRestoreAsync());Assert.Contains("外部",vm.EditingNotice);Assert.False(vm.CanUndoLastApply);
     }
 
+    [Fact]
+    public async Task ExplicitRepairUsesSavedDefinitionAndKeepsUnsavedCandidateAndAuditPolicySeparate()
+    {
+        var entry=Entry();Save(entry);var vm=Model();var original=File.ReadAllBytes(repository.Path);vm.AuditOnly=true;
+        Assert.Equal(original,File.ReadAllBytes(repository.Path));Assert.True(Model().AuditOnly);
+        vm.Upsert(entry with {Name="Unsaved edit"});var candidate=ConfigJson.Serialize(vm.Candidate);
+        var path=Directory.GetFiles(Managed,"*.lnk").Single();var spec=JsonSerializer.Deserialize<ShellLinkSpec>(File.ReadAllText(path))!;File.WriteAllText(path,JsonSerializer.Serialize(spec with {Arguments="drift"}));
+        var count=Directory.GetFiles(Path.Combine(root,"backups"),"*.zip").Length;
+        Assert.True(await vm.AuditStartupAsync(new(new(),resolver,links),explicitRepair:true));
+        Assert.Equal(candidate,ConfigJson.Serialize(vm.Candidate));Assert.True(vm.IsDirty);Assert.Equal(entry.Name,repository.Load().Shortcuts.Single().Name);Assert.Equal(spec.Arguments,links.Read(path).Arguments);Assert.Equal(spec.Description,links.Read(path).Description);Assert.True(vm.ShellReflectionPending);
+        Assert.Equal(count+1,Directory.GetFiles(Path.Combine(root,"backups"),"*.zip").Length);
+    }
+
     public void Dispose() => Directory.Delete(root,true);
     private sealed class ResultReloader : IExplorerShellReloader
     {

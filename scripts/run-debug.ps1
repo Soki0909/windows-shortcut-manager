@@ -1,4 +1,4 @@
-param([switch]$NoLaunch)
+param([switch]$NoLaunch,[switch]$AuditOnly)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path "$PSScriptRoot\..").Path
 $output = Join-Path $root 'src\ShortcutManager.App\bin\Debug\net10.0-windows'
@@ -9,4 +9,8 @@ if (Test-Path -LiteralPath $legacyLauncher) { Remove-Item -LiteralPath $legacyLa
 if ($LASTEXITCODE -ne 0) { throw 'Debug build failed.' }
 $executable = Join-Path $output 'ShortcutManager.Debug.exe'
 if (-not (Test-Path -LiteralPath $executable)) { throw 'Debug executable was not found.' }
-if (-not $NoLaunch) { Start-Process -FilePath $executable -WorkingDirectory (Split-Path $executable) -WindowStyle Hidden }
+if (-not $NoLaunch) {
+    $launch = @{ FilePath=$executable; WorkingDirectory=(Split-Path $executable); WindowStyle='Hidden' }
+    if ($AuditOnly) { $launch.ArgumentList=@('--audit-only') }
+    Start-Process @launch
+}

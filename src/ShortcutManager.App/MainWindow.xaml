@@ -66,6 +66,10 @@
               <MenuItem Header="選択した起動内容をプレビュー…" Click="Preview_Click" IsEnabled="{Binding CanEditSelected}"/>
               <Separator/>
               <MenuItem Header="保存済みを監査（編集は保持）" Click="AuditSaved_Click" IsEnabled="{Binding CanAuditSaved}"/>
+              <MenuItem Header="監査・修復の履歴…" Click="AuditHistory_Click"/>
+              <MenuItem Header="保存済みの管理リンクを明示修復…" Click="RepairSaved_Click" IsEnabled="{Binding CanRepairSaved}"/>
+              <MenuItem Header="次回から監査のみ（自動修復を保留）" IsCheckable="True" IsChecked="{Binding AuditOnly, Mode=TwoWay}"/>
+              <MenuItem Header="中断した反映を復旧…" Click="RecoverPending_Click"/>
               <MenuItem Header="選択キーの実動作を確認済みにする" Click="ConfirmHotkey_Click" IsEnabled="{Binding CanConfirmHotkey}"/>
               <Separator/>
               <MenuItem Header="{Binding ReloadLabel}" Click="Reload_Click"/>
