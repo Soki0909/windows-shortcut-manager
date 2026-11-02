@@ -2,6 +2,8 @@
 
 ## Data handling
 
+保存範囲、利用目的、消去方法は [プライバシーポリシー](PRIVACY.md) にまとめています。
+
 Shortcut ManagerとTab Bridgeはlocal-onlyです。テレメトリ、analytics、外部backend、cloud syncを実装していません。Extensionはページ本文を読み取らず、host permissions/content scriptsを要求しません。last-used tabのグループ名・ID・URL・記録時刻はChrome local storageに新しい100グループ分まで保持します。PopupでURL補助保存をオフにすると既存URLも除去し、今後はIDと時刻だけを記録します。履歴消去はタブ/グループやその他の設定を変更しません。診断表示にURL履歴や任意の例外本文を含めません。
 
 ## Secrets

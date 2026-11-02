@@ -4,6 +4,8 @@
 
 ## Progress
 
+- [ ] #46: 公開プライバシーポリシー、掲載文面・4権限の理由・審査手順・ID移行/rollback・所有者工程を準備。公式Listing/データ方針を参照し、実装のlocal/session/通知/診断/消去処理と照合。最終実画面素材とアカウント/提出/審査/公開URLは未完了でIssueを維持する。開発用静的描画をStore実画面素材として扱わない。
+
 - [x] #49: PR #143、CI 41490714974全対象success後main `35e12ec`へ統合。#142のAction更新も公式tag/SHA/MIT/互換性を手動確認し、CI 41489075505成功後統合済み。ロードマップ15 checkboxを同期・再照合。
 - [x] #56/#91: PR #145、最新head34158cbの統合CI 41500960914とnative 41500960938成功後main `450a520`へ統合。公開旧Setupからの保持付き更新と構成差fixtureもpassed。#52の保持説明/設計は反映したが完全削除UIは未実装でopen。
 - [x] PR #144: テスト専用SDK18.11.0/VS runner4.0.1のlicense、公式archive SHA-512、署名、脆弱性audit0件、CI実件数Core39/Windows170を確認後main `31bbc00`へ統合。製品依存追加なし。
