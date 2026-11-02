@@ -36,7 +36,7 @@
 
   <Border Padding="22">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-  <Grid MinWidth="960" MinHeight="660" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}" IsEnabled="{Binding CanInteract}">
+  <Grid MinWidth="960" MinHeight="660" Width="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}" IsEnabled="{Binding CanInteract}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>
@@ -62,6 +62,9 @@
           <Button Content="既存をスキャン" Click="Scan_Click" Style="{StaticResource QuietButtonStyle}" IsEnabled="{Binding CanModify}"/>
           <Menu Background="Transparent" VerticalAlignment="Center" Margin="4,0">
             <MenuItem Header="確認と復旧" Padding="12,8">
+              <MenuItem Header="選択した割当の全文・検証結果…" Click="Details_Click" IsEnabled="{Binding CanEditSelected}"/>
+              <MenuItem Header="選択した起動内容をプレビュー…" Click="Preview_Click" IsEnabled="{Binding CanEditSelected}"/>
+              <Separator/>
               <MenuItem Header="保存済みを監査（編集は保持）" Click="AuditSaved_Click" IsEnabled="{Binding CanAuditSaved}"/>
               <MenuItem Header="選択キーの実動作を確認済みにする" Click="ConfirmHotkey_Click" IsEnabled="{Binding CanConfirmHotkey}"/>
               <Separator/>

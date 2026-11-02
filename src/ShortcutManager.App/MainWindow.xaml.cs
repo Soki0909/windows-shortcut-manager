@@ -39,7 +39,8 @@ public partial class MainWindow : Window
     {
         if (viewModel.IsBusy || viewModel.RecoveryRequired) return false;
         var usedKeys = viewModel.Shortcuts.Where(row => row.Definition.Id != definition?.Id && row.Enabled).GroupBy(row => row.Key).ToDictionary(group => group.Key, group => string.Join(" / ", group.Select(row => row.Name)));
-        var dialog = new ShortcutEditorWindow(definition, key, usedKeys, initialType) { Owner = owner ?? this };
+        var invalid=definition is not null && viewModel.Shortcuts.Any(row=>row.Definition.Id==definition.Id && !string.IsNullOrEmpty(row.Error));
+        var dialog = new ShortcutEditorWindow(definition, key, usedKeys, initialType, viewModel.Candidate, invalid) { Owner = owner ?? this };
         if (dialog.ShowDialog() != true || dialog.Result is null) return false;
         viewModel.Upsert(dialog.Result);
         viewModel.Selected = viewModel.Shortcuts.First(row => row.Definition.Id == dialog.Result.Id);
@@ -89,10 +90,28 @@ public partial class MainWindow : Window
 
     private void Delete_Click(object sender, RoutedEventArgs e)
     {
-        if (viewModel.Selected is not null && MessageBox.Show(this, $"「{viewModel.Selected.Name}」を候補設定から削除しますか？実ファイルはApplyまで変更されません。", "Delete", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) viewModel.DeleteSelected();
+        if (viewModel.Selected is not null && MessageBox.Show(this, $"「{viewModel.Selected.Name}」を候補設定から削除しますか？実ファイルは「変更を反映」まで変更されません。", "割当を削除", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) viewModel.DeleteSelected();
     }
 
-    private void Test_Click(object sender, RoutedEventArgs e) { if (viewModel.Selected is not null) viewModel.Test(viewModel.Selected.Definition); }
+    private void Test_Click(object sender, RoutedEventArgs e) => PreviewSelected(false);
+    private void Preview_Click(object sender, RoutedEventArgs e) => PreviewSelected(true);
+    private void Details_Click(object sender, RoutedEventArgs e)
+    {
+        if(!viewModel.CanEditSelected) return;
+        var row=viewModel.Selected!;
+        new ShortcutDetailsWindow(row,owner=>Edit(row.Definition,null,owner)) {Owner=this}.ShowDialog();
+    }
+    private void PreviewSelected(bool alwaysShow)
+    {
+        if(!viewModel.CanEditSelected) return;
+        var definition=viewModel.Selected!.Definition;
+        if(!alwaysShow && definition.Target is Core.Models.WebsiteTarget) {viewModel.Test(definition);return;}
+        var spec=viewModel.PrepareLaunch(definition);
+        if(spec is null) {MessageBox.Show(this,viewModel.Status,"起動内容を確認できません",MessageBoxButton.OK,MessageBoxImage.Warning);return;}
+        var notice=definition.Target is Core.Models.ApplicationTarget app && app.LaunchMode==Core.Models.ApplicationLaunchMode.Uri ? new Windows.Diagnostics.UriRegistrationInspector().Inspect(app.Value).Message : string.Empty;
+        if(definition.Target is Core.Models.ApplicationTarget {LaunchMode:not Core.Models.ApplicationLaunchMode.Executable} indirect && !string.IsNullOrWhiteSpace(indirect.Arguments)) notice+="\n保存された追加引数はこの起動方法では使いません。以下に実際の引数を表示しています。";
+        new LaunchPreviewWindow(definition.Name,spec,notice,()=> {var succeeded=viewModel.ExecutePreview(definition,spec);return(succeeded,viewModel.Status);}) {Owner=this}.ShowDialog();
+    }
     private void Reload_Click(object sender, RoutedEventArgs e) { if (!viewModel.IsDirty || MessageBox.Show(this, $"未保存の変更 {viewModel.PendingChangeCount} 項目を破棄し、保存済み設定を読み直しますか？\nWindowsのリンク監査やExplorer再起動は行いません。", "編集を破棄して再読込", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes) viewModel.Load(); }
     private async void AuditSaved_Click(object sender, RoutedEventArgs e) => await viewModel.AuditSavedAsync(auditor);
     private void StateDetails_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this, viewModel.EditingNotice + "\n\n" + viewModel.AuditNotice + "\n\n" + viewModel.ShellNotice + "\n\n" + viewModel.PhysicalConfirmationNotice, "保存・リンク・Windowsの状態", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -137,7 +156,7 @@ public partial class MainWindow : Window
     {
         if (viewModel.IsBusy) { e.Cancel = true; return; }
         if (!viewModel.IsDirty) return;
-        var result = MessageBox.Show(this, "未適用の変更を破棄して終了しますか？", "Shortcut Manager", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        var result = MessageBox.Show(this, $"未保存の変更 {viewModel.PendingChangeCount} 項目を破棄して終了しますか？\n保存済み設定とWindowsのリンクは変更しません。", "Shortcut Manager", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (result != MessageBoxResult.Yes) e.Cancel = true;
     }
 }

@@ -134,6 +134,31 @@ public sealed class EditorStateTests : IDisposable
         Assert.True(vm.SelectKey("F")); Assert.Null(vm.Selected); // Empty key must not keep the previous edit target.
     }
 
+    [Fact]
+    public void PreviewResolvesWithoutLaunchingOrSavingAndRejectsChangedDefinition()
+    {
+        var file=Path.Combine(root,"preview.exe"); File.WriteAllText(file,"not executable");
+        var entry=Entry() with {Target=new ApplicationTarget {Value=file,Arguments="--example"}};
+        var vm=Model(); vm.Upsert(entry);
+        var before=ConfigJson.Serialize(vm.Candidate);
+        var spec=vm.PrepareLaunch(entry);
+        Assert.NotNull(spec); Assert.Equal(file,spec.TargetPath); Assert.Equal("--example",spec.Arguments);
+        Assert.False(File.Exists(repository.Path)); Assert.Equal(before,ConfigJson.Serialize(vm.Candidate));
+        Assert.False(vm.ExecutePreview(entry,spec with {Arguments="changed"}));
+        vm.Upsert(entry with {Name="Changed after preview"});
+        Assert.Null(vm.PrepareLaunch(entry)); Assert.False(vm.ExecutePreview(entry,spec));
+        Assert.False(File.Exists(repository.Path)); Assert.True(vm.IsDirty);
+    }
+
+    [Fact]
+    public void DisabledDraftMustHaveARealTargetBeforePreview()
+    {
+        var entry=Entry() with {Enabled=false,Target=new ApplicationTarget {Value=Path.Combine(root,"missing.exe")}};
+        var vm=Model(); vm.Upsert(entry);
+        Assert.Null(vm.PrepareLaunch(entry)); Assert.False(File.Exists(repository.Path));
+        Assert.Contains("見つからない",vm.Status);
+    }
+
     public void Dispose() => Directory.Delete(root,true);
     private sealed class ResultReloader : IExplorerShellReloader
     {

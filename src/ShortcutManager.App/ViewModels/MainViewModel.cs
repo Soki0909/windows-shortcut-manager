@@ -129,7 +129,7 @@ public sealed class MainViewModel : ObservableObject
             Refresh();
             IsDirty = false;
             RecoveryRequired = false;
-            Status = File.Exists(paths.ConfigPath) ? "config.json を読み込みました。" : "初回起動: ショートカットを追加するか既存をスキャンしてください。";
+            Status = File.Exists(paths.ConfigPath) ? "保存済み設定を読み込みました。" : "初回起動: ショートカットを追加するか既存をスキャンしてください。";
         }
         catch (Exception error)
         {
@@ -248,7 +248,7 @@ public sealed class MainViewModel : ObservableObject
         if (!IsDirty) { Status = "保存済みとの差分はありません。反映は行いませんでした。"; return false; }
         if (!explicitRecoveryInitialization && !CheckSavedSourceUnchanged()) return false;
         IsBusy = true;
-        Status = "validate → scan → stage → backup → apply を実行しています…";
+        Status = "入力と既存キーを確認し、自動バックアップして変更を反映しています…";
         try
         {
             var scan = await scanner.ScanDefaultAsync(ManagedDirectory);
@@ -274,7 +274,7 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (Exception error)
         {
-            Status = $"Apply に失敗しました: {error.Message}";
+            Status = $"変更の反映に失敗しました: {error.Message}";
             logger.Error("Apply failed", error);
             return false;
         }
@@ -285,7 +285,7 @@ public sealed class MainViewModel : ObservableObject
     {
         if (IsBusy) return;
         IsBusy = true;
-        Status = "Windows Shellを再読み込みしています…";
+        Status = "Explorer（デスクトップとタスクバー）を再起動しています…";
         logger.Info("Shell reload requested by user.");
         try
         {
@@ -296,7 +296,7 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (Exception error)
         {
-            Status = $"Windows Shellの再読み込みに失敗しました: {error.Message}";
+            Status = $"Explorerの再起動に失敗しました: {error.Message}";
             logger.Error("Shell reload failed", error);
         }
         finally { IsBusy = false; Refresh(); }
@@ -304,23 +304,52 @@ public sealed class MainViewModel : ObservableObject
 
     public void Test(ShortcutDefinition definition)
     {
-        if (!CanModify) return;
+        var spec=PrepareLaunch(definition);
+        if(spec is not null) ExecutePreview(definition,spec);
+    }
+
+    public LaunchSpec? PrepareLaunch(ShortcutDefinition definition)
+    {
+        if (!CanModify) return null;
         try
         {
-            var result = validator.Validate(candidate);
-            if (result.Issues.Any(issue => issue.ShortcutId == definition.Id))
+            var currentDefinition=candidate.Shortcuts.FirstOrDefault(item=>item.Id==definition.Id);
+            if(currentDefinition is null || JsonSerializer.Serialize(currentDefinition,ConfigJson.Options)!=JsonSerializer.Serialize(definition,ConfigJson.Options))
             {
-                Status = string.Join(" / ", result.Issues.Where(issue => issue.ShortcutId == definition.Id).Select(issue => issue.Message));
-                return;
+                Status="割当が変わったため起動を停止しました。対象を選び直してください。";
+                return null;
             }
-            launcher.Launch(resolver.Resolve(candidate, definition));
+            // Target tests do not register a key. Validate the selected target as enabled,
+            // without letting another draft's key conflict prevent a read-only preview.
+            var result = validator.Validate(candidate with { Shortcuts=[definition with { Enabled=true }] });
+            if (!result.IsValid)
+            {
+                Status = string.Join(" / ", result.Issues.Select(issue => issue.Message));
+                return null;
+            }
+            return resolver.Resolve(candidate, definition);
+        }
+        catch(Exception error) { Status=$"起動内容を確認できません: {error.Message}"; logger.Error("Launch preview failed",error); return null; }
+    }
+
+    public bool ExecutePreview(ShortcutDefinition definition, LaunchSpec preview)
+    {
+        if(!CanModify) return false;
+        try
+        {
+            var current=PrepareLaunch(definition);
+            if(current is null) return false;
+            if(current!=preview) { Status="起動内容が変わったため実行を中止しました。プレビューを開き直してください。"; return false; }
+            launcher.Launch(preview);
             Status = $"{definition.Name} をテスト起動しました。";
             logger.Info($"Test launch: {definition.Name}");
+            return true;
         }
         catch (Exception error)
         {
             Status = $"テスト起動に失敗しました: {error.Message}";
             logger.Error("Test launch failed", error);
+            return false;
         }
     }
 
@@ -521,8 +550,8 @@ public sealed record ShortcutRow(ShortcutDefinition Definition, string Target, s
     public string Key => Definition.Hotkey.Key;
     public string Hotkey => Definition.Hotkey.Canonical;
     public string Name => Definition.Name;
-    public string Type => Definition.Target switch { WebsiteTarget => "Website", ApplicationTarget => "Application", BatTarget => "BAT/CMD", ChromeTabGroupTarget => "Chrome Group", _ => "Unknown" };
-    public string FullDescription => $"{Hotkey} → {Name}\n{Target}\n{StateLabel}" + (string.IsNullOrEmpty(Error) ? string.Empty : "\n" + Error);
+    public string Type => Definition.Target switch { WebsiteTarget => "Webサイト", ApplicationTarget => "アプリ", BatTarget => "BAT / CMD", ChromeTabGroupTarget => "Chromeグループ", _ => "未対応" };
+    public string FullDescription => $"{Hotkey} → {Name}\n種類: {Type}\n{Target}\n{StateLabel}" + (Definition.Target switch { ApplicationTarget app=>$"\n追加引数: {app.Arguments}\n作業フォルダ: {app.WorkingDirectory}" + (app.LaunchMode!=ApplicationLaunchMode.Executable ? "\nこの起動方法では追加引数を渡しません。" : string.Empty), BatTarget bat=>$"\n追加引数: {bat.Arguments}\n作業フォルダ: {bat.WorkingDirectory}", _=>string.Empty }) + (string.IsNullOrEmpty(Error) ? string.Empty : "\n検証: " + Error);
 }
 
 public sealed class KeyTile(string key, string name, string status, ShortcutRow? row, int entryCount = 0, string? description = null) : ObservableObject
