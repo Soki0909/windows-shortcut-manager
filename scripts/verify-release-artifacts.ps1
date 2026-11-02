@@ -59,6 +59,17 @@ if ($RunInstallerSmoke) {
     try {
         $exe = Join-Path $install 'ShortcutManager.exe'
         if ((Get-Item -LiteralPath $exe).VersionInfo.ProductVersion.Split('+')[0] -ne $Version) { throw 'Installed version mismatch.' }
+        $auditLinkPath = Join-Path ([Environment]::GetFolderPath('Programs')) 'Shortcut Manager (監査のみ).lnk'
+        if (-not (Test-Path -LiteralPath $auditLinkPath)) { throw 'Audit-only Start Menu shortcut is missing.' }
+        $shortcutShell = New-Object -ComObject WScript.Shell
+        $auditLink = $null
+        try {
+            $auditLink = $shortcutShell.CreateShortcut($auditLinkPath)
+            if ($auditLink.TargetPath -ne $exe -or $auditLink.Arguments -ne '--audit-only' -or $auditLink.Hotkey) { throw 'Audit-only shortcut target, arguments or HotKey are incorrect.' }
+        } finally {
+            if ($auditLink) { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($auditLink) }
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcutShell)
+        }
         $fixture = Join-Path $temp 'empty.json'
         [IO.File]::WriteAllText($fixture, '{"schemaVersion":1,"dispatchProtocolVersion":1,"settings":{},"shortcuts":[]}')
         $result = Join-Path $temp 'validate.json'

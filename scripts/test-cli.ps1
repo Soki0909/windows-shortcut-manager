@@ -26,8 +26,9 @@ if ((Get-Content -LiteralPath $failure -Raw | ConvertFrom-Json).ok -ne $false) {
 Invoke-Probe @('--validate-config','--result',"`"$failure`"") 1
 Invoke-Probe @('--validate-config',"`"$valid`"") 1
 Invoke-Probe @('--unknown-option','--result',"`"$failure`"") 1
+Invoke-Probe @('--audit-only','--scan','--result',"`"$failure`"") 1
 # A result destination below a regular file cannot be created.
 Invoke-Probe @('--validate-config',"`"$valid`"",'--result',"`"$invalid/result.json`"") 1
 if ((Get-Content -LiteralPath $valid -Raw) -notmatch '"schemaVersion":1') { throw 'Input changed.' }
 if ((Get-Content -LiteralPath $invalid -Raw) -ne '{}') { throw 'Invalid input changed.' }
-Write-Host "CLI probes passed (6): $fixture"
+Write-Host "CLI probes passed (7): $fixture"

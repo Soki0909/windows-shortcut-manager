@@ -13,11 +13,13 @@ public partial class App : Application
     private ShortcutManager.Windows.Logging.FileLogger? applicationLogger;
     private string[] startupArgs = [];
     private bool stoppingAfterError;
+    private bool guiLaunch;
     protected override void OnExit(ExitEventArgs e) { instance?.Dispose(); base.OnExit(e); }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         startupArgs = e.Args;
+        guiLaunch=e.Args.Length==0;
         DispatcherUnhandledException += (_, error) =>
         {
             error.Handled = true;
@@ -45,7 +47,7 @@ public partial class App : Application
             }
             catch (Exception outputError) { applicationLogger?.Error("Could not write command result", outputError); }
         }
-        if (!startupArgs.Any(arg => arg.StartsWith("--", StringComparison.Ordinal)))
+        if (guiLaunch)
             MessageBox.Show(message, "Shortcut Manager — 処理を停止しました", MessageBoxButton.OK, MessageBoxImage.Error);
         Shutdown(1);
     }
@@ -55,6 +57,7 @@ public partial class App : Application
         base.OnStartup(e);
         BuildIdentity.ConfigureTaskbar();
         ValidateCommandArguments(e.Args);
+        guiLaunch=!IsCommandMode(e.Args);
         var paths = ShortcutManager.Windows.Storage.ApplicationPaths.ForCurrentUser(BuildIdentity.IsDevelopment);
         instance = new(paths.ConfigPath);
         if (!instance.Acquired)
@@ -62,7 +65,7 @@ public partial class App : Application
             const string message = "この版のShortcut Managerは既に起動しています。開いている画面で操作し、変更を反映または破棄してから終了してください。";
             var resultPath = ValueAfter(e.Args, "--result");
             if (resultPath is not null) { Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(resultPath))!); File.WriteAllText(resultPath, JsonSerializer.Serialize(new { ok = false, message })); }
-            else if (e.Args.Length == 0) MessageBox.Show(message, "Shortcut Manager", MessageBoxButton.OK, MessageBoxImage.Information);
+            else if (guiLaunch) MessageBox.Show(message, "Shortcut Manager", MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown(1); return;
         }
         var repository = new ShortcutManager.Windows.Storage.ConfigRepository(paths.ConfigPath);
@@ -75,7 +78,9 @@ public partial class App : Application
         var logger = new ShortcutManager.Windows.Logging.FileLogger(paths.LogPath);
         applicationLogger = logger;
         var restore = new ShortcutManager.Windows.Backup.RestoreService(validator, applier);
-        if (!e.Args.Contains("--scan", StringComparer.OrdinalIgnoreCase) && !e.Args.Contains("--validate-config", StringComparer.OrdinalIgnoreCase) && !e.Args.Contains("--diagnose-launch", StringComparer.OrdinalIgnoreCase))
+        var guiAuditOnly=e.Args.Contains("--audit-only",StringComparer.OrdinalIgnoreCase) || new ShortcutManager.Windows.Apply.AuditControlStore(paths.DataDirectory).ReadPolicy().AuditOnly;
+        var commandMode=IsCommandMode(e.Args);
+        if ((!guiAuditOnly || commandMode) && !e.Args.Contains("--scan", StringComparer.OrdinalIgnoreCase) && !e.Args.Contains("--validate-config", StringComparer.OrdinalIgnoreCase) && !e.Args.Contains("--diagnose-launch", StringComparer.OrdinalIgnoreCase))
         {
             var recovery = applier.RecoverPending();
             if (!recovery.Succeeded)
@@ -100,7 +105,7 @@ public partial class App : Application
         {
             window.IsEnabled = false;
             bool repaired;
-            try { repaired = await viewModel.AuditStartupAsync(auditor); }
+            try { repaired = await viewModel.AuditStartupAsync(auditor,guiAuditOnly); }
             finally { window.IsEnabled = true; }
             if (repaired) await window.OfferShellReloadAsync();
             if (!viewModel.RecoveryRequired && !File.Exists(paths.ConfigPath) && viewModel.Shortcuts.Count == 0) window.ShowGettingStarted();
@@ -179,14 +184,17 @@ public partial class App : Application
         {
             var flag = args[index];
             if (!flags.Add(flag)) throw new ArgumentException($"Duplicate option: {flag}");
-            if (flag.Equals("--scan", StringComparison.OrdinalIgnoreCase) || flag.Equals("--diagnose-launch", StringComparison.OrdinalIgnoreCase)) continue;
+            if (flag.Equals("--scan", StringComparison.OrdinalIgnoreCase) || flag.Equals("--diagnose-launch", StringComparison.OrdinalIgnoreCase) || flag.Equals("--audit-only",StringComparison.OrdinalIgnoreCase)) continue;
             if (!new[] { "--validate-config", "--apply-config", "--restore-backup", "--result", "--chrome-test-profile" }.Contains(flag, StringComparer.OrdinalIgnoreCase)
                 || (flag.Equals("--chrome-test-profile", StringComparison.OrdinalIgnoreCase) && !BuildIdentity.IsDevelopment)) throw new ArgumentException($"Unknown option: {flag}");
             if (++index >= args.Length || args[index].StartsWith("--", StringComparison.Ordinal)) throw new ArgumentException($"Value required: {flag}");
         }
         var commandCount = commands.Count(flags.Contains);
+        if(commandCount>0 && flags.Contains("--audit-only"))throw new ArgumentException("--audit-only はGUI起動専用です。");
+        if(commandCount==0 && flags.All(flag=>flag.Equals("--audit-only",StringComparison.OrdinalIgnoreCase) || flag.Equals("--chrome-test-profile",StringComparison.OrdinalIgnoreCase)))return;
         if (commandCount == 0 && flags.Count == 1 && flags.Contains("--chrome-test-profile")) return;
         if (commandCount != 1 || !flags.Contains("--result")) throw new ArgumentException("Specify exactly one command and --result <path>.");
     }
+    private static bool IsCommandMode(string[] args)=>args.Any(arg=>new[]{"--scan","--validate-config","--apply-config","--restore-backup","--diagnose-launch"}.Contains(arg,StringComparer.OrdinalIgnoreCase));
 }
 
