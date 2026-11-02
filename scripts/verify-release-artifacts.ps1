@@ -65,7 +65,9 @@ if ($RunInstallerSmoke) {
         $auditLink = $null
         try {
             $auditLink = $shortcutShell.CreateShortcut($auditLinkPath)
-            if ($auditLink.TargetPath -ne $exe -or $auditLink.Arguments -ne '--audit-only' -or $auditLink.Hotkey) { throw 'Audit-only shortcut target, arguments or HotKey are incorrect.' }
+            $actual = [pscustomobject]@{ Target=$auditLink.TargetPath; ExpectedTarget=$exe; Arguments=$auditLink.Arguments; Hotkey=$auditLink.Hotkey }
+            Write-Host ($actual | ConvertTo-Json -Compress)
+            if ($actual.Target -ne $exe -or $actual.Arguments -ne '--audit-only' -or $actual.Hotkey) { throw 'Audit-only shortcut target, arguments or HotKey are incorrect; see the readback above.' }
         } finally {
             if ($auditLink) { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($auditLink) }
             [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcutShell)
