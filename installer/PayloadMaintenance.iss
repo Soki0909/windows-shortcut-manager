@@ -45,8 +45,9 @@ begin
     Sep := Pos('\', Rest);
     if Sep = 0 then Part := Rest else Part := Copy(Rest, 1, Sep - 1);
     if (Part = '') or (Part = '.') or (Part = '..') or (Part <> Trim(Part)) or (Copy(Part, Length(Part), 1) = '.') then exit;
-    for I := 1 to Length(Part) do
-      if (Ord(Part[I]) < 32) or (Pos(Part[I], '"|?*') <> 0) then exit;
+    // Keep Unicode path characters as strings; do not narrow them through Char.
+    for I := 0 to 31 do if Pos(Chr(I), Part) <> 0 then exit;
+    for I := 1 to Length('"|?*') do if Pos(Copy('"|?*', I, 1), Part) <> 0 then exit;
     if Sep = 0 then break;
     Rest := Copy(Rest, Sep + 1, Length(Rest));
   until False;
@@ -77,20 +78,21 @@ var Size: Int64; Count, I, J: Integer; Section, Relative, Hash: String;
 begin
   Result := False;
   SetArrayLength(Files, 0);
-  if PayloadUnsafePath(Name) or not FileSize64(Name, Size) then exit;
-  if (Size < 1) or (Size > 1048576) then exit;
-  if GetIniString('Payload', 'Format', '', Name) <> 'ShortcutManager.InstallPayload.v1' then exit;
+  if PayloadUnsafePath(Name) or not FileSize64(Name, Size) then begin Log('Payload receipt rejected: unsafe/unreadable path.'); exit; end;
+  if (Size < 1) or (Size > 1048576) then begin Log('Payload receipt rejected: size.'); exit; end;
+  if GetIniString('Payload', 'Format', '', Name) <> 'ShortcutManager.InstallPayload.v1' then begin Log('Payload receipt rejected: format.'); exit; end;
   if BoundRoot <> '' then
-    if CompareText(GetIniString('Payload', 'InstallDirectory', '', Name), BoundRoot) <> 0 then exit;
+    if CompareText(GetIniString('Payload', 'InstallDirectory', '', Name), BoundRoot) <> 0 then begin Log('Payload receipt rejected: installation directory mismatch.'); exit; end;
   Count := StrToIntDef(GetIniString('Payload', 'Count', '', Name), -1);
-  if (Count < 1) or (Count > 4096) then exit;
+  if (Count < 1) or (Count > 4096) then begin Log('Payload receipt rejected: count.'); exit; end;
   SetArrayLength(Files, Count);
   for I := 0 to Count - 1 do begin
     Section := 'File' + IntToStr(I);
     Relative := GetIniString(Section, 'Path', '', Name);
     Hash := GetIniString(Section, 'Sha256', '', Name);
-    if not PayloadSafeRelative(Relative) or not PayloadValidHash(Hash) then exit;
-    for J := 0 to I - 1 do if CompareText(Files[J].RelativePath, Relative) = 0 then exit;
+    if not PayloadSafeRelative(Relative) then begin Log('Payload receipt rejected: relative path at index ' + IntToStr(I)); exit; end;
+    if not PayloadValidHash(Hash) then begin Log('Payload receipt rejected: hash at index ' + IntToStr(I)); exit; end;
+    for J := 0 to I - 1 do if CompareText(Files[J].RelativePath, Relative) = 0 then begin Log('Payload receipt rejected: duplicate path.'); exit; end;
     Files[I].RelativePath := Relative;
     Files[I].Sha256 := LowerCase(Hash);
   end;

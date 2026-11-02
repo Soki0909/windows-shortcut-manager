@@ -32,6 +32,15 @@ for($case=0;$case -le 11;$case++){
         11 {New-Item -ItemType Junction -Path (Join-Path $app 'linked') -Target $old|Out-Null}
     }
 }
+$protected=@{}
+for($case=0;$case -le 11;$case++){
+    $app=Join-Path $fixture "case-$case/app"
+    $paths=@((Join-Path $app 'current.txt'))
+    $keep=switch($case){1 {'modified.txt'} 2 {'user-added.txt'} 3 {'old.txt'} 4 {'linked/old.txt'} 5 {'old.txt'} 6 {'old.txt'} 7 {'legacy-extra.txt'} 8 {'old.txt'} 9 {'old.txt'} 10 {'locked.txt'} 11 {'old.txt'}}
+    if($keep){$paths+=Join-Path $app $keep}
+    if($case -in 3,5,8,9){$paths+=Join-Path $app '.shortcut-manager-payload.ini'}
+    foreach($path in $paths){$protected[$path]=(Get-FileHash -LiteralPath $path).Hash}
+}
 $log=Join-Path $fixture 'compile.log'
 & $CompilerPath "/DPayloadTestsRoot=$fixture" "/O$fixture" "$PSScriptRoot/../tests/Installer.Tests/PayloadMaintenance.iss" *> $log
 if($LASTEXITCODE -ne 0){Get-Content -LiteralPath $log -Tail 20;throw 'Native payload test harness did not compile.'}
@@ -45,5 +54,6 @@ try{
     }
     $result=Get-Content -LiteralPath (Join-Path $fixture 'result.json') -Raw|ConvertFrom-Json
     if(-not $result.ok -or $result.cases -ne 12){throw 'Native payload test evidence is incomplete.'}
-    Write-Host 'Native installer payload checks passed (12). Harness exited before installation; fixture only.'
+    foreach($path in $protected.Keys){if(-not (Test-Path -LiteralPath $path) -or (Get-FileHash -LiteralPath $path).Hash -ne $protected[$path]){throw 'Native payload checks changed protected file bytes.'}}
+    Write-Host "Native installer payload checks passed (12), $($protected.Count) retained file hashes unchanged. Harness exited before installation; fixture only."
 }finally{$locked.Dispose()}
