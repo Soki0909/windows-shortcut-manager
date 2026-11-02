@@ -32,7 +32,7 @@ public sealed class SettingsWindow : Window
         }
         ok.Click += (_, _) => { if (Validate(true)) DialogResult = true; };
         chromePath.TextChanged += (_, _) => Validate(false); extensionId.TextChanged += (_, _) => Validate(false);
-        Add(grid, 4, "Chrome連携", new TextBlock { Text = "通常のWebサイトには拡張は不要です。タブグループには拡張v0.2.0以降が必要です。\n拡張を先に更新し、Popupで実行中の版とIDを確認してください。\nここで保存した候補は、メインの「変更を反映」で保存済み設定になります。", TextWrapping = TextWrapping.Wrap });
+        Add(grid, 4, "Chrome連携", new Expander { Header = "導入・接続の確認手順", Content = new TextBlock { Text = ChromeSetupGuide.Text, TextWrapping = TextWrapping.Wrap, Margin = new(0, 8, 0, 8) } });
         Grid.SetRow(error, 5); Grid.SetColumnSpan(error, 2); grid.Children.Add(error);
         buttons.Children.Add(cancel); buttons.Children.Add(ok); Grid.SetRow(buttons, 6); Grid.SetColumnSpan(buttons, 2); grid.Children.Add(buttons); Content = new ScrollViewer { Content = grid, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }; Validate(false);
     }

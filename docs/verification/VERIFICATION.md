@@ -2,6 +2,12 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
+## Chrome導入・IDコピー / #45（2026-11-03）
+
+- `node --test tests/ChromeExtension.Tests/onboarding.test.js tests/ChromeExtension.Tests/worker-regressions.test.js`: 16/16 passed。clipboardはfixtureだけを使用し、Worker設定の読込待ち/失敗でもID欄とコピーが有効、コピー拒否は欄の選択とCtrl+C案内になることを確認。実際の個人clipboardを読書きしていない。
+- `scripts/run-debug.ps1 -NoLaunch`: Debug build警告0/エラー0。架空パスだけでWPFを非表示描画し、設定700x500/説明展開480x360/Chromeヘルプ750x620を目視確認。小画面の本文はスクロール可能。ウィンドウ表示や個人config読込/保存はしていない。
+- headless shellで実Popup/help HTML/CSSを描画して確認。静的fixtureのためChrome API/実グループ/OS clipboardの実動作証拠ではなく、それらはNode fixtureと別の手動条件。新権限・製品依存・常駐通信なし。Setup/日常製品/個人Chromeデータは未変更。
+
 ## インストール/更新の保持と旧payload整理 / #56/#91（2026-11-03、main統合済み）
 
 - PR #145の最終head `34158cb1180bd7ddeea9b0d2570756e1b5e33a65`で、統合CI 41500960914全4jobとnative 41500960938 success。公開v0.3.1→新版→同版再導入→uninstall→reinstallがpassed。旧CLIのApplyが生成したconfig/state/backup/managed lnkと管理外lnkの全byte hash、Q/V HotKey属性を保持。新しいexe/commit/HKCU/audit-only link/CLI検査もpassed。

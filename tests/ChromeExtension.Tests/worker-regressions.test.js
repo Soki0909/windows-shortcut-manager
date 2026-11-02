@@ -132,7 +132,7 @@ test("runtime rejection, missing response and timeout remain actionable without 
 
 test("Popup requires explicit clear confirmation, sends a URL-only patch and disables settings after a failed write", async () => {
   const controls = new Map(); const calls = [];
-  for (const id of ["groups", "status", "identity", "collapse-startup", "debug-mode", "remember-urls", "confirm-clear", "clear-history", "history-count", "refresh", "collapse-all"]) {
+  for (const id of ["extension-id", "copy-id", "copy-status", "groups", "status", "identity", "collapse-startup", "debug-mode", "remember-urls", "confirm-clear", "clear-history", "history-count", "refresh", "collapse-all"]) {
     controls.set(id, { tagName: ["collapse-startup", "debug-mode", "remember-urls", "confirm-clear"].includes(id) ? "INPUT" : ["clear-history", "refresh", "collapse-all"].includes(id) ? "BUTTON" : "DIV",
       checked: false, disabled: false, textContent: "", listeners: {}, addEventListener(event, fn) { this.listeners[event] = fn; }, replaceChildren() {} });
   }
