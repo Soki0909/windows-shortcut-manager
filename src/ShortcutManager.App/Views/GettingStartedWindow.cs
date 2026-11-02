@@ -19,6 +19,7 @@ public sealed class GettingStartedWindow : Window
         Title = "初回ガイド — 最初のショートカット";
         Width = 690; Height = 690; MinWidth = 480; MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        DialogLayout.Constrain(this);
         var content = new StackPanel { Margin = new(22) };
         content.Children.Add(new TextBlock { Text = "Webサイトを1件登録してみましょう", FontSize = 22, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
         content.Children.Add(Text("いつでも閉じて、使い方や空の一覧から再開できます。ガイドを開くだけで設定や既存の割当は変更されません。"));

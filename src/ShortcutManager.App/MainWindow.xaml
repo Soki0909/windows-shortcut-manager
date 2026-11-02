@@ -12,15 +12,17 @@
       <Setter Property="Margin" Value="4"/>
       <Setter Property="Background" Value="#FFFFFF"/>
       <Setter Property="BorderBrush" Value="#DCE2EB"/>
+      <Setter Property="IsEnabled" Value="{Binding DataContext.CanModify, RelativeSource={RelativeSource AncestorType=Window}}"/>
       <Style.Triggers>
         <DataTrigger Binding="{Binding Status}" Value="Ready"><Setter Property="Background" Value="#ECF8F3"/><Setter Property="BorderBrush" Value="#A9DCCB"/></DataTrigger>
         <DataTrigger Binding="{Binding Status}" Value="Disabled"><Setter Property="Background" Value="#F3F4F6"/><Setter Property="BorderBrush" Value="#D5D9E0"/></DataTrigger>
         <DataTrigger Binding="{Binding Status}" Value="Error"><Setter Property="Background" Value="#FFF0F1"/><Setter Property="BorderBrush" Value="#F2B8BE"/></DataTrigger>
         <DataTrigger Binding="{Binding Status}" Value="Unapplied Changes"><Setter Property="Background" Value="#F0EFFF"/><Setter Property="BorderBrush" Value="#C9C5FF"/></DataTrigger>
+        <DataTrigger Binding="{Binding IsSelected}" Value="True"><Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/><Setter Property="BorderThickness" Value="2"/></DataTrigger>
       </Style.Triggers>
     </Style>
     <DataTemplate x:Key="KeyTileTemplate">
-      <Button Style="{StaticResource KeyTileStyle}" Click="KeyTile_Click" Tag="{Binding}">
+      <Button Style="{StaticResource KeyTileStyle}" Click="KeyTile_Click" Tag="{Binding}" ToolTip="{Binding Description}" AutomationProperties.Name="{Binding Description}">
         <Grid>
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
           <TextBlock Text="{Binding Key}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
@@ -32,7 +34,9 @@
     <ItemsPanelTemplate x:Key="KeyboardRowPanel"><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
   </Window.Resources>
 
-  <Grid Margin="22" IsEnabled="{Binding CanInteract}">
+  <Border Padding="22">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+  <Grid MinWidth="960" MinHeight="660" Width="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}" IsEnabled="{Binding CanInteract}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>
@@ -55,11 +59,27 @@
           </StackPanel>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-          <Button Content="既存をスキャン" Click="Scan_Click" Style="{StaticResource QuietButtonStyle}"/>
-          <Button Content="バックアップ" Click="Backup_Click" Style="{StaticResource QuietButtonStyle}"/>
-          <Button Content="復元" Click="Restore_Click" Style="{StaticResource QuietButtonStyle}"/>
-          <Button Content="起動診断" Click="LaunchDiagnostics_Click"/>
-          <Button Content="設定" Click="Settings_Click"/>
+          <Button Content="既存をスキャン" Click="Scan_Click" Style="{StaticResource QuietButtonStyle}" IsEnabled="{Binding CanModify}"/>
+          <Menu Background="Transparent" VerticalAlignment="Center" Margin="4,0">
+            <MenuItem Header="確認と復旧" Padding="12,8">
+              <MenuItem Header="選択した割当の全文・検証結果…" Click="Details_Click" IsEnabled="{Binding CanEditSelected}"/>
+              <MenuItem Header="選択した起動内容をプレビュー…" Click="Preview_Click" IsEnabled="{Binding CanEditSelected}"/>
+              <Separator/>
+              <MenuItem Header="保存済みを監査（編集は保持）" Click="AuditSaved_Click" IsEnabled="{Binding CanAuditSaved}"/>
+              <MenuItem Header="選択キーの実動作を確認済みにする" Click="ConfirmHotkey_Click" IsEnabled="{Binding CanConfirmHotkey}"/>
+              <Separator/>
+              <MenuItem Header="{Binding ReloadLabel}" Click="Reload_Click"/>
+              <MenuItem Header="Explorerを再起動…" Click="ShellReload_Click"/>
+              <Separator/>
+              <MenuItem Header="バックアップ…" Click="Backup_Click"/>
+              <MenuItem Header="バックアップを復元…" Click="Restore_Click" IsEnabled="{Binding CanRestore}"/>
+              <MenuItem Header="起動診断…" Click="LaunchDiagnostics_Click"/>
+              <MenuItem Header="復旧用初期化…" Click="InitializeRecovery_Click" IsEnabled="{Binding CanInitializeRecovery}">
+                <MenuItem.Style><Style TargetType="MenuItem"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding RecoveryRequired}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></MenuItem.Style>
+              </MenuItem>
+            </MenuItem>
+          </Menu>
+          <Button Content="設定" Click="Settings_Click" IsEnabled="{Binding CanModify}"/>
           <Button Content="使い方" Click="Help_Click"/>
           <Button Content="情報" Click="About_Click"/>
         </StackPanel>
@@ -75,8 +95,8 @@
             <TextBlock Text="キーを選ぶと、その割り当てをすぐ編集できます" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,2,0,0"/>
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-            <Ellipse Width="8" Height="8" Fill="{StaticResource SuccessBrush}"/><TextBlock Text=" 使用中" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,14,0"/>
-            <Ellipse Width="8" Height="8" Fill="#C9C5FF"/><TextBlock Text=" 未反映" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,14,0"/>
+            <Ellipse Width="8" Height="8" Fill="{StaticResource SuccessBrush}"/><TextBlock Text=" 保存済み" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,14,0"/>
+            <Ellipse Width="8" Height="8" Fill="#C9C5FF"/><TextBlock Text=" 未保存" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,14,0"/>
             <Ellipse Width="8" Height="8" Fill="#DCE2EB"/><TextBlock Text=" 空き" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
           </StackPanel>
         </Grid>
@@ -91,20 +111,15 @@
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <Grid Margin="18,12,15,9">
           <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <StackPanel VerticalAlignment="Center">
             <TextBlock Text="ショートカット" FontSize="16" FontWeight="SemiBold"/>
-            <TextBlock Text="  ·  HotKeyの有効化にはShellまたはWindowsの再起動が必要" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
+            <TextBlock Text="{Binding SelectionText}" ToolTip="{Binding SelectionText}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal">
-            <Button Content="追加" Click="Add_Click"/>
-            <Button Content="編集" Click="Edit_Click"/>
-            <Button Content="削除" Click="Delete_Click"/>
-            <Button Content="テスト起動" Click="Test_Click"/>
-            <Button Content="再読込" Click="Reload_Click"/>
-            <Button Content="復旧用初期化" Click="InitializeRecovery_Click" IsEnabled="{Binding CanInitializeRecovery}">
-              <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding RecoveryRequired}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Button.Style>
-            </Button>
-            <Button Content="Explorerを再起動" Click="ShellReload_Click"/>
+            <Button Content="追加" Click="Add_Click" IsEnabled="{Binding CanModify}"/>
+            <Button Content="編集" Click="Edit_Click" IsEnabled="{Binding CanEditSelected}"/>
+            <Button Content="削除" Click="Delete_Click" IsEnabled="{Binding CanEditSelected}"/>
+            <Button Content="対象をテスト" Click="Test_Click" IsEnabled="{Binding CanEditSelected}" ToolTip="登録した対象を実際に起動します。物理キーのテストとは別です。"/>
             <Button Content="変更を反映" Style="{StaticResource PrimaryButtonStyle}" Click="Apply_Click" Padding="18,8" IsEnabled="{Binding CanApply}"/>
           </StackPanel>
         </Grid>
@@ -115,12 +130,12 @@
             <DataGridTextColumn Header="名前" Binding="{Binding Name, Mode=OneWay}" ElementStyle="{StaticResource GridCellTextStyle}" Width="1.1*"/>
             <DataGridTextColumn Header="種類" Binding="{Binding Type, Mode=OneWay}" ElementStyle="{StaticResource GridCellTextStyle}" Width="110"/>
             <DataGridTextColumn Header="起動先" Binding="{Binding Target, Mode=OneWay}" ElementStyle="{StaticResource GridCellTextStyle}" Width="2*"/>
-            <DataGridTextColumn Header="状態" Binding="{Binding Status, Mode=OneWay}" ElementStyle="{StaticResource GridCellTextStyle}" Width="125"/>
+            <DataGridTextColumn Header="状態" Binding="{Binding StateLabel, Mode=OneWay}" ElementStyle="{StaticResource GridCellTextStyle}" Width="180"/>
           </DataGrid.Columns>
         </DataGrid>
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="{StaticResource SurfaceBrush}">
           <ScrollViewer.Style><Style TargetType="ScrollViewer"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding ShowEmptyState}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></ScrollViewer.Style>
-          <StackPanel Margin="18" HorizontalAlignment="Center" MaxWidth="620">
+          <StackPanel Margin="18,10" HorizontalAlignment="Center" MaxWidth="620">
             <TextBlock Text="よく使うサイトやアプリを、キーひとつに。" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"/>
             <TextBlock Text="まず1件追加し、対象をテストしてから変更を反映します。登録後はこのアプリを閉じても使えます。" TextWrapping="Wrap" Margin="0,7,0,10"/>
             <WrapPanel HorizontalAlignment="Center">
@@ -142,6 +157,7 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
         <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,10,0"/>
         <StackPanel Grid.Column="1">
+          <TextBlock Text="{Binding EditingNotice}" TextWrapping="Wrap" FontWeight="SemiBold"/>
           <TextBlock Text="{Binding LogWarning}" TextWrapping="Wrap" Foreground="{StaticResource WarningBrush}">
             <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding LogWarning}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
           </TextBlock>
@@ -150,8 +166,13 @@
           </TextBlock>
           <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
         </StackPanel>
-        <ProgressBar Grid.Column="2" IsIndeterminate="{Binding IsBusy}" Height="4" VerticalAlignment="Center" Foreground="{StaticResource PrimaryBrush}" Background="#DDE2EC"/>
+        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+          <Button Content="状態の詳細" Click="StateDetails_Click" Padding="8,3" ToolTip="保存設定・リンク監査・Explorer反映・実キーの確認を分けて表示します。"/>
+          <ProgressBar IsIndeterminate="{Binding IsBusy}" Height="4" Margin="4,4,4,0" Foreground="{StaticResource PrimaryBrush}" Background="#DDE2EC"/>
+        </StackPanel>
       </Grid>
     </Border>
   </Grid>
+  </ScrollViewer>
+  </Border>
 </Window>

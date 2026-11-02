@@ -18,6 +18,7 @@
     <Using Include="Xunit" />
     <Compile Include="..\..\src\ShortcutManager.App\ViewModels\MainViewModel.cs" Link="App\MainViewModel.cs" />
     <Compile Include="..\..\src\ShortcutManager.App\ViewModels\ObservableObject.cs" Link="App\ObservableObject.cs" />
+    <Compile Include="..\..\src\ShortcutManager.App\ViewModels\ShortcutEditorState.cs" Link="App\ShortcutEditorState.cs" />
   </ItemGroup>
 
   <ItemGroup>

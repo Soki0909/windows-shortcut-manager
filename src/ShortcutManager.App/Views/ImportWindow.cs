@@ -12,11 +12,11 @@ public sealed class ImportWindow : Window
     public ImportWindow(IReadOnlyList<ShortcutInventoryItem> items)
     {
         Title = "既存ショートカットをインポート"; Width = 900; Height = 560; WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        grid.Columns.Add(new DataGridTextColumn { Header = "HotKey", Binding = new System.Windows.Data.Binding(nameof(ShortcutInventoryItem.Hotkey)) });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Name", Binding = new System.Windows.Data.Binding(nameof(ShortcutInventoryItem.DisplayName)), Width = new(1, DataGridLengthUnitType.Star) });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Type", Binding = new System.Windows.Data.Binding(nameof(ShortcutInventoryItem.FileType)) });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Target", Binding = new System.Windows.Data.Binding(nameof(ShortcutInventoryItem.Target)), Width = new(2, DataGridLengthUnitType.Star) });
-        grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Managed", Binding = new System.Windows.Data.Binding(nameof(ShortcutInventoryItem.IsManaged)) });
+        grid.Columns.Add(new DataGridTextColumn { Header = "キー", Binding = new System.Windows.Data.Binding(nameof(ShortcutInventoryItem.Hotkey)) });
+        grid.Columns.Add(new DataGridTextColumn { Header = "名前", Binding = new System.Windows.Data.Binding(nameof(ShortcutInventoryItem.DisplayName)), Width = new(1, DataGridLengthUnitType.Star) });
+        grid.Columns.Add(new DataGridTextColumn { Header = "ファイル形式", Binding = new System.Windows.Data.Binding(nameof(ShortcutInventoryItem.FileType)) });
+        grid.Columns.Add(new DataGridTextColumn { Header = "起動先", Binding = new System.Windows.Data.Binding(nameof(ShortcutInventoryItem.Target)), Width = new(2, DataGridLengthUnitType.Star) });
+        grid.Columns.Add(new DataGridCheckBoxColumn { Header = "管理対象", Binding = new System.Windows.Data.Binding(nameof(ShortcutInventoryItem.IsManaged)) });
         grid.ItemsSource = items.Where(item => !item.IsManaged).ToList();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         var cancel = new Button { Content = "キャンセル", Margin = new(4), Padding = new(12, 6, 12, 6) }; cancel.Click += (_, _) => DialogResult = false;
