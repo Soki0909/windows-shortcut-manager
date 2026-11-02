@@ -2,7 +2,9 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
-## 報告用診断のプレビューと新規保存 / #58（2026-11-03）
+## 報告用診断のプレビューと新規保存 / #58（2026-11-03、main統合済み）
+
+- PR #149のhead a1f5d48、CI 41508869729対象job成功後main e7d6447へ統合。Release Core39/39・Windows178/178、CLI7、署名境界11、payload7、metadata8、署名tamper4、旧Setup→更新/再導入/uninstallと構成差payload更新の保持検証がpassed。拡張jobは無関係でskip。製品版へのSetup実行はしていない。
 
 - `dotnet test tests/ShortcutManager.Windows.Tests/ShortcutManager.Windows.Tests.csproj -c Debug --no-restore --filter 'FullyQualifiedName~DiagnosticReportTests|FullyQualifiedName~LoggingSafetyTests|FullyQualifiedName~DiagnosticCapturePreserves'`: 10/10 passed。canaryの名前/URL/ID/パス/未知コードを出さず、既知コードと件数を保持。補足の明示追加/除去/上限、未走査と未確認の区別、正確なUnicode保存、既存保持・同時保存・失敗時の非公開を検証。ViewModelの診断作成前後で候補と隔離root内全fileのbyte不変を確認。
 - 最初の補足テストはprivacy説明の`userNotes`名に文字列検索が一致した。root JSON項目の有無を直接確認するよう修正。追加した同時保存テストはxUnit解析ルールに合わせ`Assert.Single`のpredicate overloadへ修正後passed。
