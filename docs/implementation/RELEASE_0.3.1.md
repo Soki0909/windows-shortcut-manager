@@ -8,7 +8,7 @@
 - [x] Preserve Restore summary and Shell pending state independently of reload/status messages; offer consent-based restart after Restore.
 - [x] Explain backup exclusions and diagnose missing external references before Restore.
 - [x] Local regression, Debug GUI and build/package checks (CI follows in the PR).
-- [ ] Merge to main, publish verified public assets, update installed product and extension with backup and hash verification.
+- [x] Merged to main, published verified public assets and updated the owner's installed product/extension with backup and hash verification. [Post-release report](../releases/post-release/v0.3.1.md) records source SHA, workflow URLs, public digests and owner reload confirmation.
 
 ## Discoveries and decisions
 
