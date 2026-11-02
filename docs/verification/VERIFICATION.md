@@ -2,6 +2,15 @@
 
 Updated: 2026-11-02 (Asia/Tokyo)
 
+## 設定互換性 / #53（2026-11-02、未公開）
+
+- [ADR-011](../architecture/ADR-011-config-compatibility-and-downgrade.md)でschema 1/protocol 1の継続対応、将来の隣接段階移行・移行前バックアップ・ジャーナル復旧・downgrade拒否を定義。実在しない旧schemaを作らず、全既存公開版は無変換で読み込む。
+- Configのversion headerを未知メンバー/targetの読込みより先に判定。未対応schema 0/2・protocol 2に対するApply/Restore/SaveAtomic/初期化/監査は書込み停止、config/marker/state不変。破損JSONの既存明示復旧は維持。
+- `dotnet test ShortcutManager.sln -c Release --no-restore --nologo`: Core 27/27、Windows 109/109 passed。Debug build 0 warnings/errorsとCLI 6プロセスpassed。
+- Debug限定で元設定を退避してschema 2を一時投入。computer-useで対応新版の案内、初期化と変更反映ボタンの無効化を目視・accessibility両方で確認して正常終了。元Debug configをバイト単位で復元しSHA一致。製品版設定/管理リンク/Chromeは変更せず。
+
+第1単位は [PR #122](https://github.com/Soki0909/windows-shortcut-manager/pull/122)を[CI 41401906336](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/41401906336)成功後にmain `14236a8cc29b14d1c6c66661f0912e7a22131b9c`へ統合。[main CI 41402992250](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/41402992250)もpassed。公開版の更新はまだ行っていない。
+
 ## v1.0.0へ向けた第1単位（未公開、2026-11-02）
 
 - #41: 自動生成receiptとZIP名・SHA-256・manifestを照合できるapply/restoreだけを整理する。手動、外部コピー、旧版/不明ZIP、改変/破損receiptは保存。時刻が同一でも順序が安定し、最低1世代を保持する。

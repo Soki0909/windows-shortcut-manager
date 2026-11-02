@@ -16,6 +16,8 @@ public sealed class ConfigRepository(string path)
 
     public void SaveAtomic(ShortcutConfig config)
     {
+        EnsureCompatibleVersion();
+        ConfigJson.RequireSupportedVersions(System.Text.Json.JsonSerializer.SerializeToElement(config, ConfigJson.Options));
         var directory = System.IO.Path.GetDirectoryName(Path) ?? throw new InvalidOperationException("Config path has no directory.");
         Directory.CreateDirectory(directory);
         var temporary = System.IO.Path.Combine(directory, $"config.json.tmp-{Guid.NewGuid():N}");
@@ -30,6 +32,21 @@ public sealed class ConfigRepository(string path)
             else File.Move(temporary, Path);
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    public void EnsureCompatibleVersion()
+    {
+        if (!File.Exists(Path)) return;
+        if (new FileInfo(Path).Length > Core.Validation.ConfigStructure.MaxJsonCharacters) throw new InvalidDataException("Existing config exceeds 1 MiB. Preserve it before recovery.");
+        try
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path));
+            ConfigJson.RequireSupportedVersions(document.RootElement);
+        }
+        catch (System.Text.Json.JsonException error) when (error is not UnsupportedConfigVersionException)
+        {
+            // Explicit, backed-up recovery of malformed JSON remains supported.
+        }
     }
 }
 
