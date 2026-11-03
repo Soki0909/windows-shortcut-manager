@@ -4,6 +4,8 @@
 
 ## Progress
 
+- [x] PR #153: 最新head7986c8dのCI 41561167611成功後、main `1512093`へ統合。Core39/Windows195・skip0、旧Setup更新保持もpassed。ローカルmainも祖先を確認して安全にff同期。#19/#20/#21は実機/配色の残条件がありopenのまま。
+
 - [ ] #19/#20/#21: 主画面/ダイアログのOwner・現在monitor・DPI別制限、PerMonitor manifest、アクセスキー/一覧Tab離脱/行名/設定ラベル/結果通知を追加。配置計算9件と実EXE manifest1件、Debug build、非表示HWND/描画/AutomationPeerを確認。混在DPI/実キー/Narrator/高コントラストの残条件があり、3Issueはopenを維持する。全配色追従も継続する。
 
 - [x] #26/#27: PR #151のhead5c1f95c、CI 41557876433全4job成功後main `958a29d`へ統合。Core39/Windows185・skip0、Node29passed。独自URI/日本語UNCの実起動と旧Setup更新保持もpassed。初回のsln構成不足を修正し、製品の起動契約を弱めず検証を完了。
