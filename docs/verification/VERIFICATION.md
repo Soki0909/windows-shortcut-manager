@@ -4,6 +4,8 @@ Updated: 2026-11-03 (Asia/Tokyo)
 
 ## 小画面・キーボード・読み上げの基礎 / #19/#20/#21（2026-11-03）
 
+- PR #153の最終head7986c8d、CI 41561167611 success後main1512093へ統合。Core39/39・Windows195/195・skip0、旧Setup更新/再導入/アンインストールと構成差payloadの保持もpassed。無関係な拡張jobはskip。主画面の最小値480x360と非表示の実HWNDで800x600へ変更可能なことを追加確認。実機の全条件は未完了でIssueはcloseしない。
+
 - 配置計算9件と実EXE resourceのmanifest検査1件、合計10/10 passed（PerMonitorV2/PerMonitor、asInvoker、uiAccess=false）。Debug build警告0/エラー0。manifest検査が単独projectテストでもAppを先にbuildするよう非参照のproject依存を明示。
 - 非表示WPFは架空26件だけの隔離設定を使用。1180x800/800x600/右下スクロール後を描画。行のキー/割当名、TabNavigation=Once、Button AutomationPeerのaccess key A、結果Peerが実メッセージを読むこと、設定TextBoxのLabeledByを確認。非表示Settings HWNDでSourceInitializedのサイズ制限もpassed。個人config/HotKey/Chrome・日常製品・clipboardを使用していない。
 - 描画ホストのDebugアイコンresource不足はfixtureへ同じ素材を追加して修正。Application.ResourceAssemblyの設定変更はホスト側で不可だったため撤回し、製品コードの回避変更はしない。初回の一覧列縮小はDispatcherのbinding/layout後に正常化したため、製品不具合としてIssue化しない。
