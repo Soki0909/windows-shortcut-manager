@@ -2,7 +2,9 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
-## アプリ起動方法・パスの区別 / #26/#27（2026-11-03、CI確認待ち）
+## アプリ起動方法・パスの区別 / #26/#27（2026-11-03、main統合済み）
+
+- PR #151の最終head5c1f95c、CI 41557876433全4job success後main958a29dへ統合。Release配置のプローブを確認し、Core39/39・Windows185/185・skip0、Node29/29。独自URI登録/日本語・空白を含むSMB UNC起動もskipされずpassed。旧Setup更新/再導入/uninstallと構成差payloadの保護検証もpassed。#26/#27 close、日常製品の更新は未実施。
 
 - 初回CI 41557401531はテストプローブがsln未登録でDebugへビルドされ、Release配置を探した4ケースが開始前に失敗。slnのDebug/Release構成へ登録し、製品の起動条件を変えずに修正。Releaseのsln build警告0/エラー0、Release実起動2passed/CI限定2skipも確認。URI/UNCの起動失敗の証拠とは扱わない。
 

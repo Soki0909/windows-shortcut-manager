@@ -4,7 +4,10 @@
 
 ## Progress
 
-- [ ] #26/#27: アプリ3方式の引数/作業フォルダ契約と編集時F5/保存時のURI登録案内を共通化。直接起動/元lnkの実プローブ2件、案内/URI/入力保持14件、Coreパス4件passed。URI登録/日本語UNC実起動は使い捨てhosted Windows CI限定で、ローカル2件skip。非表示WPFの通常/小画面描画・制御確認とDebug build passed。CIで残る2条件を確認後に完了判定する。
+- [x] #26/#27: PR #151のhead5c1f95c、CI 41557876433全4job成功後main `958a29d`へ統合。Core39/Windows185・skip0、Node29passed。独自URI/日本語UNCの実起動と旧Setup更新保持もpassed。初回のsln構成不足を修正し、製品の起動契約を弱めず検証を完了。
+- [ ] #54: 環境マトリクスを作成し、runtime公式対象/Setup許可/製品検証済み範囲を分離。DPI・入力配列・複数モニター・非管理者GUI等と配布対象/Setup下限の確定は未完了として維持。
+
+- [x] #26/#27: アプリ3方式の引数/作業フォルダ契約と編集時F5/保存時のURI登録案内を共通化。直接起動/元lnkの実プローブ2件、案内/URI/入力保持14件、Coreパス4件passed。URI登録/日本語UNC実起動は使い捨てhosted Windows CI限定で、ローカル2件skip。非表示WPFの通常/小画面描画・制御確認とDebug build passed。後続CIで残る2条件もpassedしmain統合済み。
 
 - [x] #58: 許可項目だけから作る診断JSON、既知コード/件数、任意補足の明示追加、全文確認後の新規ファイル保存を実装。ERRORの固定コードと起動中件数はログ書込み失敗時も保持。関連10件、Debug build警告0/エラー0、非表示WPF制御/通常・小画面描画passed。PR #149、CI 41508869729の対象job成功後main `e7d6447`へ統合し#58 close。
 - [x] PR #147/#148をmain `79d5014`へ統合。#45 close、#46は素材/アカウント/提出/審査が残りopen。main CI 41507003680 / 41507291467ともsuccess。公開PRIVACY URLのHTTP200を確認済み。
