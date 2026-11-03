@@ -27,6 +27,7 @@ public sealed class ShortcutEditorWindow : Window
     private readonly TextBlock help = new() { TextWrapping = TextWrapping.Wrap, Opacity = .75, Margin = new(0,8,0,8) };
     private readonly Expander advanced = new() { Header = "任意の詳細（引数・作業フォルダなど）", Margin = new(0,8,0,4) };
     private readonly Dictionary<string, Field> fields = [];
+    private readonly TextBlock launchAdvice = new() { TextWrapping = TextWrapping.Wrap, Margin = new(0,8,0,8) };
     private bool syncing;
     private string focusedHelp = "Tabで項目を移動し、F1で入力欄の説明、F5でファイルの存在を再確認できます。";
     public ShortcutDefinition? Result { get; private set; }
@@ -58,12 +59,12 @@ public sealed class ShortcutEditorWindow : Window
         var directoryPanel = new DockPanel(); var folder = new Button { Content="参照…",Margin=new(6,0,0,0) };
         folder.Click += (_,_) => { var dialog = new OpenFolderDialog { Title="作業フォルダを選ぶ" }; if(dialog.ShowDialog(this)==true) directory.Text=dialog.FolderName; };
         DockPanel.SetDock(folder,Dock.Right); directoryPanel.Children.Add(folder); directoryPanel.Children.Add(directory);
-        Add(details,"directory","作業フォルダ",directoryPanel,"空欄なら起動先の既定フォルダを使います。指定する場合は存在するフォルダの絶対パス。例: C:\\Work。URI先アプリが引き継ぐ保証はありません。",directory);
+        Add(details,"directory","作業フォルダ",directoryPanel,"直接起動/BATでは空欄なら起動先ファイルのあるフォルダを使います。.lnk/URIではExplorerへ渡す作業フォルダです。元リンクやURI先アプリの作業フォルダを上書きする指定ではありません。指定する場合は存在するフォルダの絶対パスを使います。",directory);
         Add(details,"window","実行時の表示",windowMode,"BAT/CMDのウィンドウを通常表示または最小化します。バックグラウンドの常駐化ではありません。");
         advanced.Content = details;
         var content = new StackPanel { Margin=new(18) };
         content.Children.Add(new TextBlock { Text="この画面は編集候補を作ります。Windowsへの保存はメインの「変更を反映」です。",TextWrapping=TextWrapping.Wrap });
-        content.Children.Add(typeHelp); content.Children.Add(form); content.Children.Add(advanced); content.Children.Add(summary); content.Children.Add(help);
+        content.Children.Add(typeHelp); content.Children.Add(form); content.Children.Add(launchAdvice); content.Children.Add(advanced); content.Children.Add(summary); content.Children.Add(help);
         var buttons = new StackPanel { Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Margin=new(12) };
         var recheck = new Button { Content="入力を再確認",ToolTip="ファイルや作業フォルダの存在を再確認します（F5）。" }; recheck.Click += (_,_) => Validate(true,false);
         var cancel = new Button { Content="キャンセル",IsCancel=true }; cancel.Click += (_,_) => DialogResult=false;
@@ -121,6 +122,7 @@ public sealed class ShortcutEditorWindow : Window
         Show("mode",app); advanced.Visibility=app||bat ? Visibility.Visible : Visibility.Collapsed;
         Show("arguments",app||bat); Show("directory",app||bat); Show("window",bat);
         arguments.IsReadOnly=app && !direct;
+        fields["directory"].Label.Text=app && !direct ? "Explorerの作業フォルダ" : "作業フォルダ";
         fields["arguments"].Panel.ToolTip=arguments.IsReadOnly ? "この方法では追加引数を渡しません。既存の値は保持します。引数が必要ならファイルを直接起動する方法を選んでください。" : "任意の追加引数。引用や記号の意味を確認してください。";
         browse.Visibility=bat || (app && state.Mode!=ApplicationLaunchMode.Uri) ? Visibility.Visible : Visibility.Collapsed;
         fields["target"].Label.Text=state.Kind switch {0=>"WebサイトのURL",1 when state.Mode==ApplicationLaunchMode.Uri=>"アプリURI",1 when state.Mode==ApplicationLaunchMode.Shortcut=>"既存の.lnkファイル",1=>"起動するファイル",2=>"BAT / CMDファイル",_=>"グループ名"};
@@ -128,12 +130,13 @@ public sealed class ShortcutEditorWindow : Window
         {
             0=>"OSの既定ブラウザーで開きます。例: https://example.com。Chrome拡張は不要です。",
             1 when state.Mode==ApplicationLaunchMode.Shortcut=>"元のWindowsショートカットをExplorerへ渡します。追加引数は渡しません。既存の保存値がある場合は保持します。",
-            1 when state.Mode==ApplicationLaunchMode.Uri=>"URI / shell:AppsFolder をExplorerへ渡します。追加引数は渡しません。登録状態はテスト前のプレビューで確認します。",
+            1 when state.Mode==ApplicationLaunchMode.Uri=>"URI / shell:AppsFolder をExplorerへ渡します。追加引数は渡しません。Windowsの登録状態と実際の起動成功は別に確認します。",
             1=>"ファイルを直接起動します。追加引数を渡せます。パスは引用符を付けずに入力してください。",
             2=>"外部のBAT/CMDを実行します。本文を取り込んだり書き換えたりしません。",
             _=>"現在開いているChromeグループの完全一致名です。閉じた保存済みグループは開けません。拡張機能IDは先にメインの「設定」で指定します。",
         };
         typeHelp.Text += "\n種類ごとに入力を保持し、選択中の種類だけ保存します。";
+        if(bat || app && state.Mode!=ApplicationLaunchMode.Uri) typeHelp.Text += "\n空白・日本語・共有名から始まるパスを指定できます。共有先の存在確認には接続と権限が必要です。";
         Validate(false,false);
     }
     private void Show(string field,bool visible) { fields[field].Label.Visibility=fields[field].Panel.Visibility=visible ? Visibility.Visible : Visibility.Collapsed; }
@@ -141,6 +144,9 @@ public sealed class ShortcutEditorWindow : Window
     private bool Validate(bool fileSystem,bool focus)
     {
         Capture(); var issues=state.Validate(fileSystem);
+        launchAdvice.Text=state.Proposal().Target is ApplicationTarget application
+            ? Windows.Launching.ApplicationLaunchAdvice.Describe(application,fileSystem && state.Enabled) : string.Empty;
+        launchAdvice.Visibility=launchAdvice.Text.Length==0 ? Visibility.Collapsed : Visibility.Visible;
         foreach(var pair in fields) { pair.Value.Error.Text=string.Join("\n",issues.Where(issue=>issue.Field==pair.Key).Select(issue=>issue.Message)); if(pair.Value.Input is { } input) { if(pair.Value.Error.Text.Length>0) input.BorderBrush=Brushes.Firebrick; else input.ClearValue(Control.BorderBrushProperty); } }
         summary.Text=string.Join("\n",issues.Where(issue=>!fields.ContainsKey(issue.Field)).Select(issue=>issue.Field=="settings" ? issue.Message+" キャンセルしてメインの「設定」で修正してください。" : issue.Message));
         if(!state.Enabled) summary.Text += "\n無効のため起動先の存在確認は省略します。有効にする前に確認してください。";
