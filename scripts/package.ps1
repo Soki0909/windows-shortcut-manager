@@ -1,4 +1,4 @@
-param([ValidateSet('Release')][string]$Configuration = 'Release',[string]$Version = '0.3.1',[ValidateSet('Unsigned','Certificate')][string]$SigningMode='Unsigned',[switch]$RequireSigned,[switch]$RequireCleanSource)
+param([ValidateSet('Release')][string]$Configuration = 'Release',[string]$Version = '0.4.0',[ValidateSet('Unsigned','Certificate')][string]$SigningMode='Unsigned',[switch]$RequireSigned,[switch]$RequireCleanSource)
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path "$PSScriptRoot\.."
 $artifacts = Join-Path $root 'artifacts'

@@ -23,8 +23,8 @@ public sealed class ShortcutEditorWindow : Window
     private readonly Button browse = new() { Content = "参照…", Margin = new(6,0,0,0) };
     private readonly Button save = new() { Content = "候補に保存", IsDefault = true };
     private readonly TextBlock typeHelp = new() { TextWrapping = TextWrapping.Wrap, Margin = new(0,8,0,10) };
-    private readonly TextBlock summary = new() { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.Firebrick, Margin = new(0,8,0,8) };
-    private readonly TextBlock help = new() { TextWrapping = TextWrapping.Wrap, Opacity = .75, Margin = new(0,8,0,8) };
+    private readonly TextBlock summary = ThemeResources.ErrorText(new Thickness(0,8,0,8));
+    private readonly TextBlock help = new() { TextWrapping = TextWrapping.Wrap, Margin = new(0,8,0,8) };
     private readonly Expander advanced = new() { Header = "任意の詳細（引数・作業フォルダなど）", Margin = new(0,8,0,4) };
     private readonly Dictionary<string, Field> fields = [];
     private readonly TextBlock launchAdvice = new() { TextWrapping = TextWrapping.Wrap, Margin = new(0,8,0,8) };
@@ -35,6 +35,7 @@ public sealed class ShortcutEditorWindow : Window
     public ShortcutEditorWindow(ShortcutDefinition? definition, string? preselectedKey, IReadOnlyDictionary<string,string>? usedKeys = null, int initialType = 0, ShortcutConfig? context = null, bool validateOnOpen = false)
     {
         state = new(context ?? new(), definition, initialType);
+        help.SetResourceReference(OpacityProperty,"SecondaryTextOpacity");
         var occupied = usedKeys ?? new Dictionary<string,string>();
         if (definition is null) state.Key = preselectedKey ?? Enumerable.Range('A',26).Select(value => ((char)value).ToString()).FirstOrDefault(value => !occupied.ContainsKey(value)) ?? string.Empty;
         key.ItemsSource = Enumerable.Range('A',26).Select(value => ((char)value).ToString()).Select(value => new Choice<string>(value, occupied.TryGetValue(value,out var assigned) ? $"{value} — この設定では「{assigned}」が使用中" : $"{value} — この設定では空き")).ToArray();
@@ -98,7 +99,7 @@ public sealed class ShortcutEditorWindow : Window
     {
         var row=grid.RowDefinitions.Count; grid.RowDefinitions.Add(new() {Height=GridLength.Auto});
         var title=new TextBlock {Text=label,Margin=new(0,8,10,8),TextWrapping=TextWrapping.Wrap};
-        var error=new TextBlock {TextWrapping=TextWrapping.Wrap,Foreground=Brushes.Firebrick,FontSize=12};
+        var error=ThemeResources.ErrorText(fontSize:12);
         var panel=new StackPanel {Margin=new(0,5,0,5)}; panel.Children.Add(content); panel.Children.Add(error);
         Grid.SetRow(title,row); Grid.SetRow(panel,row); Grid.SetColumn(panel,1); grid.Children.Add(title); grid.Children.Add(panel);
         input ??= content as Control;
@@ -147,7 +148,7 @@ public sealed class ShortcutEditorWindow : Window
         launchAdvice.Text=state.Proposal().Target is ApplicationTarget application
             ? Windows.Launching.ApplicationLaunchAdvice.Describe(application,fileSystem && state.Enabled) : string.Empty;
         launchAdvice.Visibility=launchAdvice.Text.Length==0 ? Visibility.Collapsed : Visibility.Visible;
-        foreach(var pair in fields) { pair.Value.Error.Text=string.Join("\n",issues.Where(issue=>issue.Field==pair.Key).Select(issue=>issue.Message)); if(pair.Value.Input is { } input) { if(pair.Value.Error.Text.Length>0) input.BorderBrush=Brushes.Firebrick; else input.ClearValue(Control.BorderBrushProperty); } }
+        foreach(var pair in fields) { pair.Value.Error.Text=string.Join("\n",issues.Where(issue=>issue.Field==pair.Key).Select(issue=>issue.Message)); if(pair.Value.Input is { } input) { if(pair.Value.Error.Text.Length>0) input.SetResourceReference(Control.BorderBrushProperty,"DangerBrush"); else input.ClearValue(Control.BorderBrushProperty); } }
         summary.Text=string.Join("\n",issues.Where(issue=>!fields.ContainsKey(issue.Field)).Select(issue=>issue.Field=="settings" ? issue.Message+" キャンセルしてメインの「設定」で修正してください。" : issue.Message));
         if(!state.Enabled) summary.Text += "\n無効のため起動先の存在確認は省略します。有効にする前に確認してください。";
         if(state.OtherIssueCount>0) summary.Text += $"\nほかの割当にも {state.OtherIssueCount} 件の問題があります。現在の対象を修正した後、メイン一覧で確認してください。";

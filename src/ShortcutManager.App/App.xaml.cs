@@ -14,7 +14,9 @@ public partial class App : Application
     private string[] startupArgs = [];
     private bool stoppingAfterError;
     private bool guiLaunch;
-    protected override void OnExit(ExitEventArgs e) { instance?.Dispose(); base.OnExit(e); }
+    private ThemeResources? theme;
+    internal void RefreshTheme()=>theme?.QueueRefresh();
+    protected override void OnExit(ExitEventArgs e) { theme?.Dispose(); instance?.Dispose(); base.OnExit(e); }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -55,6 +57,7 @@ public partial class App : Application
     private void StartApplication(StartupEventArgs e)
     {
         base.OnStartup(e);
+        theme=new ThemeResources(this);
         BuildIdentity.ConfigureTaskbar();
         ValidateCommandArguments(e.Args);
         guiLaunch=!IsCommandMode(e.Args);

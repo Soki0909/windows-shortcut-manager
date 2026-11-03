@@ -4,6 +4,10 @@
 
 ## Progress
 
+- [ ] 所有者の終了依頼: v0.4.0を開発版の区切りとして確定・公開・使用環境へ更新し、[残作業41件](../releases/v1.0.0-remaining-after-v0.4.0.md)を引き継いで本作業を停止する。新規機能の継続開発は行わない。v1.0.0達成とは扱わない。[準備記録](RELEASE_0.4.0.md)で追跡。
+
+- [ ] #21/#155: 意味別の動的palette、Windows設定/システム色の変更追従、派生Window/エラー/一覧/無効状態の配色を実装。主操作hoverの白文字/薄背景を発見し#155を追加、style側へ配色を移して修正。実App参照のWPF/配色5件と関連状態等35件、明暗の非表示描画passed。実OSコントラストテーマ/Narrator等は未実施で#21はopen。CI/main統合を追跡する。
+
 - [x] PR #153: 最新head7986c8dのCI 41561167611成功後、main `1512093`へ統合。Core39/Windows195・skip0、旧Setup更新保持もpassed。ローカルmainも祖先を確認して安全にff同期。#19/#20/#21は実機/配色の残条件がありopenのまま。
 
 - [ ] #19/#20/#21: 主画面/ダイアログのOwner・現在monitor・DPI別制限、PerMonitor manifest、アクセスキー/一覧Tab離脱/行名/設定ラベル/結果通知を追加。配置計算9件と実EXE manifest1件、Debug build、非表示HWND/描画/AutomationPeerを確認。混在DPI/実キー/Narrator/高コントラストの残条件があり、3Issueはopenを維持する。全配色追従も継続する。

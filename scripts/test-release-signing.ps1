@@ -1,4 +1,4 @@
-param([string]$Version='0.3.1',[string]$ArtifactDirectory="$PSScriptRoot/../artifacts")
+param([string]$Version='0.4.0',[string]$ArtifactDirectory="$PSScriptRoot/../artifacts")
 $ErrorActionPreference='Stop'
 $source=(Resolve-Path -LiteralPath $ArtifactDirectory).Path
 $fixture=Join-Path ([IO.Path]::GetTempPath()) ('sm-release-signing-'+[guid]::NewGuid().ToString('N'))

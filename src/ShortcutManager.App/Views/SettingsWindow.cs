@@ -21,7 +21,7 @@ public sealed class SettingsWindow : Window
         chromePath.ToolTip = "任意。空欄ならChromeを自動検索します。指定する場合はchrome.exeの絶対パスを入力します。";
         extensionId.ToolTip = "タブグループを使う場合に必要です。Tab BridgeのPopupにある拡張機能ID（a～pの32文字）を入力します。";
         Add(grid, 0, "Chromeの実行ファイル", ChromePanel()); Add(grid, 1, "拡張機能ID", extensionId); Add(grid, 2, "設定ファイル", new TextBox { Text = configPath, IsReadOnly = true }); Add(grid, 3, "管理リンクのフォルダ", new TextBox { Text = managedPath, IsReadOnly = true });
-        var error = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.Firebrick };
+        var error = ThemeResources.ErrorText();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         var cancel = new Button { Content = "キャンセル", Margin = new(4), Padding = new(12, 6, 12, 6), IsCancel = true }; cancel.Click += (_, _) => DialogResult = false;
         var ok = new Button { Content = "候補に保存", Margin = new(4), Padding = new(18, 6, 18, 6), IsDefault = true };
