@@ -62,7 +62,7 @@ public sealed class ThemeResourceTests
                 ThemeResources.Apply(app.Resources,true,ThemePaletteTests.Dark);
                 controller.QueueRefresh();controller.QueueRefresh();
                 System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(System.Windows.Threading.DispatcherPriority.ContextIdle,new Action(()=>{}));
-                Assert.Equal(SystemColors.WindowColor,((SolidColorBrush)app.Resources["SurfaceBrush"]).Color);
+                Assert.Equal(SystemParameters.HighContrast?SystemColors.WindowColor:Colors.White,((SolidColorBrush)app.Resources["SurfaceBrush"]).Color);
                 controller.Dispose();ThemeResources.Apply(app.Resources,true,ThemePaletteTests.Light);controller.QueueRefresh();
                 System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(System.Windows.Threading.DispatcherPriority.ContextIdle,new Action(()=>{}));
                 Assert.Equal(0xFFFFFFFFu,Value((SolidColorBrush)app.Resources["SurfaceBrush"]));
