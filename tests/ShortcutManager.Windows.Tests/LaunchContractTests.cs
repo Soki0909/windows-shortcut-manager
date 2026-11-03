@@ -99,7 +99,7 @@ public sealed class LaunchContractTests : IDisposable
         var safeFolder = folder.Replace("'", "''", StringComparison.Ordinal);
         try
         {
-            RunShareScript("Start-Service LanmanServer; if(Get-SmbShare -Name '" + share + "' -ErrorAction SilentlyContinue){throw 'Share collision'}; New-SmbShare -Name '" + share + "' -Path '" + safeFolder + "' -Description '" + owner + "' | Out-Null");
+            RunShareScript("Start-Service LanmanServer; if(Get-SmbShare -Name '" + share + "' -ErrorAction SilentlyContinue){throw 'Share collision'}; New-SmbShare -Name '" + share + "' -Path '" + safeFolder + "' -Description '" + owner + "' -ReadAccess ([Security.Principal.WindowsIdentity]::GetCurrent().Name) | Out-Null");
             var uncRoot = @"\\localhost\" + share;
             var uncFolder = uncRoot + @"\共有の 作業フォルダ";
             var uncProbe = uncRoot + @"\日本語 アプリ\" + Path.GetFileName(probe);
