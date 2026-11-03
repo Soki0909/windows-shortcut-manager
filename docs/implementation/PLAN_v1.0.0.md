@@ -4,9 +4,11 @@
 
 ## Progress
 
-- [ ] 所有者の終了依頼: v0.4.0を開発版の区切りとして確定・公開・使用環境へ更新し、[残作業41件](../releases/v1.0.0-remaining-after-v0.4.0.md)を引き継いで本作業を停止する。新規機能の継続開発は行わない。v1.0.0達成とは扱わない。[準備記録](RELEASE_0.4.0.md)で追跡。
+- [x] 所有者の終了依頼: v0.4.0を確定・公開し、公式Setupで本体、同じ配置先で拡張ファイルを更新。[公開後記録](../releases/post-release/v0.4.0.md)と[残作業42件](../releases/v1.0.0-remaining-after-v0.4.0.md)を引き継いで本作業を停止する。Chrome再読み込み/実行版確認はComputer UseのURL判定停止により所有者操作へ引継ぎ。新規機能の継続開発は行わず、v1.0.0達成とは扱わない。
 
-- [ ] #21/#155: 意味別の動的palette、Windows設定/システム色の変更追従、派生Window/エラー/一覧/無効状態の配色を実装。主操作hoverの白文字/薄背景を発見し#155を追加、style側へ配色を移して修正。実App参照のWPF/配色5件と関連状態等35件、明暗の非表示描画passed。実OSコントラストテーマ/Narrator等は未実施で#21はopen。CI/main統合を追跡する。
+- [x] #21/#155の今回実装: 意味別の動的palette、Windows設定/システム色の変更追従、派生Window/エラー/一覧/無効状態の配色を実装。主操作hoverの白文字/薄背景を発見し#155を追加、style側へ配色を移して修正。実App参照のWPF/配色5件と関連状態等35件、明暗の非表示描画passed。PR #156、最終CI 41567291202とmain CI 41567865671 success、main5aaeef8へ統合し#155 close。実OSコントラストテーマ/Narrator等は未実施で#21はopen。
+
+- [ ] #157: Release attempt 1のUNC fixtureでSMB共有後片付けが失敗。attempt 2は同じtagで成功したが、原因診断・安定化は未解決として終了時の残作業へ追加。
 
 - [x] PR #153: 最新head7986c8dのCI 41561167611成功後、main `1512093`へ統合。Core39/Windows195・skip0、旧Setup更新保持もpassed。ローカルmainも祖先を確認して安全にff同期。#19/#20/#21は実機/配色の残条件がありopenのまま。
 

@@ -2,6 +2,13 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
+## v0.4.0確定・製品環境更新・作業終了（2026-11-03）
+
+- [公開後記録](../releases/post-release/v0.4.0.md): PR #156/mainのCIとRelease attempt 2 success、Core39/Windows200/Node29、公開4assetのdigest/attestation・版/source照合。初回UNC fixtureの後片付け失敗は#157として未解決。
+- 公式Setupで本体v0.4.0へ更新し公開ZIPの413ファイル一致、設定/データ28/管理23ファイル保持、installed CLI設定検証とinstalled DLL読取り監査差分0。旧製品/データ/リンク/拡張backupも再照合した。ローカルinstaller smokeは行っていない。
+- 拡張ファイル22件が公開ZIPと一致し、同じ配置先のmanifest0.4.0・保存ID不変。Computer Useのbrowser URL判定停止により再読み込み/実行版確認はpending。物理HotKey/実Chrome切替/更新後GUI一連操作はnot-tested。
+- 所有者の終了依頼に従い、[正式版の残作業42件](../releases/v1.0.0-remaining-after-v0.4.0.md)を残して作業を停止する。v1.0.0完了とは扱わない。
+
 ## 配色追従とhover可読性 / #21/#155（2026-11-03）
 
 - main3df86a1のXAMLに対し、IsMouseOver条件だけをTag=hoverへ置き換えたfixtureで、主操作の実効background=#FFF1F3F9/foreground=#FFFFFFFFを再現し#155を作成。修正後は#FF4338CA/#FFFFFFFF。同じsource style/template/resourceの優先順位を評価し、実マウス操作の成功証拠とは分ける。
