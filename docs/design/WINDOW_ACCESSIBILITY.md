@@ -4,7 +4,7 @@
 
 主画面にも共通のサイズ制限を適用する。所有者がある初回表示はOwner側、以後は自分のHWNDが属するモニターのwork areaを参照し、DPIを使ってWPFのサイズ制限へ変換する。起動・DPI変更・表示構成変更・移動/リサイズ終了後に、ウィンドウ全体が作業領域内へ入るよう調整する。位置の計算は物理pixelで行い、負の座標を切り捨てない。毎回のドラッグ位置は強制しないため、モニター境界を越えて移動できる。
 
-主画面の中身は既存の水平/垂直スクロールを使い、小さい作業領域でも操作へ到達する。もともと範囲内の位置/サイズは保持する。全体の位置変更は非アクティブ化フラグ付きで、他のアプリを前面へ呼び出さない。Window破棄時に自分のメッセージhookを外す。これは自分のウィンドウの表示通知であり、グローバル入力hookではない。
+主画面の中身は既存の水平/垂直スクロールを使い、小さい作業領域でも操作へ到達する。ウィンドウの最小値も480x360へ下げ、広い画面上でも利用者が小さくできる。もともと範囲内の位置/サイズは保持する。全体の位置変更は非アクティブ化フラグ付きで、他のアプリを前面へ呼び出さない。Window破棄時に自分のメッセージhookを外す。これは自分のウィンドウの表示通知であり、グローバル入力hookではない。
 
 AppのmanifestはPerMonitorV2/PerMonitorとasInvoker・uiAccess=falseを宣言する。実EXEに埋め込まれたresourceを検証する。[WindowsのDPI宣言](https://learn.microsoft.com/windows/win32/hidpi/setting-the-default-dpi-awareness-for-a-process)と[モニター作業領域](https://learn.microsoft.com/en-us/windows/desktop/gdi/multiple-monitor-system-metrics)に基づく。APIや計算の検証を、混在DPIの実機操作の代わりにはしない。
 
