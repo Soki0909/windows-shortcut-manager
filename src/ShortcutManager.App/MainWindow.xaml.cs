@@ -134,8 +134,7 @@ public partial class MainWindow : Window
         if(!alwaysShow && definition.Target is Core.Models.WebsiteTarget) {viewModel.Test(definition);return;}
         var spec=viewModel.PrepareLaunch(definition);
         if(spec is null) {MessageBox.Show(this,viewModel.Status,"起動内容を確認できません",MessageBoxButton.OK,MessageBoxImage.Warning);return;}
-        var notice=definition.Target is Core.Models.ApplicationTarget app && app.LaunchMode==Core.Models.ApplicationLaunchMode.Uri ? new Windows.Diagnostics.UriRegistrationInspector().Inspect(app.Value).Message : string.Empty;
-        if(definition.Target is Core.Models.ApplicationTarget {LaunchMode:not Core.Models.ApplicationLaunchMode.Executable} indirect && !string.IsNullOrWhiteSpace(indirect.Arguments)) notice+="\n保存された追加引数はこの起動方法では使いません。以下に実際の引数を表示しています。";
+        var notice=definition.Target is Core.Models.ApplicationTarget app ? Windows.Launching.ApplicationLaunchAdvice.Describe(app,true) : string.Empty;
         new LaunchPreviewWindow(definition.Name,spec,notice,()=> {var succeeded=viewModel.ExecutePreview(definition,spec);return(succeeded,viewModel.Status);}) {Owner=this}.ShowDialog();
     }
     private void Reload_Click(object sender, RoutedEventArgs e) { if (!viewModel.IsDirty || MessageBox.Show(this, $"未保存の変更 {viewModel.PendingChangeCount} 項目を破棄し、保存済み設定を読み直しますか？\nWindowsのリンク監査やExplorer再起動は行いません。", "編集を破棄して再読込", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes) viewModel.Load(); }

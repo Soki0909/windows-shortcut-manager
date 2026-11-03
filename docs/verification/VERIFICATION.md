@@ -2,6 +2,14 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
+## アプリ起動方法・パスの区別 / #26/#27（2026-11-03、CI確認待ち）
+
+- `LaunchContractTests`の直接起動・元lnk経由2件passed。無画面WinExeが受け取った日本語/空白/引用符/末尾バックスラッシュ/空引数と実際の作業フォルダを確認。元lnkのbyte/HotKey不変もpassed。再検査でも2passed、独自URI登録/SMB共有の2件はlocalで明示skip。個人のHotKey/Chrome/設定や製品版を変更していない。
+- `ApplicationLaunchAdviceTests|UriRegistrationTests|ShortcutEditorStateTests`の絞込み14件、Core `TargetPathValidationTests`4件passed。入力中は登録照会しない、F5は未登録を別に案内、非URIモードは登録照会しない、旧引数/種類別候補を保持することを確認。
+- `scripts/run-debug.ps1 -NoLaunch`警告0/エラー0。非表示WPFで未登録URIと不足作業フォルダが別の説明として表示され、旧引数はread-onlyであることを確認。編集720x720/480x400とプレビュー740x590/480x320の最下部を描画確認。長い注意文でも実値と実行/取消へスクロール到達可能。レンダー中の起動callbackは実行していない。
+- ツール環境更新後に既定shell起動がos error3となったため、利用可能なWindows PowerShellを明示して同じ描画を完了。製品コードへの回避変更なし。
+- URIのnonce keyとSMB共有はhosted Windows runner限定として追加。CIの実行結果を確認するまでは成功扱いにしない。署名/Store公開/任意の外部アプリやネットワーク全体の証拠とも区別する。
+
 ## 報告用診断のプレビューと新規保存 / #58（2026-11-03、main統合済み）
 
 - PR #149のhead a1f5d48、CI 41508869729対象job成功後main e7d6447へ統合。Release Core39/39・Windows178/178、CLI7、署名境界11、payload7、metadata8、署名tamper4、旧Setup→更新/再導入/uninstallと構成差payload更新の保持検証がpassed。拡張jobは無関係でskip。製品版へのSetup実行はしていない。
