@@ -4,6 +4,8 @@ Updated: 2026-11-03 (Asia/Tokyo)
 
 ## アプリ起動方法・パスの区別 / #26/#27（2026-11-03、CI確認待ち）
 
+- 初回CI 41557401531はテストプローブがsln未登録でDebugへビルドされ、Release配置を探した4ケースが開始前に失敗。slnのDebug/Release構成へ登録し、製品の起動条件を変えずに修正。Releaseのsln build警告0/エラー0、Release実起動2passed/CI限定2skipも確認。URI/UNCの起動失敗の証拠とは扱わない。
+
 - `LaunchContractTests`の直接起動・元lnk経由2件passed。無画面WinExeが受け取った日本語/空白/引用符/末尾バックスラッシュ/空引数と実際の作業フォルダを確認。元lnkのbyte/HotKey不変もpassed。再検査でも2passed、独自URI登録/SMB共有の2件はlocalで明示skip。個人のHotKey/Chrome/設定や製品版を変更していない。
 - `ApplicationLaunchAdviceTests|UriRegistrationTests|ShortcutEditorStateTests`の絞込み14件、Core `TargetPathValidationTests`4件passed。入力中は登録照会しない、F5は未登録を別に案内、非URIモードは登録照会しない、旧引数/種類別候補を保持することを確認。
 - `scripts/run-debug.ps1 -NoLaunch`警告0/エラー0。非表示WPFで未登録URIと不足作業フォルダが別の説明として表示され、旧引数はread-onlyであることを確認。編集720x720/480x400とプレビュー740x590/480x320の最下部を描画確認。長い注意文でも実値と実行/取消へスクロール到達可能。レンダー中の起動callbackは実行していない。
