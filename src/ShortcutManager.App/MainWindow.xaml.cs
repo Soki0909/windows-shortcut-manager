@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation.Peers;
 using Microsoft.Win32;
 
 namespace ShortcutManager.App;
@@ -9,10 +10,12 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel viewModel;
     private readonly Windows.Apply.ManagedShortcutAuditor auditor;
+    private int statusAnnouncementPending;
 
     public MainWindow(MainViewModel viewModel, Windows.Apply.ManagedShortcutAuditor auditor)
     {
         InitializeComponent();
+        DialogLayout.Constrain(this);
         Title = BuildIdentity.DisplayName;
         ProductTitle.Text = BuildIdentity.DisplayName;
         if (BuildIdentity.IsDevelopment)
@@ -24,6 +27,18 @@ public partial class MainWindow : Window
         this.viewModel = viewModel;
         this.auditor = auditor;
         DataContext = viewModel;
+        viewModel.PropertyChanged += AnnounceStatus;
+        Closed += (_, _) => viewModel.PropertyChanged -= AnnounceStatus;
+    }
+
+    private void AnnounceStatus(object? sender, PropertyChangedEventArgs e)
+    {
+        if(e.PropertyName!=nameof(MainViewModel.Status) || Interlocked.Exchange(ref statusAnnouncementPending,1)!=0)return;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            Interlocked.Exchange(ref statusAnnouncementPending,0);
+            if(IsLoaded && AutomationPeer.ListenerExists(AutomationEvents.LiveRegionChanged)) (UIElementAutomationPeer.FromElement(StatusAnnouncement) ?? UIElementAutomationPeer.CreatePeerForElement(StatusAnnouncement))?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+        }));
     }
 
     private void Add_Click(object sender, RoutedEventArgs e) => Edit(null, null);

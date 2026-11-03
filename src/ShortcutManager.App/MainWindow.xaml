@@ -61,7 +61,7 @@
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
           <Button Content="既存をスキャン" Click="Scan_Click" Style="{StaticResource QuietButtonStyle}" IsEnabled="{Binding CanModify}"/>
           <Menu Background="Transparent" VerticalAlignment="Center" Margin="4,0">
-            <MenuItem Header="確認と復旧" Padding="12,8">
+            <MenuItem Header="確認と復旧(_R)" Padding="12,8">
               <MenuItem Header="選択した割当の全文・検証結果…" Click="Details_Click" IsEnabled="{Binding CanEditSelected}"/>
               <MenuItem Header="選択した起動内容をプレビュー…" Click="Preview_Click" IsEnabled="{Binding CanEditSelected}"/>
               <Separator/>
@@ -86,9 +86,9 @@
               </MenuItem>
             </MenuItem>
           </Menu>
-          <Button Content="設定" Click="Settings_Click" IsEnabled="{Binding CanModify}"/>
-          <Button Content="使い方" Click="Help_Click"/>
-          <Button Content="情報" Click="About_Click"/>
+          <Button Content="設定(_O)" Click="Settings_Click" IsEnabled="{Binding CanModify}"/>
+          <Button Content="使い方(_H)" Click="Help_Click"/>
+          <Button Content="情報(_V)" Click="About_Click"/>
         </StackPanel>
       </Grid>
     </Border>
@@ -123,14 +123,15 @@
             <TextBlock Text="{Binding SelectionText}" ToolTip="{Binding SelectionText}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal">
-            <Button Content="追加" Click="Add_Click" IsEnabled="{Binding CanModify}"/>
-            <Button Content="編集" Click="Edit_Click" IsEnabled="{Binding CanEditSelected}"/>
-            <Button Content="削除" Click="Delete_Click" IsEnabled="{Binding CanEditSelected}"/>
-            <Button Content="対象をテスト" Click="Test_Click" IsEnabled="{Binding CanEditSelected}" ToolTip="登録した対象を実際に起動します。物理キーのテストとは別です。"/>
-            <Button Content="変更を反映" Style="{StaticResource PrimaryButtonStyle}" Click="Apply_Click" Padding="18,8" IsEnabled="{Binding CanApply}"/>
+            <Button Content="追加(_A)" Click="Add_Click" IsEnabled="{Binding CanModify}"/>
+            <Button Content="編集(_E)" Click="Edit_Click" IsEnabled="{Binding CanEditSelected}"/>
+            <Button Content="削除(_D)" Click="Delete_Click" IsEnabled="{Binding CanEditSelected}"/>
+            <Button Content="対象をテスト(_T)" Click="Test_Click" IsEnabled="{Binding CanEditSelected}" ToolTip="登録した対象を実際に起動します。物理キーのテストとは別です。"/>
+            <Button Content="変更を反映(_S)" Style="{StaticResource PrimaryButtonStyle}" Click="Apply_Click" Padding="18,8" IsEnabled="{Binding CanApply}"/>
           </StackPanel>
         </Grid>
-        <DataGrid Grid.Row="1" ItemsSource="{Binding Shortcuts}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" MouseDoubleClick="Grid_DoubleClick" AlternationCount="2">
+        <DataGrid Grid.Row="1" ItemsSource="{Binding Shortcuts}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" SelectionUnit="FullRow" KeyboardNavigation.TabNavigation="Once" AutomationProperties.Name="割当の一覧" AutomationProperties.HelpText="上下矢印で選択し、Alt+Eで編集、Alt+Tで対象をテストできます。" MouseDoubleClick="Grid_DoubleClick" AlternationCount="2">
+          <DataGrid.RowStyle><Style TargetType="DataGridRow"><Setter Property="AutomationProperties.Name" Value="{Binding FullDescription}"/></Style></DataGrid.RowStyle>
           <DataGrid.Columns>
             <DataGridCheckBoxColumn Header="有効" Binding="{Binding Enabled, Mode=OneWay}" Width="58"/>
             <DataGridTextColumn Header="HotKey" Binding="{Binding Hotkey, Mode=OneWay}" ElementStyle="{StaticResource GridCellTextStyle}" Width="118"/>
@@ -171,7 +172,7 @@
           <TextBlock Text="{Binding RestoreNotice}" TextWrapping="Wrap" FontWeight="SemiBold">
             <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding RestoreNotice}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
           </TextBlock>
-          <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
+          <TextBlock x:Name="StatusAnnouncement" Text="{Binding Status}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" AutomationProperties.Name="{Binding Status}" AutomationProperties.HelpText="処理結果"/>
         </StackPanel>
         <StackPanel Grid.Column="2" VerticalAlignment="Center">
           <Button Content="状態の詳細" Click="StateDetails_Click" Padding="8,3" ToolTip="保存設定・リンク監査・Explorer反映・実キーの確認を分けて表示します。"/>
