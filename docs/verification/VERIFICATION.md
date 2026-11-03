@@ -2,6 +2,13 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
+## 小画面・キーボード・読み上げの基礎 / #19/#20/#21（2026-11-03）
+
+- 配置計算9件と実EXE resourceのmanifest検査1件、合計10/10 passed（PerMonitorV2/PerMonitor、asInvoker、uiAccess=false）。Debug build警告0/エラー0。manifest検査が単独projectテストでもAppを先にbuildするよう非参照のproject依存を明示。
+- 非表示WPFは架空26件だけの隔離設定を使用。1180x800/800x600/右下スクロール後を描画。行のキー/割当名、TabNavigation=Once、Button AutomationPeerのaccess key A、結果Peerが実メッセージを読むこと、設定TextBoxのLabeledByを確認。非表示Settings HWNDでSourceInitializedのサイズ制限もpassed。個人config/HotKey/Chrome・日常製品・clipboardを使用していない。
+- 描画ホストのDebugアイコンresource不足はfixtureへ同じ素材を追加して修正。Application.ResourceAssemblyの設定変更はホスト側で不可だったため撤回し、製品コードの回避変更はしない。初回の一覧列縮小はDispatcherのbinding/layout後に正常化したため、製品不具合としてIssue化しない。
+- 物理DPI/複数モニター、実際のAlt/Tab/JIS/US、Narrator/高コントラストの全操作は未実施。計算・peer・描画の成功から推定せず、各Issueと環境マトリクスへ残す。
+
 ## アプリ起動方法・パスの区別 / #26/#27（2026-11-03、main統合済み）
 
 - PR #151の最終head5c1f95c、CI 41557876433全4job success後main958a29dへ統合。Release配置のプローブを確認し、Core39/39・Windows185/185・skip0、Node29/29。独自URI登録/日本語・空白を含むSMB UNC起動もskipされずpassed。旧Setup更新/再導入/uninstallと構成差payloadの保護検証もpassed。#26/#27 close、日常製品の更新は未実施。

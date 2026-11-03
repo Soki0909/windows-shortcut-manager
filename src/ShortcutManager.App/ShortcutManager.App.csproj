@@ -10,6 +10,7 @@
     <AssemblyName Condition="'$(Configuration)' == 'Debug'">ShortcutManager.Debug</AssemblyName>
     <RootNamespace>ShortcutManager.App</RootNamespace>
     <ApplicationIcon>Assets\shortcut_manager_logo.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>

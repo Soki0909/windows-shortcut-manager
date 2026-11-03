@@ -37,6 +37,11 @@ public sealed class SettingsWindow : Window
         buttons.Children.Add(cancel); buttons.Children.Add(ok); Grid.SetRow(buttons, 6); Grid.SetColumnSpan(buttons, 2); grid.Children.Add(buttons); Content = new ScrollViewer { Content = grid, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }; Validate(false);
     }
 
-    private FrameworkElement ChromePanel() { var panel = new DockPanel(); var browse = new Button { Content = "参照…", Margin = new(5, 0, 0, 0) }; browse.Click += (_, _) => { var dialog = new OpenFileDialog { Filter = "chrome.exe|chrome.exe|実行ファイル|*.exe" }; if (dialog.ShowDialog(this) == true) chromePath.Text = dialog.FileName; }; DockPanel.SetDock(browse, Dock.Right); panel.Children.Add(browse); panel.Children.Add(chromePath); return panel; }
-    private static void Add(Grid grid, int row, string label, FrameworkElement field) { var text = new TextBlock { Text = label, Margin = new(0, 8, 8, 8) }; field.Margin = new(0, 5, 0, 5); Grid.SetRow(text, row); Grid.SetColumn(text, 0); Grid.SetRow(field, row); Grid.SetColumn(field, 1); grid.Children.Add(text); grid.Children.Add(field); }
+    private FrameworkElement ChromePanel() { var panel = new DockPanel(); var browse = new Button { Content = "参照…", Margin = new(5, 0, 0, 0) }; System.Windows.Automation.AutomationProperties.SetName(browse,"Chromeの実行ファイルを参照"); browse.Click += (_, _) => { var dialog = new OpenFileDialog { Filter = "chrome.exe|chrome.exe|実行ファイル|*.exe" }; if (dialog.ShowDialog(this) == true) chromePath.Text = dialog.FileName; }; DockPanel.SetDock(browse, Dock.Right); panel.Children.Add(browse); panel.Children.Add(chromePath); return panel; }
+    private static void LabelInputs(DependencyObject field, TextBlock label)
+    {
+        if(field is TextBox) System.Windows.Automation.AutomationProperties.SetLabeledBy(field,label);
+        foreach(var child in LogicalTreeHelper.GetChildren(field).OfType<DependencyObject>()) LabelInputs(child,label);
+    }
+    private static void Add(Grid grid, int row, string label, FrameworkElement field) { var text = new TextBlock { Text = label, TextWrapping=TextWrapping.Wrap, Margin = new(0, 8, 8, 8) }; LabelInputs(field,text); field.Margin = new(0, 5, 0, 5); Grid.SetRow(text, row); Grid.SetColumn(text, 0); Grid.SetRow(field, row); Grid.SetColumn(field, 1); grid.Children.Add(text); grid.Children.Add(field); }
 }
