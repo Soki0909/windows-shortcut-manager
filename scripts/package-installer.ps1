@@ -1,4 +1,4 @@
-param([string]$Version = '0.3.1', [string]$CompilerPath, [switch]$SkipPublish,[ValidateSet('Unsigned','Certificate')][string]$SigningMode='Unsigned',[switch]$RequireSigned)
+param([string]$Version = '0.4.0', [string]$CompilerPath, [switch]$SkipPublish,[ValidateSet('Unsigned','Certificate')][string]$SigningMode='Unsigned',[switch]$RequireSigned)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path "$PSScriptRoot\..").Path
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Version must be X.Y.Z.' }

@@ -1,4 +1,4 @@
-param([string]$Version='0.3.1',[string]$ArtifactDirectory="$PSScriptRoot/../artifacts",[string]$CompilerPath="$PSScriptRoot/../.work/tools/inno/ISCC.exe")
+param([string]$Version='0.4.0',[string]$ArtifactDirectory="$PSScriptRoot/../artifacts",[string]$CompilerPath="$PSScriptRoot/../.work/tools/inno/ISCC.exe")
 $ErrorActionPreference='Stop'
 $PSNativeCommandUseErrorActionPreference=$true
 if($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows'){throw 'Installer lifecycle checks are restricted to a disposable GitHub Windows runner.'}

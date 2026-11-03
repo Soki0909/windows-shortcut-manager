@@ -27,7 +27,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
-          $version = if ($env:RELEASE_REF_TYPE -eq 'tag') { $env:RELEASE_TAG.TrimStart('v') } else { '0.3.1' }
+          $version = if ($env:RELEASE_REF_TYPE -eq 'tag') { $env:RELEASE_TAG.TrimStart('v') } else { '0.4.0' }
           dotnet restore ShortcutManager.sln
           dotnet test ShortcutManager.sln -c Release --no-restore
           node --test tests/ChromeExtension.Tests/protocol.test.js tests/ChromeExtension.Tests/worker-regressions.test.js
