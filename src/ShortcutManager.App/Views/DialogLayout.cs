@@ -10,6 +10,8 @@ internal static class DialogLayout
 {
     public static void Constrain(Window window)
     {
+        if(window.ReadLocalValue(FrameworkElement.StyleProperty)==DependencyProperty.UnsetValue)
+            window.SetResourceReference(FrameworkElement.StyleProperty,typeof(Window));
         var minimumWidth = window.MinWidth; var minimumHeight = window.MinHeight;
         var requestedWidth = window.Width; var requestedHeight = window.Height;
         var maximumWidth = window.MaxWidth; var maximumHeight = window.MaxHeight;
@@ -58,6 +60,7 @@ internal static class DialogLayout
         {
             // Let WPF handle DPI first; clamping every drag motion would prevent crossing monitors.
             if (message is 0x02E0 or 0x007E or 0x0232) QueueAdjustment();
+            if (message==0x0015 && Application.Current is App application) application.RefreshTheme();
             return IntPtr.Zero;
         }
         var fallback = SystemParameters.WorkArea;

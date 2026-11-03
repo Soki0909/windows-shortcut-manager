@@ -10,6 +10,7 @@ public sealed class LaunchDiagnosticsWindow : Window
     public LaunchDiagnosticsWindow()
     {
         Title = "HotKeyの起動遅延を診断"; Width = 760; Height = 540; MinWidth = 620; MinHeight = 420; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        DialogLayout.Constrain(this);
         var panel = new DockPanel { Margin = new(20) };
         var explanation = new TextBlock { Text = "HotKeyだけが遅い場合は、Windows Shellが他アプリの応答を待っている可能性があります。\n応答のないウィンドウの候補を読み取り専用で調べます。原因の断定や自動終了は行いません。", TextWrapping = TextWrapping.Wrap, Margin = new(0, 0, 0, 12) };
         DockPanel.SetDock(explanation, Dock.Top); panel.Children.Add(explanation);

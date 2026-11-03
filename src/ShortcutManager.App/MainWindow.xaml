@@ -10,15 +10,15 @@
       <Setter Property="Height" Value="70"/>
       <Setter Property="Padding" Value="8,7"/>
       <Setter Property="Margin" Value="4"/>
-      <Setter Property="Background" Value="#FFFFFF"/>
-      <Setter Property="BorderBrush" Value="#DCE2EB"/>
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource KeyDefaultBorderBrush}"/>
       <Setter Property="IsEnabled" Value="{Binding DataContext.CanModify, RelativeSource={RelativeSource AncestorType=Window}}"/>
       <Style.Triggers>
-        <DataTrigger Binding="{Binding Status}" Value="Ready"><Setter Property="Background" Value="#ECF8F3"/><Setter Property="BorderBrush" Value="#A9DCCB"/></DataTrigger>
-        <DataTrigger Binding="{Binding Status}" Value="Disabled"><Setter Property="Background" Value="#F3F4F6"/><Setter Property="BorderBrush" Value="#D5D9E0"/></DataTrigger>
-        <DataTrigger Binding="{Binding Status}" Value="Error"><Setter Property="Background" Value="#FFF0F1"/><Setter Property="BorderBrush" Value="#F2B8BE"/></DataTrigger>
-        <DataTrigger Binding="{Binding Status}" Value="Unapplied Changes"><Setter Property="Background" Value="#F0EFFF"/><Setter Property="BorderBrush" Value="#C9C5FF"/></DataTrigger>
-        <DataTrigger Binding="{Binding IsSelected}" Value="True"><Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/><Setter Property="BorderThickness" Value="2"/></DataTrigger>
+        <DataTrigger Binding="{Binding Status}" Value="Ready"><Setter Property="Background" Value="{DynamicResource KeyReadyBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource KeyReadyBorderBrush}"/></DataTrigger>
+        <DataTrigger Binding="{Binding Status}" Value="Disabled"><Setter Property="Background" Value="{DynamicResource KeyDisabledBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource KeyDisabledBorderBrush}"/></DataTrigger>
+        <DataTrigger Binding="{Binding Status}" Value="Error"><Setter Property="Background" Value="{DynamicResource KeyErrorBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource KeyErrorBorderBrush}"/></DataTrigger>
+        <DataTrigger Binding="{Binding Status}" Value="Unapplied Changes"><Setter Property="Background" Value="{DynamicResource KeyChangedBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource KeyChangedBorderBrush}"/></DataTrigger>
+        <DataTrigger Binding="{Binding IsSelected}" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/><Setter Property="BorderThickness" Value="2"/></DataTrigger>
       </Style.Triggers>
     </Style>
     <DataTemplate x:Key="KeyTileTemplate">
@@ -27,7 +27,7 @@
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
           <TextBlock Text="{Binding Key}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
           <TextBlock Grid.Row="1" Text="{Binding Name}" FontSize="11" TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="66"/>
-          <TextBlock Grid.Row="2" Text="{Binding StatusLabel}" FontSize="9" Foreground="{StaticResource MutedTextBrush}" HorizontalAlignment="Center"/>
+          <TextBlock Grid.Row="2" Text="{Binding StatusLabel}" FontSize="9" Foreground="{DynamicResource MutedTextBrush}" HorizontalAlignment="Center"/>
         </Grid>
       </Button>
     </DataTemplate>
@@ -53,9 +53,9 @@
                  RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Shortcut Manager ロゴ"/>
           <StackPanel>
             <TextBlock x:Name="ProductTitle" Text="Shortcut Manager" FontSize="22" FontWeight="SemiBold"/>
-            <TextBlock Text="Ctrl + Alt + A–Z · ローカルで安全に管理" Foreground="{StaticResource MutedTextBrush}" FontSize="12"/>
+            <TextBlock Text="Ctrl + Alt + A–Z · ローカルで安全に管理" Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
             <TextBlock x:Name="DevelopmentNotice" Text="デバッグ版 · 設定とHotKeyは製品版と別に保存"
-                       Visibility="Collapsed" Foreground="#9A3412" FontSize="11" FontWeight="SemiBold"/>
+                       Visibility="Collapsed" Foreground="{DynamicResource DebugNoticeBrush}" FontSize="11" FontWeight="SemiBold"/>
           </StackPanel>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -99,12 +99,12 @@
           <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <StackPanel>
             <TextBlock Text="キーボード" FontSize="16" FontWeight="SemiBold"/>
-            <TextBlock Text="キーを選ぶと、その割り当てをすぐ編集できます" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,2,0,0"/>
+            <TextBlock Text="キーを選ぶと、その割り当てをすぐ編集できます" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,2,0,0"/>
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-            <Ellipse Width="8" Height="8" Fill="{StaticResource SuccessBrush}"/><TextBlock Text=" 保存済み" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,14,0"/>
-            <Ellipse Width="8" Height="8" Fill="#C9C5FF"/><TextBlock Text=" 未保存" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,14,0"/>
-            <Ellipse Width="8" Height="8" Fill="#DCE2EB"/><TextBlock Text=" 空き" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
+            <Ellipse Width="8" Height="8" Fill="{DynamicResource SuccessBrush}"/><TextBlock Text=" 保存済み" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,0,14,0"/>
+            <Ellipse Width="8" Height="8" Fill="{DynamicResource KeyChangedBorderBrush}"/><TextBlock Text=" 未保存" Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,0,14,0"/>
+            <Ellipse Width="8" Height="8" Fill="{DynamicResource KeyDefaultBorderBrush}"/><TextBlock Text=" 空き" Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
           </StackPanel>
         </Grid>
         <ItemsControl ItemsSource="{Binding TopRowKeys}" ItemTemplate="{StaticResource KeyTileTemplate}" ItemsPanel="{StaticResource KeyboardRowPanel}" HorizontalAlignment="Center"/>
@@ -120,7 +120,7 @@
           <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <StackPanel VerticalAlignment="Center">
             <TextBlock Text="ショートカット" FontSize="16" FontWeight="SemiBold"/>
-            <TextBlock Text="{Binding SelectionText}" ToolTip="{Binding SelectionText}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedTextBrush}" FontSize="11"/>
+            <TextBlock Text="{Binding SelectionText}" ToolTip="{Binding SelectionText}" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal">
             <Button Content="追加(_A)" Click="Add_Click" IsEnabled="{Binding CanModify}"/>
@@ -141,7 +141,7 @@
             <DataGridTextColumn Header="状態" Binding="{Binding StateLabel, Mode=OneWay}" ElementStyle="{StaticResource GridCellTextStyle}" Width="180"/>
           </DataGrid.Columns>
         </DataGrid>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="{StaticResource SurfaceBrush}">
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="{DynamicResource SurfaceBrush}">
           <ScrollViewer.Style><Style TargetType="ScrollViewer"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding ShowEmptyState}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></ScrollViewer.Style>
           <StackPanel Margin="18,10" HorizontalAlignment="Center" MaxWidth="620">
             <TextBlock Text="よく使うサイトやアプリを、キーひとつに。" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"/>
@@ -154,19 +154,19 @@
             </WrapPanel>
           </StackPanel>
         </ScrollViewer>
-        <Border Grid.Row="2" Background="{StaticResource SurfaceMutedBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="14,8">
-          <TextBlock Text="{Binding ManagedDirectory, StringFormat=管理フォルダ: {0}}" FontSize="10" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis"/>
+        <Border Grid.Row="2" Background="{DynamicResource SurfaceMutedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="14,8">
+          <TextBlock Text="{Binding ManagedDirectory, StringFormat=管理フォルダ: {0}}" FontSize="10" Foreground="{DynamicResource MutedTextBrush}" TextTrimming="CharacterEllipsis"/>
         </Border>
       </Grid>
     </Border>
 
-    <Border Grid.Row="3" Background="#EEF1F7" CornerRadius="10" Padding="13,9" Margin="0,12,0,0">
+    <Border Grid.Row="3" Background="{DynamicResource StatusPanelBrush}" CornerRadius="10" Padding="13,9" Margin="0,12,0,0">
       <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
-        <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,10,0"/>
+        <Ellipse Width="8" Height="8" Fill="{DynamicResource PrimaryBrush}" Margin="0,0,10,0"/>
         <StackPanel Grid.Column="1">
           <TextBlock Text="{Binding EditingNotice}" TextWrapping="Wrap" FontWeight="SemiBold"/>
-          <TextBlock Text="{Binding LogWarning}" TextWrapping="Wrap" Foreground="{StaticResource WarningBrush}">
+          <TextBlock Text="{Binding LogWarning}" TextWrapping="Wrap" Foreground="{DynamicResource WarningBrush}">
             <TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><DataTrigger Binding="{Binding LogWarning}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
           </TextBlock>
           <TextBlock Text="{Binding RestoreNotice}" TextWrapping="Wrap" FontWeight="SemiBold">
@@ -176,7 +176,7 @@
         </StackPanel>
         <StackPanel Grid.Column="2" VerticalAlignment="Center">
           <Button Content="状態の詳細" Click="StateDetails_Click" Padding="8,3" ToolTip="保存設定・リンク監査・Explorer反映・実キーの確認を分けて表示します。"/>
-          <ProgressBar IsIndeterminate="{Binding IsBusy}" Height="4" Margin="4,4,4,0" Foreground="{StaticResource PrimaryBrush}" Background="#DDE2EC"/>
+          <ProgressBar IsIndeterminate="{Binding IsBusy}" Height="4" Margin="4,4,4,0" Foreground="{DynamicResource PrimaryBrush}" Background="{DynamicResource ProgressTrackBrush}"/>
         </StackPanel>
       </Grid>
     </Border>

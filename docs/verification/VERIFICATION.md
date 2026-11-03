@@ -2,6 +2,13 @@
 
 Updated: 2026-11-03 (Asia/Tokyo)
 
+## 配色追従とhover可読性 / #21/#155（2026-11-03）
+
+- main3df86a1のXAMLに対し、IsMouseOver条件だけをTag=hoverへ置き換えたfixtureで、主操作の実効background=#FFF1F3F9/foreground=#FFFFFFFFを再現し#155を作成。修正後は#FF4338CA/#FFFFFFFF。同じsource style/template/resourceの優先順位を評価し、実マウス操作の成功証拠とは分ける。
+- ThemePaletteTests/ThemeResourceTestsの5件passed。通常/明暗の組の比率、既存controlのhover/disabled/エラー/派生Window更新、現在OS配色へのQueueRefreshとDispose後の停止を確認。編集状態/診断/manifest等を含む関連35件もpassed。Windowテストを実App参照へ変更し、WPF SDKで省かれたSystem.IO usingを明示してcompileを修正した。
+- 暗色描画で派生Windowの文字が黒のままになることを確認。回帰テストでexpected=#FF172033/actual=#FF000000を再現し、共通Window styleの明示後passed。通常行/セルの背景・文字も明示。共通制限外だった起動診断画面も同じ経路へ統一した。
+- 非表示の同じ主画面で通常→明暗配色を描画し、状態文字とエラー/未保存の区別を確認。描画ホストが途中で候補を再読込した失敗はfixtureの順序を修正し、製品側の行名判定を弱めていない。OSのテーマ、個人設定/HotKey/Chrome/clipboard、日常製品は未変更。native popup等と実Narrator/実OSコントラストテーマの一連操作は未実施。
+
 ## 小画面・キーボード・読み上げの基礎 / #19/#20/#21（2026-11-03）
 
 - PR #153の最終head7986c8d、CI 41561167611 success後main1512093へ統合。Core39/39・Windows195/195・skip0、旧Setup更新/再導入/アンインストールと構成差payloadの保持もpassed。無関係な拡張jobはskip。主画面の最小値480x360と非表示の実HWNDで800x600へ変更可能なことを追加確認。実機の全条件は未完了でIssueはcloseしない。
