@@ -2,6 +2,7 @@
 
 ソースコード: [MIT License](LICENSE)。再配布するruntime・素材の表記は [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) を参照してください。
 v1.0.0に向けた進捗・判断・実行済み検証は [実装計画](docs/implementation/PLAN_v1.0.0.md) で追跡します。
+対応環境と未検証条件は [環境マトリクス](docs/verification/ENVIRONMENT_MATRIX.md) にまとめています。v1.0.0の全環境確認は継続中です。
 既存のunpacked拡張の更新は [中断復旧付き更新手順](docs/verification/EXTENSION_UPDATE.md) を参照してください。
 各版の公開・所有者PC更新の実績は [公開後記録](docs/releases/POST_RELEASE.md) にまとめています。
 保存情報と削除方法は [プライバシーポリシー](PRIVACY.md)、Store提出の準備と未実施工程は [提出計画](docs/design/CHROME_WEB_STORE_SUBMISSION.md) を参照してください。Chrome Web Storeでの正式配布は準備中です。
