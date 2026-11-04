@@ -598,7 +598,7 @@ public sealed class MainViewModel : ObservableObject
             var changed = !savedEntries.TryGetValue(definition.Id, out var saved) || current[definition.Id] != saved || (settingsChanged && definition.Target is ChromeTabGroupTarget);
             var confirmed = physicalConfirmations.TryGetValue(definition.Id, out var proof) && proof == DefinitionVersion(definition);
             var code = !definition.Enabled ? "Disabled" : issues.Length > 0 ? "Error" : changed ? "Unapplied Changes" : "Ready";
-            var label = changed ? "未保存" : !definition.Enabled ? "無効" : issues.Length > 0 ? "入力要確認" : confirmed ? "実キー確認済み（今回の申告）" : ShellReflectionPending ? "保存済み・反映未確認" : savedLinksVerified ? "保存済み・実キー未確認" : "保存済み・リンク未確認";
+            var label = changed ? UiText.Unsaved : !definition.Enabled ? "無効" : issues.Length > 0 ? "入力要確認" : confirmed ? "実キー確認済み（今回の申告）" : ShellReflectionPending ? "保存済み・反映未確認" : savedLinksVerified ? "保存済み・実キー未確認" : "保存済み・リンク未確認";
             Shortcuts.Add(new(definition, TargetSummary(definition.Target), code, string.Join(" / ", issues.Select(issue => issue.Message)), label));
         }
         var tiles = KeyboardLayout.Keys.ToDictionary(
@@ -607,7 +607,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 var group = Shortcuts.Where(item => item.Key == key).ToArray();
                 var row = group.FirstOrDefault(item => item.Enabled) ?? group.FirstOrDefault();
-                var code = group.Any(item => item.Status == "Error") ? "Error" : group.Any(item => item.StateLabel == "未保存") ? "Unapplied Changes" : row?.Status ?? "Empty";
+                var code = group.Any(item => item.Status == "Error") ? "Error" : group.Any(item => item.StateLabel == UiText.Unsaved) ? "Unapplied Changes" : row?.Status ?? "Empty";
                 return new KeyTile(key, group.Length > 1 ? $"{group.Length}件の割当" : row?.Name ?? "空き", code, row, group.Length, group.Length > 1 ? string.Join("\n\n", group.Select(item => item.FullDescription + (item.Enabled ? "\n有効" : "\n無効"))) : null);
             });
         Replace(TopRowKeys, KeyboardLayout.Rows[0].Select(key => tiles[key.ToString()]));
