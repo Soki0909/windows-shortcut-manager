@@ -8,6 +8,7 @@ Updated: 2026-11-05 (Asia/Tokyo)
 - 共有なしの冪等性、所有者/パス不一致の拒否、削除コマンドが成功しても共有が残る場合の失敗、正常削除の読戻し、phase/exit/標準出力/例外の保持、起動とcleanupの二重失敗を確認。偽関数のみで、実際の共有へ触れない。
 - 実UNC起動は同じhosted runnerで作成/日本語引数・作業フォルダ/削除/二度目の削除を3回連続で通す構造へ変更。失敗の再試行で成功扱いにはしない。CIの結果は後続で記録する。
 - 非SMBのWindows PowerShellプローブで、存在しない対象をSilentlyContinueで処理しても暗黙exit=1となる条件を再現。helperの明示exitでこの条件を正常終了できる回帰を追加した。元のRelease runは必要な診断がないため、同じ原因だったとまでは断定しない。
+- PR #159の最終head60685dd、CI [41893214665](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/41893214665) success。Core39/39、Windows208/208・skip0。実UNCの3サイクルも含み、CLI/配布/旧Setup更新保持までpassed。独立レビューで必須修正なし、main66f5084へ統合し#157 close。
 
 ## v0.4.0確定・製品環境更新・作業終了（2026-11-03）
 
