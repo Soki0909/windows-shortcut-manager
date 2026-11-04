@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Diagnostics;
-using System.Text;
 using Microsoft.Win32;
 using ShortcutManager.Core.Models;
 using ShortcutManager.Core.Protocol;
@@ -93,47 +92,44 @@ public sealed class LaunchContractTests : IDisposable
     public async Task UncPathWithUnicodeAndSpacesValidatesAndLaunchesWithoutRewritingIt()
     {
         Assert.True(HostedWindowsFactAttribute.IsHostedWindows);
-        var share = "sm-launch-" + Guid.NewGuid().ToString("N"); var owner = Guid.NewGuid().ToString("N");
         var folder = root;
         Directory.CreateDirectory(Path.Combine(root, "共有の 作業フォルダ"));
         var safeFolder = folder.Replace("'", "''", StringComparison.Ordinal);
-        try
+        // Repeat the real create/launch/remove lifecycle, not a blanket retry
+        // of failed assertions. Every cycle must succeed on the same runner.
+        for (var cycle = 0; cycle < 3; cycle++)
         {
-            RunShareScript("Start-Service LanmanServer; if(Get-SmbShare -Name '" + share + "' -ErrorAction SilentlyContinue){throw 'Share collision'}; New-SmbShare -Name '" + share + "' -Path '" + safeFolder + "' -Description '" + owner + "' -ReadAccess ([Security.Principal.WindowsIdentity]::GetCurrent().Name) | Out-Null");
-            var uncRoot = @"\\localhost\" + share;
-            var uncFolder = uncRoot + @"\共有の 作業フォルダ";
-            var uncProbe = uncRoot + @"\日本語 アプリ\" + Path.GetFileName(probe);
-            Assert.Equal(File.ReadAllBytes(probe), File.ReadAllBytes(uncProbe));
-            var report = ReportPath();
-            var target = new ApplicationTarget { Value = uncProbe, WorkingDirectory = uncFolder,
-                Arguments = "--report " + LaunchSpecResolver.Quote(report) + " " + LaunchSpecResolver.Quote("共有からの 日本語引数") };
-            var config = new ShortcutConfig { Shortcuts = [new() { Name = "share fixture", Hotkey = new() { Key = "U" }, Target = target }] };
-            Assert.True(new ConfigValidator().Validate(config).IsValid);
-            var spec = Resolve(target); Assert.Equal(uncProbe, spec.TargetPath); Assert.Equal(uncFolder, spec.WorkingDirectory);
-            new ProcessLauncher().Launch(spec);
-            using var result = await ReadReport(report);
-            Assert.Equal("共有からの 日本語引数", result.RootElement.GetProperty("Arguments")[0].GetString());
-            Assert.Equal(uncFolder, result.RootElement.GetProperty("WorkingDirectory").GetString(), ignoreCase: true);
-        }
-        finally
-        {
-            RunShareScript("$share=Get-SmbShare -Name '" + share + "' -ErrorAction SilentlyContinue; if($share -and $share.Description -eq '" + owner + "' -and $share.Path -eq '" + safeFolder + "'){Remove-SmbShare -Name '" + share + "' -Force}");
+            var share = "sm-launch-" + Guid.NewGuid().ToString("N"); var owner = Guid.NewGuid().ToString("N");
+            var cleanup = FixturePowerShell.RemoveOwnedShare(share, owner, folder);
+            await FixturePowerShell.WithCleanup(async () =>
+            {
+                RunShareScript("Start-Service LanmanServer; if(@(Get-SmbShare -ErrorAction Stop | Where-Object Name -EQ '" + share + "').Count){throw 'Share collision'}; New-SmbShare -Name '" + share + "' -Path '" + safeFolder + "' -Description '" + owner + "' -ReadAccess ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -ErrorAction Stop | Out-Null", $"create cycle {cycle}");
+                var uncRoot = @"\\localhost\" + share;
+                var uncFolder = uncRoot + @"\共有の 作業フォルダ";
+                var uncProbe = uncRoot + @"\日本語 アプリ\" + Path.GetFileName(probe);
+                Assert.Equal(File.ReadAllBytes(probe), File.ReadAllBytes(uncProbe));
+                var report = ReportPath();
+                var target = new ApplicationTarget { Value = uncProbe, WorkingDirectory = uncFolder,
+                    Arguments = "--report " + LaunchSpecResolver.Quote(report) + " " + LaunchSpecResolver.Quote("共有からの 日本語引数") };
+                var config = new ShortcutConfig { Shortcuts = [new() { Name = "share fixture", Hotkey = new() { Key = "U" }, Target = target }] };
+                Assert.True(new ConfigValidator().Validate(config).IsValid);
+                var spec = Resolve(target); Assert.Equal(uncProbe, spec.TargetPath); Assert.Equal(uncFolder, spec.WorkingDirectory);
+                new ProcessLauncher().Launch(spec);
+                using var result = await ReadReport(report);
+                Assert.Equal("共有からの 日本語引数", result.RootElement.GetProperty("Arguments")[0].GetString());
+                Assert.Equal(uncFolder, result.RootElement.GetProperty("WorkingDirectory").GetString(), ignoreCase: true);
+            }, () =>
+            {
+                RunShareScript(cleanup, $"cleanup cycle {cycle}");
+                RunShareScript(cleanup, $"already absent cycle {cycle}");
+            });
         }
     }
 
-    private static void RunShareScript(string script)
+    private static void RunShareScript(string script, string phase)
     {
         Assert.True(HostedWindowsFactAttribute.IsHostedWindows);
-        var start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };
-        foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes("$ErrorActionPreference='Stop'; " + script)) }) start.ArgumentList.Add(argument);
-        using var process = Process.Start(start)!;
-        var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(30000))
-        {
-            process.Kill(entireProcessTree: true); process.WaitForExit(5000);
-            throw new TimeoutException("Disposable runner SMB fixture command timed out.");
-        }
-        Assert.True(process.ExitCode == 0, output.GetAwaiter().GetResult() + error.GetAwaiter().GetResult());
+        FixturePowerShell.Run(script, phase);
     }
 
     [HostedWindowsFact]

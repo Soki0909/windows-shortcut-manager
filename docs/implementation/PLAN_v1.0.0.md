@@ -4,6 +4,9 @@
 
 ## Progress
 
+- [ ] 2026-11-05再開: 所有者がgoalをactiveへ戻したため、v1.0.0へ向けた開発を継続する。main8ffc650/clean、未解決42件を再確認。最初に#157のUNC fixtureを改善し、続いて安全な移行/特殊lnkのP1受け入れ条件を進める。下記のv0.4.0時点の停止記録は履歴として保持する。
+- [ ] #157再開作業: PowerShellのphase/exit/stdout/stderr診断、成功時の明示exit、SMB削除の所有者/パス照合と消失確認、元の起動失敗とcleanup失敗の併記を追加。境界8件と関連する実起動2件がローカルpassed、runner専用2件skip。抑制した対象なしエラーの後に暗黙exit=1となるWindows PowerShell条件を非SMBプローブで再現。元のrunの同一原因までは断定しない。実SMBはhosted CIで3サイクル連続実行と二度目のcleanupを検証するまで未完了。
+
 - [x] 所有者の終了依頼: v0.4.0を確定・公開し、公式Setupで本体、同じ配置先で拡張ファイルを更新。[公開後記録](../releases/post-release/v0.4.0.md)と[残作業42件](../releases/v1.0.0-remaining-after-v0.4.0.md)を引き継いで本作業を停止する。Chrome再読み込み/実行版確認はComputer UseのURL判定停止により所有者操作へ引継ぎ。新規機能の継続開発は行わず、v1.0.0達成とは扱わない。
 
 - [x] #21/#155の今回実装: 意味別の動的palette、Windows設定/システム色の変更追従、派生Window/エラー/一覧/無効状態の配色を実装。主操作hoverの白文字/薄背景を発見し#155を追加、style側へ配色を移して修正。実App参照のWPF/配色5件と関連状態等35件、明暗の非表示描画passed。PR #156、最終CI 41567291202とmain CI 41567865671 success、main5aaeef8へ統合し#155 close。実OSコントラストテーマ/Narrator等は未実施で#21はopen。
