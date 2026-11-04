@@ -14,7 +14,7 @@ public sealed class DiagnosticExportWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner; DialogLayout.Constrain(this);
         var panel = new StackPanel { Margin = new(18) };
         var header = new StackPanel();
-        header.Children.Add(new TextBlock { Text = "この画面を開いた時点の版・状態・件数・検証コードです。名前・パス・URL・ID・ログ原文は既定で含めません。監査や走査を新たに実行せず、実キーの動作も推定しません。保存後の送信は自分で行います。", TextWrapping = TextWrapping.Wrap });
+        header.Children.Add(new TextBlock { Text = "この画面を開いた時点の版・状態・件数・検証コードです。名前・パス・URL・ID・ログ原文は既定で含めません。監査やスキャンを新たに実行せず、実キーの動作も推定しません。保存後の送信は自分で行います。", TextWrapping = TextWrapping.Wrap });
         var includeNotes = new CheckBox { Content = new TextBlock { Text = "自分で入力した補足を追加する（自動でマスクされません）", TextWrapping = TextWrapping.Wrap }, Margin = new(0, 10, 0, 5) };
         var notes = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 70,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxLength = DiagnosticReport.MaxNotesLength, IsEnabled = false };

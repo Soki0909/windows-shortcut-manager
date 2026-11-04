@@ -14,14 +14,14 @@ public sealed class ShortcutEditorWindow : Window
     private readonly CheckBox enabled = new() { Content = "この割当を有効にする", IsChecked = true };
     private readonly TextBox legacyKey = new() { IsReadOnly = true };
     private readonly ComboBox key = new() { DisplayMemberPath = "Label", SelectedValuePath = "Value" };
-    private readonly ComboBox type = new() { ItemsSource = new[] { "Webサイト", "アプリ・Windowsショートカット", "BAT / CMD", "Chromeタブグループ" } };
+    private readonly ComboBox type = new() { ItemsSource = new[] { UiText.Website, UiText.Application, UiText.Bat, UiText.ChromeTabGroup } };
     private readonly ComboBox mode = new() { DisplayMemberPath = "Label", SelectedValuePath = "Value" };
     private readonly ComboBox windowMode = new() { DisplayMemberPath = "Label", SelectedValuePath = "Value" };
     private readonly TextBox target = new();
     private readonly TextBox arguments = new();
     private readonly TextBox directory = new();
     private readonly Button browse = new() { Content = "参照…", Margin = new(6,0,0,0) };
-    private readonly Button save = new() { Content = "候補に保存", IsDefault = true };
+    private readonly Button save = new() { Content = UiText.SaveCandidate, IsDefault = true };
     private readonly TextBlock typeHelp = new() { TextWrapping = TextWrapping.Wrap, Margin = new(0,8,0,10) };
     private readonly TextBlock summary = ThemeResources.ErrorText(new Thickness(0,8,0,8));
     private readonly TextBlock help = new() { TextWrapping = TextWrapping.Wrap, Margin = new(0,8,0,8) };
@@ -39,7 +39,7 @@ public sealed class ShortcutEditorWindow : Window
         var occupied = usedKeys ?? new Dictionary<string,string>();
         if (definition is null) state.Key = preselectedKey ?? Enumerable.Range('A',26).Select(value => ((char)value).ToString()).FirstOrDefault(value => !occupied.ContainsKey(value)) ?? string.Empty;
         key.ItemsSource = Enumerable.Range('A',26).Select(value => ((char)value).ToString()).Select(value => new Choice<string>(value, occupied.TryGetValue(value,out var assigned) ? $"{value} — この設定では「{assigned}」が使用中" : $"{value} — この設定では空き")).ToArray();
-        mode.ItemsSource = new[] { new Choice<ApplicationLaunchMode>(ApplicationLaunchMode.Executable,"ファイルを直接起動"), new(ApplicationLaunchMode.Shortcut,"既存のWindowsショートカット (.lnk)"), new(ApplicationLaunchMode.Uri,"アプリURI / shell:AppsFolder") };
+        mode.ItemsSource = new[] { new Choice<ApplicationLaunchMode>(ApplicationLaunchMode.Executable,"ファイルを直接起動"), new(ApplicationLaunchMode.Shortcut,"既存のWindowsショートカット (.lnk)"), new(ApplicationLaunchMode.Uri,"アプリのリンク（URIなど）") };
         windowMode.ItemsSource = new[] { new Choice<BatWindowMode>(BatWindowMode.Normal,"通常のウィンドウ"), new(BatWindowMode.Minimized,"最小化して実行") };
         Title = definition is null ? "ショートカットを追加" : "ショートカットを編集";
         Width = 720; Height = 720; MinWidth = 460; MinHeight = 400; WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -52,7 +52,7 @@ public sealed class ShortcutEditorWindow : Window
         keyPanel.Children.Add(new Expander { Header="実キー入力（既存の割当が起動する場合あり）",Content=legacyKey });
         Add(form,"key","文字キー",keyPanel,"一覧からA–Zを選びます。別アプリやWindowsの既存キーとの競合は変更反映前にも確認します。",key);
         Add(form,"type","対象の種類",type,"種類・起動方法を切り替えても入力を種類ごとに保持します。選択中の種類だけ候補へ保存します。");
-        Add(form,"mode","起動方法",mode,"ファイルを直接起動する方法だけ追加引数を渡せます。.lnk / URIはExplorerへ値を渡し、元の起動方法を利用します。");
+        Add(form,"mode","起動方法",mode,"ファイルを直接起動する方法だけ追加引数を渡せます。.lnk / URIはエクスプローラーへ値を渡し、元の起動方法を利用します。");
         var targetPanel = new DockPanel(); DockPanel.SetDock(browse,Dock.Right); targetPanel.Children.Add(browse); targetPanel.Children.Add(target);
         Add(form,"target","起動先",targetPanel,"URL、引用符を付けない絶対ファイルパス、URI、グループ名を種類に合わせて入力します。",target);
         var details = NewGrid();
@@ -60,11 +60,11 @@ public sealed class ShortcutEditorWindow : Window
         var directoryPanel = new DockPanel(); var folder = new Button { Content="参照…",Margin=new(6,0,0,0) };
         folder.Click += (_,_) => { var dialog = new OpenFolderDialog { Title="作業フォルダを選ぶ" }; if(dialog.ShowDialog(this)==true) directory.Text=dialog.FolderName; };
         DockPanel.SetDock(folder,Dock.Right); directoryPanel.Children.Add(folder); directoryPanel.Children.Add(directory);
-        Add(details,"directory","作業フォルダ",directoryPanel,"直接起動/BATでは空欄なら起動先ファイルのあるフォルダを使います。.lnk/URIではExplorerへ渡す作業フォルダです。元リンクやURI先アプリの作業フォルダを上書きする指定ではありません。指定する場合は存在するフォルダの絶対パスを使います。",directory);
+        Add(details,"directory","作業フォルダ",directoryPanel,"直接起動/BATでは空欄なら起動先ファイルのあるフォルダを使います。.lnk/URIではエクスプローラーへ渡す作業フォルダです。元リンクやURI先アプリの作業フォルダを上書きする指定ではありません。指定する場合は存在するフォルダの絶対パスを使います。",directory);
         Add(details,"window","実行時の表示",windowMode,"BAT/CMDのウィンドウを通常表示または最小化します。バックグラウンドの常駐化ではありません。");
         advanced.Content = details;
         var content = new StackPanel { Margin=new(18) };
-        content.Children.Add(new TextBlock { Text="この画面は編集候補を作ります。Windowsへの保存はメインの「変更を反映」です。",TextWrapping=TextWrapping.Wrap });
+        content.Children.Add(new TextBlock { Text="「候補に保存」は編集中の一覧へ戻す操作です。設定ファイルとWindowsのリンクへの保存はメインの「変更を反映」です。",TextWrapping=TextWrapping.Wrap });
         content.Children.Add(typeHelp); content.Children.Add(form); content.Children.Add(launchAdvice); content.Children.Add(advanced); content.Children.Add(summary); content.Children.Add(help);
         var buttons = new StackPanel { Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Margin=new(12) };
         var recheck = new Button { Content="入力を再確認",ToolTip="ファイルや作業フォルダの存在を再確認します（F5）。" }; recheck.Click += (_,_) => Validate(true,false);
@@ -123,18 +123,18 @@ public sealed class ShortcutEditorWindow : Window
         Show("mode",app); advanced.Visibility=app||bat ? Visibility.Visible : Visibility.Collapsed;
         Show("arguments",app||bat); Show("directory",app||bat); Show("window",bat);
         arguments.IsReadOnly=app && !direct;
-        fields["directory"].Label.Text=app && !direct ? "Explorerの作業フォルダ" : "作業フォルダ";
+        fields["directory"].Label.Text=app && !direct ? "エクスプローラーの作業フォルダ" : "作業フォルダ";
         fields["arguments"].Panel.ToolTip=arguments.IsReadOnly ? "この方法では追加引数を渡しません。既存の値は保持します。引数が必要ならファイルを直接起動する方法を選んでください。" : "任意の追加引数。引用や記号の意味を確認してください。";
         browse.Visibility=bat || (app && state.Mode!=ApplicationLaunchMode.Uri) ? Visibility.Visible : Visibility.Collapsed;
         fields["target"].Label.Text=state.Kind switch {0=>"WebサイトのURL",1 when state.Mode==ApplicationLaunchMode.Uri=>"アプリURI",1 when state.Mode==ApplicationLaunchMode.Shortcut=>"既存の.lnkファイル",1=>"起動するファイル",2=>"BAT / CMDファイル",_=>"グループ名"};
         typeHelp.Text=state.Kind switch
         {
-            0=>"OSの既定ブラウザーで開きます。例: https://example.com。Chrome拡張は不要です。",
-            1 when state.Mode==ApplicationLaunchMode.Shortcut=>"元のWindowsショートカットをExplorerへ渡します。追加引数は渡しません。既存の保存値がある場合は保持します。",
-            1 when state.Mode==ApplicationLaunchMode.Uri=>"URI / shell:AppsFolder をExplorerへ渡します。追加引数は渡しません。Windowsの登録状態と実際の起動成功は別に確認します。",
+            0=>"Windowsの既定ブラウザーで開きます。例: https://example.com。Chrome拡張は不要です。",
+            1 when state.Mode==ApplicationLaunchMode.Shortcut=>"元のWindowsショートカットをエクスプローラーへ渡します。追加引数は渡しません。既存の保存値がある場合は保持します。",
+            1 when state.Mode==ApplicationLaunchMode.Uri=>"URI / shell:AppsFolder をエクスプローラーへ渡します。追加引数は渡しません。Windowsの登録状態と実際の起動成功は別に確認します。",
             1=>"ファイルを直接起動します。追加引数を渡せます。パスは引用符を付けずに入力してください。",
             2=>"外部のBAT/CMDを実行します。本文を取り込んだり書き換えたりしません。",
-            _=>"現在開いているChromeグループの完全一致名です。閉じた保存済みグループは開けません。拡張機能IDは先にメインの「設定」で指定します。",
+            _=>"現在開いているChromeタブグループの完全一致名です。閉じた保存済みグループは開けません。拡張機能IDは先にメインの「設定」で指定します。",
         };
         typeHelp.Text += "\n種類ごとに入力を保持し、選択中の種類だけ保存します。";
         if(bat || app && state.Mode!=ApplicationLaunchMode.Uri) typeHelp.Text += "\n空白・日本語・共有名から始まるパスを指定できます。共有先の存在確認には接続と権限が必要です。";

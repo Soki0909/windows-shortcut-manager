@@ -45,7 +45,7 @@ public sealed class ImportWindow : Window
         var top=new StackPanel();top.Children.Add(new TextBlock {Text=(report?.Summary ?? "指定範囲から検出した候補です。")+"\nアプリが動的に取得したキーは検出できません。空きは今回読めたファイル内での判定です。",TextWrapping=TextWrapping.Wrap});
         top.Children.Add(new TextBlock {Text="名前・キー・起動先・元パス・エラーで検索",Margin=new(0,8,0,0)});top.Children.Add(search);
         var filters=new WrapPanel();filters.Children.Add(withKey);filters.Children.Add(readable);top.Children.Add(filters);top.Children.Add(count);
-        top.Children.Add(new Expander {Header="走査範囲と未走査・除外の詳細",Content=new TextBox {IsReadOnly=true,TextWrapping=TextWrapping.Wrap,MaxHeight=110,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,Text=string.Join("\n",report?.Roots ?? [])+"\n"+string.Join("\n",report?.Issues.Select(issue=>$"{issue.Path}: {issue.Message}") ?? [])}});
+        top.Children.Add(new Expander {Header="スキャン範囲と未スキャン・除外の詳細",Content=new TextBox {IsReadOnly=true,TextWrapping=TextWrapping.Wrap,MaxHeight=110,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,Text=string.Join("\n",report?.Roots ?? [])+"\n"+string.Join("\n",report?.Issues.Select(issue=>$"{issue.Path}: {issue.Message}") ?? [])}});
         var bottom=new StackPanel();bottom.Children.Add(detail);bottom.Children.Add(new TextBlock {Text="移行先の文字キー（QWERTY順）。外部使用中のキーは選べません。",TextWrapping=TextWrapping.Wrap});bottom.Children.Add(keys);bottom.Children.Add(buttons);
         var panel=new DockPanel {Margin=new(14)};DockPanel.SetDock(top,Dock.Top);panel.Children.Add(top);DockPanel.SetDock(bottom,Dock.Bottom);panel.Children.Add(bottom);panel.Children.Add(grid);Content=panel;Refresh();Update();
     }

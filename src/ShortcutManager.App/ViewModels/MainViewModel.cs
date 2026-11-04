@@ -47,7 +47,7 @@ public sealed class MainViewModel : ObservableObject
     private bool savedConfigChangedExternally;
     private bool savedLinksVerified;
     private bool shellReloadCompleted;
-    private string auditNotice = "保存リンク: 未監査。物理キーの状態は別に確認してください。";
+    private string auditNotice = "保存リンク: 未監査。実際のキーの状態は別に確認してください。";
     private string? lastApplyBackupPath;
     private string? lastAppliedSnapshot;
     private string? lastApplyBackupHash;
@@ -94,7 +94,7 @@ public sealed class MainViewModel : ObservableObject
     public string Status { get => status; private set => Set(ref status, value); }
     public string LogWarning => logger.LastFailure ?? string.Empty;
     public bool ShellReflectionPending { get => shellReflectionPending; private set { if (Set(ref shellReflectionPending, value)) { Raise(nameof(RestoreNotice)); RaiseActionState(); } } }
-    public string RestoreNotice => restoreSummary + (ShellReflectionPending ? "\n保存済みのHotKeyはExplorerへの反映が未確認です。実キーが反応しない場合に「Explorerを再起動」を試してください。" : string.Empty);
+    public string RestoreNotice => restoreSummary + (ShellReflectionPending ? "\n保存済みのショートカットキーはエクスプローラーへの反映が未確認です。実キーが反応しない場合に「エクスプローラーを再起動」を試してください。" : string.Empty);
     public bool IsBusy { get => isBusy; private set { if (Set(ref isBusy, value)) { Raise(nameof(CanInteract)); Raise(nameof(CanInitializeRecovery)); RaiseActionState(); } } }
     public bool CanInteract => !IsBusy;
     public bool IsDirty { get => isDirty; private set { if (Set(ref isDirty, value)) RaiseActionState(); } }
@@ -114,19 +114,19 @@ public sealed class MainViewModel : ObservableObject
         set
         {
             if(IsBusy || value==auditOnly)return;
-            try {auditControls.SavePolicy(value);auditPolicyWarning=null;Set(ref auditOnly,value);Status=value?"次回起動から監査のみ行い、自動修復を保留します。明示した反映・修復は実行できます。":"次回起動から差分の自動修復を有効にします。同じ差分の再試行や未確認の走査は保留します。";}
+            try {auditControls.SavePolicy(value);auditPolicyWarning=null;Set(ref auditOnly,value);Status=value?"次回起動から監査のみ行い、自動修復を保留します。明示した反映・修復は実行できます。":"次回起動から差分の自動修復を有効にします。同じ差分の再試行や未確認のスキャンは保留します。";}
             catch(Exception error){Status="監査方針を保存できません: "+error.Message;logger.Error("Could not save audit policy",error);Raise();}
         }
     }
     public Task<IReadOnlyList<AuditHistoryItem>> ReadAuditHistoryAsync()=>Task.Run(()=>auditControls.ReadHistory());
     public IReadOnlyList<AuditDifference> LastAuditDetails {get;private set;}=[];
     public int PendingChangeCount { get; private set; }
-    public string ReloadLabel => IsDirty ? "編集を破棄して再読込" : "保存済みを再読込";
+    public string ReloadLabel => IsDirty ? "編集を破棄して読み直す" : "保存済みを読み直す";
     public string SelectionText => Selected is null ? "一覧またはキー枠から対象を選んでください。" : $"選択: {Selected.Hotkey} → {Selected.Name}";
-    public string EditingNotice => RecoveryRequired ? "復旧モード: 変更の反映は停止しています。" : savedConfigChangedExternally ? "保存設定が外部で変わりました。候補を保全してから再読込してください。反映は停止中です。" : IsDirty ? $"未保存: {PendingChangeCount} 項目。まだWindowsには反映されていません。" : configLoaded ? "保存済み設定を表示中です。保存だけで実キー確認済みとは判断しません。" : "保存済み設定はありません。最初の候補を追加してください。";
+    public string EditingNotice => RecoveryRequired ? "復旧モード: 変更の反映は停止しています。" : savedConfigChangedExternally ? "保存設定が外部で変わりました。候補を保全してから読み直してください。反映は停止中です。" : IsDirty ? $"未保存: {PendingChangeCount} 項目。まだWindowsには反映されていません。" : configLoaded ? "保存済み設定を表示中です。保存だけで実キー確認済みとは判断しません。" : "保存済み設定はありません。最初の候補を追加してください。";
     public string AuditNotice => auditNotice;
-    public string ShellNotice => ShellReflectionPending ? "Explorer反映: 未確認（再起動を見送った場合や失敗した場合も保持）。" : shellReloadCompleted ? "Explorerは再起動済み。物理キー動作は別に確認してください。" : "Explorerの有効キー一覧は取得できません。物理キー動作は別に確認してください。";
-    public string PhysicalConfirmationNotice => $"今回の起動中に利用者が実キー確認済みと申告した割当: {candidate.Shortcuts.Count(item => physicalConfirmations.TryGetValue(item.Id, out var proof) && proof == DefinitionVersion(item))} 件。保存・対象テスト・Explorer再起動からは推定しません。";
+    public string ShellNotice => ShellReflectionPending ? "エクスプローラー反映: 未確認（再起動を見送った場合や失敗した場合も保持）。" : shellReloadCompleted ? "エクスプローラーは再起動済み。実際のキー動作は別に確認してください。" : "エクスプローラーの有効キー一覧は取得できません。実際のキー動作は別に確認してください。";
+    public string PhysicalConfirmationNotice => $"今回の起動中に利用者が実キー確認済みと申告した割当: {candidate.Shortcuts.Count(item => physicalConfirmations.TryGetValue(item.Id, out var proof) && proof == DefinitionVersion(item))} 件。保存・対象テスト・エクスプローラー再起動からは推定しません。";
     public bool CanInitializeRecovery => RecoveryRequired && !incompatibleConfig && !IsBusy;
     public ShortcutConfig Candidate => candidate;
     public string ConfigPath => paths.ConfigPath;
@@ -141,7 +141,7 @@ public sealed class MainViewModel : ObservableObject
         explicitRecoveryInitialization = false;
         savedConfigChangedExternally = false;
         savedLinksVerified = false;
-        auditNotice = "保存リンク: 再読込後は未監査です。編集の破棄とリンク監査は別の操作です。";
+        auditNotice = "保存リンク: 読み直し後は未監査です。編集の破棄とリンク監査は別の操作です。";
         try
         {
             candidate = repository.Load();
@@ -163,7 +163,7 @@ public sealed class MainViewModel : ObservableObject
             candidate = new();
             CaptureSaved();
             Refresh();
-            Status = $"復旧モード: 反映は停止中です。「復元」でバックアップを選ぶか、config.jsonを修復して「再読込」してください。既存ショートカットは変更していません: {error.Message}";
+            Status = $"復旧モード: 反映は停止中です。「復元」でバックアップを選ぶか、config.jsonを修復して「読み直し」してください。既存ショートカットは変更していません: {error.Message}";
             if (incompatibleConfig) Status = error.Message;
             logger.Error("Config load failed", error);
         }
@@ -295,7 +295,7 @@ public sealed class MainViewModel : ObservableObject
     {
         if (IsBusy) return false;
         ConflictingItems=[];
-        if (RecoveryRequired) { Status = "復旧モードでは反映できません。バックアップ復元または設定修復後の再読込が必要です。"; return false; }
+        if (RecoveryRequired) { Status = "復旧モードでは反映できません。バックアップ復元または設定修復後の読み直しが必要です。"; return false; }
         if (!IsDirty) { Status = "保存済みとの差分はありません。反映は行いませんでした。"; return false; }
         if (!explicitRecoveryInitialization && !CheckSavedSourceUnchanged()) return false;
         IsBusy = true;
@@ -342,7 +342,7 @@ public sealed class MainViewModel : ObservableObject
     {
         if (IsBusy) return;
         IsBusy = true;
-        Status = "Explorer（デスクトップとタスクバー）を再起動しています…";
+        Status = "エクスプローラー（デスクトップとタスクバー）を再起動しています…";
         logger.Info("Shell reload requested by user.");
         try
         {
@@ -353,7 +353,7 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (Exception error)
         {
-            Status = $"Explorerの再起動に失敗しました: {error.Message}";
+            Status = $"エクスプローラーの再起動に失敗しました: {error.Message}";
             logger.Error("Shell reload failed", error);
         }
         finally { IsBusy = false; Refresh(); }
@@ -398,13 +398,13 @@ public sealed class MainViewModel : ObservableObject
             if(current is null) return false;
             if(current!=preview) { Status="起動内容が変わったため実行を中止しました。プレビューを開き直してください。"; return false; }
             launcher.Launch(preview);
-            Status = $"{definition.Name} をテスト起動しました。";
+            Status = $"{definition.Name} を起動しました（対象のテスト）。";
             logger.Info($"Test launch: {definition.Name}");
             return true;
         }
         catch (Exception error)
         {
-            Status = $"テスト起動に失敗しました: {error.Message}";
+            Status = $"「対象をテスト」に失敗しました: {error.Message}";
             logger.Error("Test launch failed", error);
             return false;
         }
@@ -479,7 +479,7 @@ public sealed class MainViewModel : ObservableObject
             auditNotice = $"保存済みのみ監査: リンク差分 {result.Audit.Differences.Count} 件 / 外部キー競合 {conflicts} 件。編集中の候補は未反映です。";
             try {auditControls.Record(new(1,DateTimeOffset.Now,"保存済みの手動監査","監査のみ",result.Audit.Details,result.Audit.Details,null,auditNotice));}
             catch(Exception error) {logger.Error("Could not save manual audit history",error);auditNotice+=" 履歴を保存できません。";}
-            Status = auditNotice + (savedConfigChangedExternally ? " 保存設定が外部で変わりました。候補を保全してから再読込してください。" : string.Empty);
+            Status = auditNotice + (savedConfigChangedExternally ? " 保存設定が外部で変わりました。候補を保全してから読み直してください。" : string.Empty);
             logger.Info($"Manual persisted audit: differences={result.Audit.Differences.Count}, conflicts={conflicts}, editedCandidatePreserved=True");
         }
         catch (Exception error)
@@ -641,7 +641,7 @@ public sealed record ShortcutRow(ShortcutDefinition Definition, string Target, s
     public string Key => Definition.Hotkey.Key;
     public string Hotkey => Definition.Hotkey.Canonical;
     public string Name => Definition.Name;
-    public string Type => Definition.Target switch { WebsiteTarget => "Webサイト", ApplicationTarget => "アプリ", BatTarget => "BAT / CMD", ChromeTabGroupTarget => "Chromeグループ", _ => "未対応" };
+    public string Type => Definition.Target switch { WebsiteTarget => UiText.Website, ApplicationTarget => UiText.Application, BatTarget => UiText.Bat, ChromeTabGroupTarget => UiText.ChromeTabGroup, _ => "未対応" };
     public string FullDescription => $"{Hotkey} → {Name}\n種類: {Type}\n{Target}\n{StateLabel}" + (Definition.Target switch { ApplicationTarget app=>$"\n追加引数: {app.Arguments}\n作業フォルダ: {app.WorkingDirectory}" + (app.LaunchMode!=ApplicationLaunchMode.Executable ? "\nこの起動方法では追加引数を渡しません。" : string.Empty), BatTarget bat=>$"\n追加引数: {bat.Arguments}\n作業フォルダ: {bat.WorkingDirectory}", _=>string.Empty }) + (string.IsNullOrEmpty(Error) ? string.Empty : "\n検証: " + Error);
 }
 
@@ -660,7 +660,7 @@ public sealed class KeyTile(string key, string name, string status, ShortcutRow?
         "Ready" => "保存済み",
         "Disabled" => "無効",
         "Error" => "要確認",
-        "Unapplied Changes" => "未反映",
+        "Unapplied Changes" => UiText.Unsaved,
         _ => "空き",
     };
 }

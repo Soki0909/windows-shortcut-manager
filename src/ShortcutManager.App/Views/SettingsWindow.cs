@@ -19,14 +19,14 @@ public sealed class SettingsWindow : Window
         var grid = new Grid { Margin = new(18) }; grid.ColumnDefinitions.Add(new() { Width = new(160) }); grid.ColumnDefinitions.Add(new());
         for (var index = 0; index < 7; index++) grid.RowDefinitions.Add(new() { Height = GridLength.Auto });
         chromePath.ToolTip = "任意。空欄ならChromeを自動検索します。指定する場合はchrome.exeの絶対パスを入力します。";
-        extensionId.ToolTip = "タブグループを使う場合に必要です。Tab BridgeのPopupにある拡張機能ID（a～pの32文字）を入力します。";
+        extensionId.ToolTip = "タブグループを使う場合に必要です。Tab Bridgeの拡張メニューにある拡張機能ID（a～pの32文字）を入力します。";
         Add(grid, 0, "Chromeの実行ファイル", ChromePanel()); Add(grid, 1, "拡張機能ID", extensionId); Add(grid, 2, "設定ファイル", new TextBox { Text = configPath, IsReadOnly = true }); Add(grid, 3, "管理リンクのフォルダ", new TextBox { Text = managedPath, IsReadOnly = true });
         var error = ThemeResources.ErrorText();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         var cancel = new Button { Content = "キャンセル", Margin = new(4), Padding = new(12, 6, 12, 6), IsCancel = true }; cancel.Click += (_, _) => DialogResult = false;
-        var ok = new Button { Content = "候補に保存", Margin = new(4), Padding = new(18, 6, 18, 6), IsDefault = true };
+        var ok = new Button { Content = UiText.SaveCandidate, ToolTip = "編集中の候補へ戻します。設定ファイルとWindowsのリンクへの保存はメインの「変更を反映」です。", Margin = new(4), Padding = new(18, 6, 18, 6), IsDefault = true };
         bool Validate(bool checkFile) {
-            error.Text = extensionId.Text.Length != 0 && (extensionId.Text.Length != 32 || extensionId.Text.Any(character => character is < 'a' or > 'p')) ? "拡張機能IDは a～p の32文字です。PopupのIDを確認してください。" : string.Empty;
+            error.Text = extensionId.Text.Length != 0 && (extensionId.Text.Length != 32 || extensionId.Text.Any(character => character is < 'a' or > 'p')) ? "拡張機能IDは a～p の32文字です。拡張メニューのIDを確認してください。" : string.Empty;
             if (ChromePath is { } path && (!System.IO.Path.IsPathFullyQualified(path) || checkFile && !System.IO.File.Exists(path))) error.Text += "\nChromeの実行ファイルは存在するファイルの絶対パスで指定するか、空欄で自動検索を使ってください。";
             ok.IsEnabled = string.IsNullOrWhiteSpace(error.Text); return ok.IsEnabled;
         }

@@ -35,10 +35,10 @@ public sealed class AuditRepairWindow : Window
     public AuditRepairWindow(IReadOnlyList<AuditDifference> details,string notice)
     {
         Title="保存済みの管理リンクを修復";Width=820;Height=620;MinWidth=480;MinHeight=340;WindowStartupLocation=WindowStartupLocation.CenterOwner;DialogLayout.Constrain(this);
-        var acknowledge=new CheckBox {Content="差分と走査の未確認範囲を確認しました",Margin=new(0,8,0,8)};
+        var acknowledge=new CheckBox {Content="差分とスキャンの未確認範囲を確認しました",Margin=new(0,8,0,8)};
         var repair=new Button {Content="バックアップして明示修復",IsEnabled=false};acknowledge.Click+=(_,_)=>repair.IsEnabled=acknowledge.IsChecked==true;repair.Click+=(_,_)=>DialogResult=true;
         var cancel=new Button {Content="今回保留",IsCancel=true,IsDefault=true};cancel.Click+=(_,_)=>DialogResult=false;
         var bottom=new StackPanel();bottom.Children.Add(acknowledge);var buttons=new WrapPanel {HorizontalAlignment=HorizontalAlignment.Right};buttons.Children.Add(cancel);buttons.Children.Add(repair);bottom.Children.Add(buttons);
-        var panel=new DockPanel {Margin=new(16)};DockPanel.SetDock(bottom,Dock.Bottom);panel.Children.Add(bottom);panel.Children.Add(new TextBox {IsReadOnly=true,TextWrapping=TextWrapping.Wrap,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,Text="保存済み設定に合わせて、管理リンクだけを修復します。編集中の候補は保持します。外部リンクの変更を設定へ逆取り込みしません。現在をバックアップし、外部キー競合と所有マーカーを再確認します。\n走査できなかった外部キーや動的取得キーには未確認の範囲があります。修復後のExplorer反映と実キー動作は別に確認してください。\n\n"+notice+"\n\n"+AuditHistoryWindow.Describe(details)});Content=panel;
+        var panel=new DockPanel {Margin=new(16)};DockPanel.SetDock(bottom,Dock.Bottom);panel.Children.Add(bottom);panel.Children.Add(new TextBox {IsReadOnly=true,TextWrapping=TextWrapping.Wrap,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,Text="保存済み設定に合わせて、管理リンクだけを修復します。編集中の候補は保持します。外部リンクの変更を設定へ逆取り込みしません。現在をバックアップし、外部キー競合と所有マーカーを再確認します。\nスキャンできなかった外部キーや動的取得キーには未確認の範囲があります。修復後のエクスプローラー反映と実キー動作は別に確認してください。\n\n"+notice+"\n\n"+AuditHistoryWindow.Describe(details)});Content=panel;
     }
 }
