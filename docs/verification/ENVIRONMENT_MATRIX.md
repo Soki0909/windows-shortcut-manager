@@ -33,7 +33,7 @@
 |---|---|---|
 | Windows Server 2025 Datacenter 10.0.26100 / x64 / Release | build、トランザクション、COM、CLI、配布構造、Setup更新 | [CI 41893214665](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/41893214665): Core39/Windows208・skip0、配布/旧Setup更新保持passed。image windows-2025-vs2026 / 20261030.294.1。Windows clientの実GUI全条件の代わりではない |
 | 所有者PC / Windows 11 Home 26H2 10.0.26300.9818 / x64 | 関連テストと製品分離、OS情報の読取り | 2026-11-05のOS/architecture/非昇格PowerShell tokenを読取り確認。#157のhelper8件と関連実起動2件passed。配列・倍率・物理HotKeyはこの記録から推定しない |
-| 所有者PC / v0.4.0公式Setup更新 | 製品更新、保存設定/管理リンクの保持 | [2026-11-03更新記録](../releases/post-release/v0.4.0.md): 本体413ファイル一致、データ28/管理23保持、読取り監査差分0。拡張ファイル22件一致。Chrome再読み込みと物理キーはpending/not-tested。今回のtoken読取りを過去のSetup実行tokenの証拠に転用しない |
+| 所有者PC / v0.4.0公式Setup更新 | 製品更新、保存設定/管理リンクの保持 | [2026-11-03更新記録](../releases/post-release/v0.4.0.md): 本体413ファイル一致、データ28/管理23保持、読取り監査差分0。拡張ファイル22件一致。11月5日に所有者がChrome再読み込み/v0.4.0表示を手動確認。物理キーはnot-tested。今回のtoken読取りを過去のSetup実行tokenの証拠に転用しない |
 | 日本語・空白・引用符・末尾バックスラッシュ・空引数 | 引数と実際の作業フォルダ | WinExeプローブの実レポートpassed。元lnk byte/HotKey不変も確認 |
 | localhost SMB / UNC日本語・空白 / hosted runner | 共有からの実起動・作業フォルダ | CIのUNCプローブpassed、skip0。任意のサーバー、Kerberos、VPN、オフライン切断の全条件とは別 |
 | 独自URI / hosted runner | nonce登録先へURIだけが届く | CIのURIプローブpassed、skip0。Windows Storeアプリすべてを起動した証拠ではない |

@@ -20,7 +20,7 @@
 ## 実行証拠と限界
 
 - 所有者PCを読取り確認: Windows 11 Home / 26H2 / 10.0.26300.9818、OSと確認プロセスはX64、現在のPowerShell tokenは非昇格。ユーザー名/PC名/識別子は収集・公開していない。これは現時点のmetadataであり、全GUI操作や過去のSetup tokenの証明ではない。
-- 26H2は[Windows lifecycle](https://learn.microsoft.com/en-us/lifecycle/products/windows-11-home-and-pro)の現行リリースだが、取得した.NETデータは前日の2026-09-28更新で未掲載。所有者PCの実行実績だけから公式.NETサポートを確定せず、候補時の再照合を残す。
+- 26H2は[Windows lifecycle](https://learn.microsoft.com/en-us/lifecycle/products/windows-11-home-and-pro)の現行リリースだが、取得した.NETデータは2026-09-28更新で未掲載。所有者PCの実行実績だけから公式.NETサポートを確定せず、候補時の再照合を残す。
 - [CI 41893214665](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/41893214665)のdotnet jobはWindows Server 2025 Datacenter 10.0.26100 / image windows-2025-vs2026 20261030.294.1。Core39/Windows208・skip0、実UNC3サイクル、配布/旧Setup更新保持passed。clientのDPI/物理配列/IME/標準ユーザーGUIの証拠ではない。
 - 実機のDPI/複数monitor/IME/物理JIS・US/Narrator操作、下限未満OSでのSetup拒否は未実施。[代表組合せ](ENVIRONMENT_MATRIX.md)を未完のまま公開する。
 

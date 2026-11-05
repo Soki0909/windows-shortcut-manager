@@ -4,6 +4,10 @@
 
 ## Progress
 
+- [x] 2026-11-05再中断: 所有者の依頼により、統合済みPR #159/#160/#162と、未統合WIP2ブランチを[再開メモ](PAUSE_2026-11-05.md)に記録して保全。main fbf54b6のCI41897036016はsuccess。#11/#32/#54/#161は未完了、v1.0.0未達のまま目標を一時停止する。Chrome拡張v0.4.0の再読み込みは所有者が手動確認済み。
+- [ ] #161: main66f5084のCIでWPF配色probeが30秒timeout。新Issueを作成し、子プロセス分離と停止時の残留防止をWIPへ追加。対象2件passedの担当報告があるが、fixture正常終了と最終CI/レビューが残る。後続mainの一度の成功だけでは完了扱いにしない。
+- [x] #54の限定改善: PR #162をmain fbf54b6へ統合。公式.NET/Inno/API資料に基づくSetup下限14393、x64compatible/lowest維持、環境表更新。Core39/Windows208・skip0、配布/旧Setup保持とnative payload検証passed。実機条件が残るためIssueはopenを維持する。
+
 - [x] 2026-11-05再開: 所有者がgoalをactiveへ戻したため、v1.0.0へ向けた開発を継続する。開始時のmain8ffc650/clean、未解決42件を再確認。下記のv0.4.0時点の停止記録は履歴として保持する。
 - [x] #157: PR #159のhead60685ddを独立レビューし、CI 41893214665 success後main66f5084へ統合。Core39/Windows208・skip0、実UNC作成/日本語起動/削除/再削除を同じhosted runnerで3サイクルpassed、CLI/配布/旧Setup保持もpassed。phase/exit/stdout/stderr、所有者/パス/消失確認、二重失敗保持を改善しIssueをclose。元のrunの同一原因までは断定しない。
 - [ ] #32: サブエージェントが特殊lnkの属性/原本保持と実起動を担当。直接Shell起動とexplorer経由の起動で表示方法が異なることを発見し、期待を弱めず参照経路を調査中。

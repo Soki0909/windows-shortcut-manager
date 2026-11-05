@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | v0.3.0 | [準備記録](../implementation/RELEASE_0.3.0.md) | [公開・製品更新完了](post-release/v0.3.0.md) |
 | v0.3.1 | [準備記録](../implementation/RELEASE_0.3.1.md) | [公開・製品更新完了](post-release/v0.3.1.md) |
-| v0.4.0 | [準備記録](../implementation/RELEASE_0.4.0.md) | [本体・拡張ファイル更新済み／Chrome再読み込み待ち・作業終了](post-release/v0.4.0.md) |
+| v0.4.0 | [準備記録](../implementation/RELEASE_0.4.0.md) | [本体・拡張更新済み／Chrome再読み込みは11月5日に所有者確認](post-release/v0.4.0.md) |
 
 ## 毎回の担当と更新タイミング
 
