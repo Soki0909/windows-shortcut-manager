@@ -80,7 +80,7 @@ public sealed class LaunchContractTests : IDisposable
         links.Write(source, new(probe, "--report " + LaunchSpecResolver.Quote(report) + " " + LaunchSpecResolver.Quote("元リンクの引数"), working, "", probe + ",0", "fixture"));
         var before = File.ReadAllBytes(source);
         var spec = Resolve(new() { LaunchMode = ApplicationLaunchMode.Shortcut, Value = source, Arguments = "legacy-ignored-extra" });
-        Assert.Equal(LaunchSpecResolver.Quote(source), spec.Arguments);
+        Assert.Equal(source, spec.TargetPath); Assert.Empty(spec.Arguments);
         new ProcessLauncher().Launch(spec);
         using var result = await ReadReport(report);
         Assert.Equal("元リンクの引数", result.RootElement.GetProperty("Arguments")[0].GetString());

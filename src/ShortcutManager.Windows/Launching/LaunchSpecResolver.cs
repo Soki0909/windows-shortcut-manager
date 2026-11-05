@@ -22,6 +22,8 @@ public sealed class LaunchSpecResolver(ChromeLocator chromeLocator, DispatcherUr
                 target = explorer; arguments = Quote(website.Url); workingDirectory = windows; break;
             case ApplicationTarget app when app.LaunchMode == ApplicationLaunchMode.Executable:
                 target = app.Value; arguments = app.Arguments; workingDirectory = string.IsNullOrWhiteSpace(app.WorkingDirectory) ? Path.GetDirectoryName(app.Value) ?? string.Empty : app.WorkingDirectory; icon = app.Value; break;
+            case ApplicationTarget app when app.LaunchMode == ApplicationLaunchMode.Shortcut:
+                target = app.Value; arguments = string.Empty; workingDirectory = string.IsNullOrWhiteSpace(app.WorkingDirectory) ? windows : app.WorkingDirectory; icon = app.Value; break;
             case ApplicationTarget app:
                 target = explorer; arguments = Quote(app.Value); workingDirectory = string.IsNullOrWhiteSpace(app.WorkingDirectory) ? windows : app.WorkingDirectory; break;
             case BatTarget bat:

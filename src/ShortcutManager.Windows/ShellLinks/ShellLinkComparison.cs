@@ -17,6 +17,8 @@ public static class ShellLinkComparison
         Check("アイコン",actual.IconLocation,expected.IconLocation,string.Equals(NormalizeIcon(actual.IconLocation),NormalizeIcon(expected.IconLocation),StringComparison.OrdinalIgnoreCase));
         Check("説明",actual.Description,expected.Description,actual.Description==expected.Description);
         Check("表示方法",actual.WindowStyle.ToString(System.Globalization.CultureInfo.InvariantCulture),expected.WindowStyle.ToString(System.Globalization.CultureInfo.InvariantCulture),actual.WindowStyle==expected.WindowStyle);
+        if (expected.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            Check("元リンク参照", actual.IsLinkReference ? "有効" : "無効", "有効", actual.IsLinkReference);
         return differences;
     }
     public static bool Matches(ShellLinkInfo actual, LaunchSpec expected) =>
@@ -26,7 +28,8 @@ public static class ShellLinkComparison
         && NormalizeHotkey(actual.Hotkey) == NormalizeHotkey(expected.Hotkey)
         && string.Equals(NormalizeIcon(actual.IconLocation), NormalizeIcon(expected.IconLocation), StringComparison.OrdinalIgnoreCase)
         && actual.Description == expected.Description
-        && actual.WindowStyle == expected.WindowStyle;
+        && actual.WindowStyle == expected.WindowStyle
+        && (!expected.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) || actual.IsLinkReference);
 
     private static bool SamePath(string left, string right) => string.Equals(
         left.Length == 0 ? left : Path.GetFullPath(left), right.Length == 0 ? right : Path.GetFullPath(right), StringComparison.OrdinalIgnoreCase);

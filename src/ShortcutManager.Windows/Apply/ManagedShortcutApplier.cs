@@ -94,6 +94,8 @@ public sealed class ManagedShortcutApplier(
         {
             foreach (var item in config.Shortcuts.Where(item => item.Enabled))
             {
+                if (item.Target is ApplicationTarget { LaunchMode: ApplicationLaunchMode.Shortcut } source)
+                    ShortcutReferenceGuard.EnsureAcyclic(source.Value, shellLinks, managedDirectory: managedDirectory);
                 var launch = resolver.Resolve(config, item);
                 var path = System.IO.Path.Combine(stage, ManagedFilename.For(item));
                 shellLinks.Write(path, new(launch.TargetPath, launch.Arguments, launch.WorkingDirectory, launch.Hotkey, launch.IconLocation, launch.Description, launch.WindowStyle));

@@ -10,7 +10,7 @@ using System.Text;
 namespace ShortcutManager.Windows.ShellLinks;
 
 public sealed record ShellLinkSpec(string TargetPath, string Arguments, string WorkingDirectory, string Hotkey, string IconLocation, string Description, int WindowStyle = 1);
-public sealed record ShellLinkInfo(string Path, string TargetPath, string Arguments, string WorkingDirectory, string Hotkey, string IconLocation, string Description, int WindowStyle);
+public sealed record ShellLinkInfo(string Path, string TargetPath, string Arguments, string WorkingDirectory, string Hotkey, string IconLocation, string Description, int WindowStyle, bool IsLinkReference = false);
 
 public interface IShellLinkService
 {
@@ -21,14 +21,30 @@ public interface IShellLinkService
 public sealed class ShellLinkService : IShellLinkService
 {
     private const int BufferSize = 32768;
+    private const uint AllowLinkToLink = 0x00800000;
+    // Do not create tracking/object-ID metadata on the unmanaged source.
+    private const uint ReferencedLinkFlags = AllowLinkToLink | 0x00000100 | 0x00040000;
 
     public void Write(string path, ShellLinkSpec spec)
     {
         path = System.IO.Path.GetFullPath(path);
+        if (spec.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            ShortcutReferenceGuard.EnsureAcyclic(spec.TargetPath, this, destination: path);
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path) ?? throw new ArgumentException("Shortcut path has no directory.", nameof(path)));
         WithShortcut(path, true, (link, persist) =>
         {
-            link.SetPath(spec.TargetPath);
+            if (spec.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            {
+                // SetPath flattens an existing .lnk even with AllowLinkToLink.
+                // Keep the source file's PIDL, not a reconstructed executable.
+                var data = (IShellLinkDataList)link;
+                data.GetFlags(out var flags); data.SetFlags(flags | ReferencedLinkFlags);
+                SHParseDisplayName(spec.TargetPath, IntPtr.Zero, out var idList, 0, out _);
+                if (idList == IntPtr.Zero) throw new IOException("Could not identify the referenced Windows shortcut.");
+                try { link.SetIDList(idList); }
+                finally { Marshal.FreeCoTaskMem(idList); }
+            }
+            else link.SetPath(spec.TargetPath);
             link.SetArguments(spec.Arguments);
             link.SetWorkingDirectory(spec.WorkingDirectory);
             link.SetHotkey(EncodeHotkey(spec.Hotkey));
@@ -39,7 +55,17 @@ public sealed class ShellLinkService : IShellLinkService
             link.SetIconLocation(icon, index);
             link.SetDescription(spec.Description);
             link.SetShowCmd(spec.WindowStyle);
-            persist.Save(path, true);
+            if (spec.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            {
+                var data = (IShellLinkDataList)link;
+                data.GetFlags(out var flags); data.SetFlags(flags | ReferencedLinkFlags);
+                data.GetFlags(out flags);
+                if ((flags & AllowLinkToLink) == 0) throw new IOException("Windows rejected link-to-link mode: " + flags.ToString("X8"));
+                var actualPath = new StringBuilder(BufferSize); link.GetPath(actualPath, BufferSize, IntPtr.Zero, 4);
+                if (!actualPath.ToString().Equals(spec.TargetPath, StringComparison.OrdinalIgnoreCase)) throw new IOException("Windows did not preserve the referenced shortcut path.");
+            }
+            if (spec.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)) SaveToStream((IPersistStream)link, path);
+            else persist.Save(path, true);
             return 0;
         });
     }
@@ -56,7 +82,8 @@ public sealed class ShellLinkService : IShellLinkService
         link.GetIconLocation(icon, BufferSize, out var iconIndex);
         link.GetDescription(description, BufferSize);
         link.GetHotkey(out var hotkey); link.GetShowCmd(out var windowStyle);
-        return new ShellLinkInfo(path, target.ToString(), arguments.ToString(), directory.ToString(), DecodeHotkey(hotkey), icon.Length == 0 ? string.Empty : icon + "," + iconIndex.ToString(CultureInfo.InvariantCulture), description.ToString(), windowStyle);
+        ((IShellLinkDataList)link).GetFlags(out var flags);
+        return new ShellLinkInfo(path, target.ToString(), arguments.ToString(), directory.ToString(), DecodeHotkey(hotkey), icon.Length == 0 ? string.Empty : icon + "," + iconIndex.ToString(CultureInfo.InvariantCulture), description.ToString(), windowStyle, (flags & AllowLinkToLink) != 0);
     });
 
     private static T WithShortcut<T>(string path, bool create, Func<IShellLinkW, IPersistFile, T> action)
@@ -98,6 +125,58 @@ public sealed class ShellLinkService : IShellLinkService
 
     [ComImport, Guid("00021401-0000-0000-C000-000000000046")]
     private class ShellLinkNative { }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false, ExactSpelling = true)]
+    private static extern void SHParseDisplayName(string path, IntPtr binding, out IntPtr idList, uint attributes, out uint resultAttributes);
+
+    private static void SaveToStream(IPersistStream persist, string path)
+    {
+        // IPersistFile.Save flattens a reference to another .lnk. Serialize the
+        // native Shell object through IPersistStream instead; do not hand-build
+        // the .lnk format or copy an unmanaged link into our managed directory.
+        CreateStreamOnHGlobal(IntPtr.Zero, true, out var stream);
+        var readCount = Marshal.AllocCoTaskMem(sizeof(int));
+        try
+        {
+            persist.Save(stream, true); stream.Stat(out var stat, 1);
+            if (stat.cbSize < 76 || stat.cbSize > 1024 * 1024) throw new InvalidDataException("Referenced shortcut size is invalid.");
+            stream.Seek(0, 0, IntPtr.Zero);
+            using var file = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
+            var buffer = new byte[65536]; long remaining = stat.cbSize;
+            while (remaining > 0)
+            {
+                var count = (int)Math.Min(buffer.Length, remaining);
+                stream.Read(buffer, count, readCount); var read = Marshal.ReadInt32(readCount);
+                if (read <= 0 || read > count) throw new InvalidDataException("Referenced shortcut stream is incomplete.");
+                file.Write(buffer, 0, read); remaining -= read;
+            }
+            file.Flush(true);
+        }
+        finally { Marshal.FreeCoTaskMem(readCount); Marshal.FinalReleaseComObject(stream); }
+    }
+
+    [DllImport("ole32.dll", PreserveSig = false)]
+    private static extern void CreateStreamOnHGlobal(IntPtr global, [MarshalAs(UnmanagedType.Bool)] bool deleteOnRelease, out IStream stream);
+
+    [ComImport, Guid("00000109-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IPersistStream
+    {
+        void GetClassID(out Guid classId);
+        [PreserveSig] int IsDirty();
+        void Load(IStream stream);
+        void Save(IStream stream, [MarshalAs(UnmanagedType.Bool)] bool clearDirty);
+        void GetSizeMax(out long size);
+    }
+
+    [ComImport, Guid("45E2B4AE-B1C3-11D0-B92F-00A0C90312E1"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IShellLinkDataList
+    {
+        void AddDataBlock(IntPtr data);
+        void CopyDataBlock(uint signature, out IntPtr data);
+        void RemoveDataBlock(uint signature);
+        void GetFlags(out uint flags);
+        void SetFlags(uint flags);
+    }
 
     // Vtable order is defined by shobjidl_core.h. Use Unicode on every string;
     // WScript's ANSI conversion loses names outside the current code page.
