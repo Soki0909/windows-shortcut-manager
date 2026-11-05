@@ -2,6 +2,13 @@
 
 Updated: 2026-11-05 (Asia/Tokyo)
 
+## 所有者指定の中断と保全（2026-11-05）
+
+- [再開メモ](../implementation/PAUSE_2026-11-05.md)に統合済みPRと未統合head・失敗・未実施を記載。main fbf54b6のCI41897036016 success。WIP2ブランチはremoteへpushし、mainへ混ぜていない。中断に伴う製品テスト全件の再実行や新リリースは行っていない。
+- #161はmain66f5084のWPF配色検証30秒timeoutから追加。ThemeProbe分離のWIPでは対象2件passedの担当報告があるが、#11描画fixtureのexit1と最終レビュー/CIが残る。#32 WIPの最後の検証は31 passed/1 failedであり未完了。後続mainのgreenをこれらWIPの完了証拠にしない。
+- PR #162は通常CI41895996885/native41895996997と統合後main CI成功。Setup下限14393のcompile/配布/更新保持を確認。環境マトリクスの全実機条件がpassedしたという意味ではなく#54はopen。
+- 所有者が既存Chrome拡張の再読み込みとv0.4.0表示を手動確認済みと回答。[公開後記録](../releases/post-release/v0.4.0.md)へ追記。物理キー/グループ切替/実行中IDの新たな照合とは分ける。
+
 ## UNC fixtureの診断・後片付け / #157（2026-11-05）
 
 - `FixturePowerShellTests`最終8件passed、関連する直接/元lnkの実起動2件もpassed。UNC/URI登録のrunner専用2件はローカルskip。個人SMB共有やURI登録は操作していない。
