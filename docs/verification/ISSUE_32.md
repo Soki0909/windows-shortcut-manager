@@ -16,7 +16,7 @@
 
 ## 2026-11-05 中断時点の保全
 
-所有者の中断依頼によりWIPとして保全。#32は未完了、main未統合、PR未作成。共有の[再開メモ](../implementation/PAUSE_2026-11-05.md)を参照する。
+所有者の中断依頼によりWIPとして保全。#32は未完了、main未統合、PR未作成。main側の[再開メモ](https://github.com/Soki0909/windows-shortcut-manager/blob/main/docs/implementation/PAUSE_2026-11-05.md)を参照する。
 
 - 担当は、IPersistFile.Saveでは参照が平坦化され、IPersistStream保存でAllowLinkToLinkと元PIDLが維持されることを確認した。通常/最小化/AppUserModelID付き3件で元lnk直接起動・生成wrapper・import起動の引数/作業フォルダ/STARTUPINFO一致、元bytes/mtime/HotKey/識別情報不変を報告した。
 - 実Applyのbackup/stage/readback、生成lnkからの起動と監査を含む必要回帰25件passed/runner専用2件skipを担当が報告。その後に必須flagの読戻し/比較を追加した。
