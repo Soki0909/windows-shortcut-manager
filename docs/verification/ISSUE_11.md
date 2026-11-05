@@ -13,7 +13,7 @@
 
 ## 2026-11-05 中断時点の保全
 
-所有者の中断依頼によりWIPとして保全。#11/#161とも未完了、main未統合、PR未作成。共有の[再開メモ](../implementation/PAUSE_2026-11-05.md)を参照する。
+所有者の中断依頼によりWIPとして保全。#11/#161とも未完了、main未統合、PR未作成。main側の[再開メモ](https://github.com/Soki0909/windows-shortcut-manager/blob/main/docs/implementation/PAUSE_2026-11-05.md)を参照する。
 
 - 用語変更に対するEditorState/ShortcutEditorState/ThemeResourceの関連23件passedとDebug build警告0/エラー0を担当エージェントが報告。その後、Windowsに起動を任せる説明へ文言を修正した。
 - 架空設定の非表示描画7件は出力を確認したが、fixture終了はexit1。正常終了の確認前に止めており、描画だけで検証完了としない。
