@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ShortcutManager.CrashDriver\ShortcutManager.CrashDriver.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\ShortcutManager.LaunchProbe\ShortcutManager.LaunchProbe.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\ShortcutManager.ThemeProbe\ShortcutManager.ThemeProbe.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\ShortcutManager.App\ShortcutManager.App.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -20,6 +21,7 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="System.IO" />
+    <Compile Include="../Shared/ThemeFixture.cs" Link="ThemeFixture.cs" />
   </ItemGroup>
 
   <ItemGroup>

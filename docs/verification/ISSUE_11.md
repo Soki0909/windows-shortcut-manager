@@ -10,3 +10,13 @@
 ## 検証
 
 ローカルのbuild/testと、架空の設定だけを使う非表示WPF描画を後続で記録する。実機の一連操作、物理キー、支援技術の確認をこの文言修正の自動検証から推定しない。
+
+## 2026-11-05 中断時点の保全
+
+所有者の中断依頼によりWIPとして保全。#11/#161とも未完了、main未統合、PR未作成。共有の[再開メモ](../implementation/PAUSE_2026-11-05.md)を参照する。
+
+- 用語変更に対するEditorState/ShortcutEditorState/ThemeResourceの関連23件passedとDebug build警告0/エラー0を担当エージェントが報告。その後、Windowsに起動を任せる説明へ文言を修正した。
+- 架空設定の非表示描画7件は出力を確認したが、fixture終了はexit1。正常終了の確認前に止めており、描画だけで検証完了としない。
+- #161のThemeProbe分離を追加。通常probe3回連続と、意図的な停止のkill/次のprobe成功を含む対象2件passed（担当報告、handle61798 exit0）。最後の全体レビュー・必要回帰・fixture正常終了とhosted CIは未実施。
+- 重処理枠の引継ぎで短時間の重複があったため、上記の成功を負荷とtimeout原因の診断証拠には使わない。
+- 担当は利用上限で終了。中断確認時にdotnet/testhost/ThemeProbe/LaunchProbeの実行プロセスなし。これから再開する場合はWIP headと実行証拠を照合し、既存ログだけから完了判定しない。
