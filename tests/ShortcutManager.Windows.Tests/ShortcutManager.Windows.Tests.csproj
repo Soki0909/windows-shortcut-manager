@@ -12,7 +12,7 @@
     <ProjectReference Include="..\ShortcutManager.CrashDriver\ShortcutManager.CrashDriver.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\ShortcutManager.LaunchProbe\ShortcutManager.LaunchProbe.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\ShortcutManager.App\ShortcutManager.App.csproj" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1" />
   </ItemGroup>
