@@ -17,7 +17,9 @@ public static class ApplicationLaunchAdvice
             "この方式では追加引数を渡しません。保存済みの追加引数は保持しますが、起動には使いません。"
         };
         if (!string.IsNullOrWhiteSpace(target.WorkingDirectory))
-            lines.Add("ここでの作業フォルダはExplorerに渡す値です。元リンクやURI先アプリの作業フォルダを上書きする指定ではありません。");
+            lines.Add(target.LaunchMode == ApplicationLaunchMode.Shortcut
+                ? "元リンクに作業フォルダの指定がない場合、ここで指定したフォルダをWindowsが起動に使うことがあります。"
+                : "ここでの作業フォルダはExplorerに渡す値です。URI先アプリで使われるかは関連付けの動作によります。");
         if (target.LaunchMode == ApplicationLaunchMode.Uri)
             lines.Add(inspectRegistration ? (inspector ?? new()).Inspect(target.Value).Message
                 : "「入力を再確認」（F5）または保存時にURIのWindows登録を照会します。照会結果は起動成功の保証ではありません。");

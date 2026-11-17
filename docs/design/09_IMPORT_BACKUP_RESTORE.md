@@ -41,12 +41,7 @@ HotKey decoder は unit test する。
 
 `IShellLinkService.Read()` を利用。
 
-Imported application は優先順位:
-
-1. normal URL target と判断可能 → Website proposal
-2. `.bat/.cmd` → BAT proposal
-3. executable → Application/executable
-4. 解釈が不安定 → Application/shortcut (source lnk reference)
+インポートした `.lnk` はすべて `Application/shortcut` として元リンクを参照する。Shellが元リンクの追加属性を含めて起動する。`.url` からのWebサイト候補とは別の処理である。判断基準と検証方法は [既存lnkの起動条件保持](IMPORT_LINK_PRESERVATION.md) を参照。
 
 Import preview でユーザーが type を変更可能。
 

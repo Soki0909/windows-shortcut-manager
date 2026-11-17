@@ -22,18 +22,20 @@ public sealed class ShellLinkService : IShellLinkService
 {
     private const int BufferSize = 32768;
     private const uint AllowLinkToLink = 0x00800000;
-    // Do not create tracking/object-ID metadata on the unmanaged source.
-    private const uint ReferencedLinkFlags = AllowLinkToLink | 0x00000100 | 0x00040000;
+    private const uint ForceNoLinkInfo = 0x00000100;
+    private const uint ForceNoLinkTracking = 0x00040000;
+    private const uint ReferencedLinkFlags = AllowLinkToLink | ForceNoLinkInfo | ForceNoLinkTracking;
 
     public void Write(string path, ShellLinkSpec spec)
     {
         path = System.IO.Path.GetFullPath(path);
-        if (spec.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+        var isLinkReference = spec.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase);
+        if (isLinkReference)
             ShortcutReferenceGuard.EnsureAcyclic(spec.TargetPath, this, destination: path);
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path) ?? throw new ArgumentException("Shortcut path has no directory.", nameof(path)));
         WithShortcut(path, true, (link, persist) =>
         {
-            if (spec.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            if (isLinkReference)
             {
                 // SetPath flattens an existing .lnk even with AllowLinkToLink.
                 // Keep the source file's PIDL, not a reconstructed executable.
@@ -55,7 +57,7 @@ public sealed class ShellLinkService : IShellLinkService
             link.SetIconLocation(icon, index);
             link.SetDescription(spec.Description);
             link.SetShowCmd(spec.WindowStyle);
-            if (spec.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            if (isLinkReference)
             {
                 var data = (IShellLinkDataList)link;
                 data.GetFlags(out var flags); data.SetFlags(flags | ReferencedLinkFlags);
@@ -63,8 +65,8 @@ public sealed class ShellLinkService : IShellLinkService
                 if ((flags & AllowLinkToLink) == 0) throw new IOException("Windows rejected link-to-link mode: " + flags.ToString("X8"));
                 var actualPath = new StringBuilder(BufferSize); link.GetPath(actualPath, BufferSize, IntPtr.Zero, 4);
                 if (!actualPath.ToString().Equals(spec.TargetPath, StringComparison.OrdinalIgnoreCase)) throw new IOException("Windows did not preserve the referenced shortcut path.");
+                SaveToStream((IPersistStream)link, path);
             }
-            if (spec.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase)) SaveToStream((IPersistStream)link, path);
             else persist.Save(path, true);
             return 0;
         });
@@ -135,9 +137,10 @@ public sealed class ShellLinkService : IShellLinkService
         // native Shell object through IPersistStream instead; do not hand-build
         // the .lnk format or copy an unmanaged link into our managed directory.
         CreateStreamOnHGlobal(IntPtr.Zero, true, out var stream);
-        var readCount = Marshal.AllocCoTaskMem(sizeof(int));
+        var readCount = IntPtr.Zero;
         try
         {
+            readCount = Marshal.AllocCoTaskMem(sizeof(int));
             persist.Save(stream, true); stream.Stat(out var stat, 1);
             if (stat.cbSize < 76 || stat.cbSize > 1024 * 1024) throw new InvalidDataException("Referenced shortcut size is invalid.");
             stream.Seek(0, 0, IntPtr.Zero);

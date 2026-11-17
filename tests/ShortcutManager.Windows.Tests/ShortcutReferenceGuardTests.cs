@@ -63,7 +63,7 @@ public sealed class ShortcutReferenceGuardTests : IDisposable
     }
 
     [Fact]
-    public void MissingReferenceModeFailsComparisonAndInvalidRawReferenceIsRejectedByWindows()
+    public void MissingReferenceModeCannotPassStagingOrAudit()
     {
         var source = FilePath("source.lnk"); var wrapper = FilePath("wrapper.lnk"); var links = new ShellLinkService();
         var executable = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
@@ -77,10 +77,10 @@ public sealed class ShortcutReferenceGuardTests : IDisposable
         Assert.Contains(ShellLinkComparison.Differences(withoutMode, expected), difference => difference.Field == "元リンク参照");
         var bytes = File.ReadAllBytes(wrapper); var flags = BitConverter.ToUInt32(bytes, 20);
         BitConverter.TryWriteBytes(bytes.AsSpan(20, 4), flags & ~0x00800000u); File.WriteAllBytes(wrapper, bytes);
-        // Windows rejects a link-to-link PIDL whose required flag was removed.
-        // A read failure is also a failed stage/audit; do not weaken this to a
-        // successful metadata read just to exercise the comparison branch.
-        Assert.ThrowsAny<COMException>(() => links.Read(wrapper));
+        // Windows may reject the invalid PIDL before it can expose metadata.
+        // A readable but flattened or unflagged link still cannot pass.
+        try { Assert.False(ShellLinkComparison.Matches(links.Read(wrapper), expected)); }
+        catch (COMException) { }
         Assert.Equal("CTRL+ALT+Q", links.Read(source).Hotkey);
     }
 

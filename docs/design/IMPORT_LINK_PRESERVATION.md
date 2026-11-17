@@ -10,7 +10,9 @@
 
 従来の `explorer.exe "source.lnk"` は原本を保持するが、起動契約の同等性までは保証していなかった。隔離プローブを元lnkから直接Shell起動すると、STARTUPINFOの表示方法は保存値1/7になる。一方、Explorerを経由した起動では10（SW_SHOWDEFAULT）となり、同じ結果ではなかった。
 
-また、単に新lnkの `SetPath(source.lnk)` を呼ぶと、`SLDF_ALLOW_LINK_TO_LINK` を先に設定しても実行先へ平坦化された。元リンクを参照するには、ファイルを指すPIDLを `SHParseDisplayName` で取得して `SetIDList` へ渡し、リンク間参照フラグを明示する方式を検証する。
+`SetPath(source.lnk)` と `IPersistFile.Save` は、それぞれ元リンクを参照先のexeへ平坦化することがあった。新しい管理リンクは `SHParseDisplayName` で元ファイルのPIDLを取り、`SetIDList` と `SLDF_ALLOW_LINK_TO_LINK` を設定し、`IPersistStream` で保存する。Windows Shellが元リンクを開く。アプリからのテスト実行でも元リンクを直接Shellへ渡す。
+
+反映時には元リンクの連鎖を読み取り、循環、管理フォルダ内への参照、安全に確認できない相対参照や深すぎる連鎖を拒否する。反映前後と起動時監査では、参照先パスと参照フラグを確認する。従来のExplorerを経由する管理リンクは監査で差分になり、バックアップ付きの既存反映手順で更新できる。設定ファイルの形式は共通である。
 
 実装・実行結果と制約は [#32検証記録](../verification/ISSUE_32.md) に残す。実画面の最小化や実Storeアプリの起動は、プローブの起動情報・保存属性を確認した証拠と区別する。
 
