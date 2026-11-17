@@ -54,7 +54,11 @@ public sealed class ThemeResourceTests
             Stop(process);
             // Retain evidence if termination itself failed. Never hide a live
             // child behind successful cleanup or contaminate the next test.
-            if(process.HasExited)Directory.Delete(root,true);
+            if(process.HasExited)
+            {
+                File.Delete(progress);
+                Directory.Delete(root);
+            }
         }
     }
     private static void Stop(Process process)

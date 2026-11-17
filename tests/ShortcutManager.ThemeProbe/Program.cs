@@ -8,7 +8,8 @@ using System.Xml.Linq;
 using ShortcutManager.App;
 using ShortcutManager.Testing;
 
-// Test-only process: no App.Run/OnStartup, config, hooks, OS theme changes or UI input.
+// The probe loads the App resources and owns its dispatcher without running
+// product startup or consulting the installed product's configuration.
 internal static class Program
 {
     private static string progressPath=string.Empty;
@@ -34,7 +35,8 @@ internal static class Program
     private static void CheckResources(bool stall)
     {
         Phase("app.initialize");
-        var app=new App();app.InitializeComponent();app.ShutdownMode=ShutdownMode.OnExplicitShutdown;
+        var app=new Application();
+        app.ShutdownMode=ShutdownMode.OnExplicitShutdown;
         try
         {
             if(stall){Phase("app.forced-stall");Thread.Sleep(Timeout.Infinite);}
@@ -90,4 +92,5 @@ internal static class Program
         finally {Phase("app.shutdown");app.Shutdown();Phase("app.stopped");}
     }
     private static uint Value(SolidColorBrush brush) {var color=brush.Color;return (uint)(color.A<<24|color.R<<16|color.G<<8|color.B);}
+
 }
