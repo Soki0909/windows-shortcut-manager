@@ -21,7 +21,10 @@ DefaultDirName={localappdata}\Programs\Shortcut Manager
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-MinVersion=10.0
+; .NET 10's oldest listed Windows client is 1607 (build 14393).
+; A numeric floor does not certify edition/lifecycle or GUI support; see
+; docs/verification/ENVIRONMENT_MATRIX.md and ISSUE_54.md.
+MinVersion=10.0.14393
 DisableProgramGroupPage=yes
 DisableDirPage=yes
 UninstallDisplayIcon={app}\ShortcutManager.exe
