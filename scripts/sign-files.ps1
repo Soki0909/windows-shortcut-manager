@@ -6,7 +6,8 @@ param(
     [string]$TimestampServer=$env:CODE_SIGN_TIMESTAMP_URL,
     [string]$SignToolPath=$env:CODE_SIGN_TOOL_PATH,
     [ValidateSet('CurrentUser','LocalMachine')][string]$CertificateStore='CurrentUser',
-    [switch]$RequireSigned
+    [switch]$RequireSigned,
+    [switch]$InnoTemporaryImage
 )
 $ErrorActionPreference='Stop'
 if($RequireSigned -and $Mode -ne 'Certificate'){throw 'A signed release requires Certificate mode; unsigned fallback is forbidden.'}
@@ -15,7 +16,10 @@ if(-not (Test-Path -LiteralPath $root -PathType Container)){throw 'Signing root 
 $files=@(foreach($entry in $Path){
     $file=[IO.Path]::GetFullPath($entry)
     if(-not $file.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Signing target is outside the artifact root.'}
-    if([IO.Path]::GetExtension($file) -notin '.exe','.dll' -or -not (Test-Path -LiteralPath $file -PathType Leaf)){throw 'Signing requires an existing EXE or DLL.'}
+    $temporaryImage = $InnoTemporaryImage -and $Mode -eq 'Certificate' -and
+        [IO.Path]::GetDirectoryName($file) -eq $root -and
+        [IO.Path]::GetFileName($file) -in 'uninst.e32.tmp','uninst.e64.tmp'
+    if(([IO.Path]::GetExtension($file) -notin '.exe','.dll' -and -not $temporaryImage) -or -not (Test-Path -LiteralPath $file -PathType Leaf)){throw 'Signing requires an existing EXE or DLL.'}
     for($item=Get-Item -LiteralPath $file;$null -ne $item;){
         if($item.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)){throw 'Signing does not follow reparse points.'}
         if($item.FullName.TrimEnd([IO.Path]::DirectorySeparatorChar) -eq $root){break}

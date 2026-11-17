@@ -35,6 +35,18 @@ try {
     Assert-Blocked @{Path=@($file);AllowedRoot=$allowedRoot;Mode='Certificate';CertificateThumbprint=('0'*40);TimestampServer='https://timestamp.invalid'}
     $link=Join-Path $allowedRoot 'linked';New-Item -ItemType Junction -Path $link -Target $outsideRoot|Out-Null
     Assert-Blocked @{Path=@(Join-Path $link 'fixture.exe');AllowedRoot=$allowedRoot}
+    $temporaryImage = Join-Path $allowedRoot 'uninst.e32.tmp'
+    Copy-Item -LiteralPath $file -Destination $temporaryImage
+    Assert-Blocked @{Path=$temporaryImage;AllowedRoot=$allowedRoot;InnoTemporaryImage=$true}
+    foreach ($unexpected in @($file, (Join-Path $link 'uninst.e32.tmp'), (Join-Path $outsideRoot 'uninst.e32.tmp'))) {
+        $message = $null
+        try {
+            & "$PSScriptRoot/sign-inno-output.ps1" -Path $unexpected -AllowedRoot $allowedRoot -SetupName 'ShortcutManager-Setup-win-x64-v0.4.0.exe'
+        } catch { $message = $_.Exception.Message }
+        if ($message -notmatch 'rejected an unexpected output path') { throw 'Unexpected Inno signer input was not rejected at the callback boundary.' }
+        $cases++
+    }
+    if ((Get-FileHash -LiteralPath $temporaryImage).Hash -ne $before) { throw 'Signing boundary checks changed the Inno image.' }
     Write-Host "Signing boundary checks passed ($cases). No certificate generated/imported, no timestamp request or signing performed."
 }finally{
     $resolved=[IO.Path]::GetFullPath($fixtureRoot)
