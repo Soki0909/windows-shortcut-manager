@@ -96,6 +96,11 @@ if ($RunInstallerSmoke) {
     New-Item -ItemType Directory -Path $temp | Out-Null
     $process = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/DIR=`"$install`"",'/TASKS=',"/LOG=`"$temp/setup.log`"") -WindowStyle Hidden -PassThru -Wait
     if ($process.ExitCode -ne 0) { throw "Setup exit: $($process.ExitCode)" }
+    $uninstaller = Join-Path $install 'unins000.exe'
+    if ($RequireSigned) {
+        if (-not (Test-Path -LiteralPath $uninstaller -PathType Leaf)) { throw 'Signed Setup did not install an uninstaller.' }
+        Assert-ReleaseSignature (Get-AuthenticodeSignature -LiteralPath $uninstaller) $true $ExpectedSignerThumbprint
+    }
     try {
         $exe = Join-Path $install 'ShortcutManager.exe'
         if ((Get-Item -LiteralPath $exe).VersionInfo.ProductVersion.Split('+')[0] -ne $Version) { throw 'Installed version mismatch.' }
@@ -114,7 +119,6 @@ if ($RunInstallerSmoke) {
         $process = Start-Process -FilePath $exe -ArgumentList @('--validate-config',"`"$fixture`"",'--result',"`"$result`"") -WindowStyle Hidden -PassThru -Wait
         if ($process.ExitCode -ne 0 -or -not (Get-Content -LiteralPath $result -Raw | ConvertFrom-Json).ok) { throw 'Installed CLI smoke failed.' }
     } finally {
-        $uninstaller = Join-Path $install 'unins000.exe'
         if (Test-Path -LiteralPath $uninstaller) {
             $process = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -WindowStyle Hidden -PassThru -Wait
             if ($process.ExitCode -ne 0) { throw 'Uninstall smoke failed.' }
