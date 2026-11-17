@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Automation.Peers;
@@ -10,9 +11,18 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel viewModel;
     private readonly Windows.Apply.ManagedShortcutAuditor auditor;
+    private readonly Func<Window, bool?> showDialog;
+    private readonly Func<Window, string, string, bool> confirmReload;
     private int statusAnnouncementPending;
 
     public MainWindow(MainViewModel viewModel, Windows.Apply.ManagedShortcutAuditor auditor)
+        : this(viewModel, auditor, dialog => dialog.ShowDialog(), (owner, message, title) =>
+            MessageBox.Show(owner, message, title, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+    {
+    }
+
+    internal MainWindow(MainViewModel viewModel, Windows.Apply.ManagedShortcutAuditor auditor,
+        Func<Window, bool?> showDialog, Func<Window, string, string, bool> confirmReload)
     {
         InitializeComponent();
         DialogLayout.Constrain(this);
@@ -26,9 +36,25 @@ public partial class MainWindow : Window
         }
         this.viewModel = viewModel;
         this.auditor = auditor;
+        this.showDialog = showDialog;
+        this.confirmReload = confirmReload;
         DataContext = viewModel;
         viewModel.PropertyChanged += AnnounceStatus;
         Closed += (_, _) => viewModel.PropertyChanged -= AnnounceStatus;
+    }
+
+    internal void AttachStartupActions(bool auditOnly)
+    {
+        Loaded += async (_, _) =>
+        {
+            IsEnabled = false;
+            bool repaired;
+            try { repaired = await viewModel.AuditStartupAsync(auditor, auditOnly); }
+            finally { IsEnabled = true; }
+            if (repaired) await OfferShellReloadAsync();
+            if (!viewModel.RecoveryRequired && !File.Exists(viewModel.ConfigPath) && viewModel.Shortcuts.Count == 0)
+                ShowGettingStarted();
+        };
     }
 
     private void AnnounceStatus(object? sender, PropertyChangedEventArgs e)
@@ -62,7 +88,7 @@ public partial class MainWindow : Window
         var usedKeys = viewModel.Shortcuts.Where(row => row.Definition.Id != definition?.Id && row.Enabled).GroupBy(row => row.Key).ToDictionary(group => group.Key, group => string.Join(" / ", group.Select(row => row.Name)));
         var invalid=definition is not null && viewModel.Shortcuts.Any(row=>row.Definition.Id==definition.Id && !string.IsNullOrEmpty(row.Error));
         var dialog = new ShortcutEditorWindow(definition, key, usedKeys, initialType, viewModel.Candidate, invalid) { Owner = owner ?? this };
-        if (dialog.ShowDialog() != true || dialog.Result is null) return false;
+        if (showDialog(dialog) != true || dialog.Result is null) return false;
         viewModel.Upsert(dialog.Result);
         viewModel.Selected = viewModel.Shortcuts.First(row => row.Definition.Id == dialog.Result.Id);
         return true;
@@ -71,7 +97,8 @@ public partial class MainWindow : Window
     private void AddWebsite_Click(object sender, RoutedEventArgs e) => Edit(null, null);
     private void AddApplication_Click(object sender, RoutedEventArgs e) => Edit(null, null, initialType: 1);
     private void Help_Click(object sender, RoutedEventArgs e) => new HelpWindow(owner => ShowGettingStarted(owner)) { Owner = this }.ShowDialog();
-    public void ShowGettingStarted(Window? owner = null) => new GettingStartedWindow(viewModel, guide => Edit(null, null, guide)) { Owner = owner ?? this }.ShowDialog();
+    public void ShowGettingStarted(Window? owner = null) => showDialog(new GettingStartedWindow(
+        viewModel, guide => Edit(null, null, guide), guide => OfferShellReloadAsync(guide)) { Owner = owner ?? this });
     private void Guide_Click(object sender, RoutedEventArgs e) => ShowGettingStarted();
 
     private async void Scan_Click(object sender, RoutedEventArgs e)
@@ -201,26 +228,23 @@ public partial class MainWindow : Window
             }
             return;
         }
-        if (ConfirmShellReload()) await viewModel.ReloadShellAsync();
+        await OfferShellReloadAsync();
     }
 
     private async void ShellReload_Click(object sender, RoutedEventArgs e)
     {
-        if (ConfirmShellReload()) await viewModel.ReloadShellAsync();
+        await OfferShellReloadAsync();
     }
 
-    public async Task OfferShellReloadAsync()
+    public Task OfferShellReloadAsync() => OfferShellReloadAsync(this);
+
+    private async Task OfferShellReloadAsync(Window owner)
     {
-        if (ConfirmShellReload()) await viewModel.ReloadShellAsync();
+        if (confirmReload(owner, ShellReloadExplanation, "Windows Explorerを再起動"))
+            await viewModel.ReloadShellAsync();
     }
 
     internal const string ShellReloadExplanation = "新規・変更したHotKeyの有効化を試すため、Windows Explorerを再起動します。\n\n公開APIではHotKeyの即時反映は保証されないため、反映されない場合はWindowsの再起動が必要です。デスクトップとタスクバーが一瞬消え、開いているエクスプローラー画面が閉じる可能性があります。ファイルのコピーや移動中でないことを確認して続行してください。";
-    private bool ConfirmShellReload() => MessageBox.Show(
-        this,
-        ShellReloadExplanation,
-        "Windows Explorerを再起動",
-        MessageBoxButton.YesNo,
-        MessageBoxImage.Warning) == MessageBoxResult.Yes;
     private void About_Click(object sender, RoutedEventArgs e) => new HelpWindow(owner => ShowGettingStarted(owner), showInformation: true) { Owner = this }.ShowDialog();
 
     private void Window_Closing(object? sender, CancelEventArgs e)
