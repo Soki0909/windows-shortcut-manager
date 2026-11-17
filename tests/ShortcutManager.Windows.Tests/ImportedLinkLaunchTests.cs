@@ -90,6 +90,45 @@ public sealed class ImportedLinkLaunchTests : IDisposable
         if (identified) Assert.Equal(appId, LinkAppIdentity.Read(source));
     }
 
+    [Fact]
+    public void ChangedSourceChainRollsBackTheManagedCommit()
+    {
+        var source = Path.Combine(root, "external.lnk");
+        var managed = Path.Combine(root, "managed");
+        var repository = new ConfigRepository(Path.Combine(root, "data", "config.json"));
+        var resolver = new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder());
+        var old = new ShortcutDefinition { Name = "existing", Hotkey = new() { Key = "J" }, Target = new ApplicationTarget { Value = probe } };
+        var imported = old with { Target = new ApplicationTarget { LaunchMode = ApplicationLaunchMode.Shortcut, Value = source } };
+        var wrapper = Path.Combine(managed, ManagedFilename.For(old));
+        links.Write(source, new(probe, "", root, "CTRL+ALT+Q", "", "external fixture"));
+
+        var changeSource = false;
+        byte[]? externalEdit = null;
+        var applier = new ManagedShortcutApplier(repository, new(), resolver, links,
+            new BackupService(Path.Combine(root, "backups"), "0.4.0"), Path.Combine(root, "staging"), Path.Combine(root, "data", "state.json"),
+            checkpoint: phase =>
+            {
+                if (!changeSource || phase != "staged") return;
+                // Model an external edit after staging. The old managed link
+                // still points to an executable at this checkpoint.
+                links.Write(source, new(wrapper, "", root, "CTRL+ALT+Q", "", "external edit"));
+                externalEdit = File.ReadAllBytes(source);
+            });
+        var initial = applier.Apply(new() { Shortcuts = [old] }, managed);
+        Assert.True(initial.Succeeded, initial.Message);
+        var oldConfig = File.ReadAllBytes(repository.Path);
+        var oldLink = File.ReadAllBytes(wrapper);
+
+        changeSource = true;
+        var result = applier.Apply(new() { Shortcuts = [imported] }, managed);
+        Assert.False(result.Succeeded);
+        Assert.Contains("管理フォルダ", result.Message);
+        Assert.NotNull(externalEdit);
+        Assert.Equal(externalEdit, File.ReadAllBytes(source));
+        Assert.Equal(oldConfig, File.ReadAllBytes(repository.Path));
+        Assert.Equal(oldLink, File.ReadAllBytes(wrapper));
+    }
+
     private static async Task<JsonDocument> ReadReport(string path)
     {
         var until = DateTime.UtcNow.AddSeconds(15);

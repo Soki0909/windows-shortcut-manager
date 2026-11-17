@@ -37,6 +37,26 @@ public sealed class ShortcutReferenceGuardTests : IDisposable
     }
 
     [Fact]
+    public void DirectoryAliasCannotReferIntoManagedFolder()
+    {
+        var managed = Directory.CreateDirectory(FilePath("managed")).FullName;
+        var owned = Path.Combine(managed, "generated.lnk");
+        var alias = FilePath("alias");
+        var links = new ShellLinkService();
+        var executable = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+        links.Write(owned, new(executable, "", root, "", "", "fixture"));
+        var bytes = File.ReadAllBytes(owned);
+        Directory.CreateSymbolicLink(alias, managed);
+        try
+        {
+            var error = Assert.Throws<InvalidDataException>(() => ShortcutReferenceGuard.EnsureAcyclic(Path.Combine(alias, "generated.lnk"), links, managedDirectory: managed));
+            Assert.Contains("管理フォルダ", error.Message);
+            Assert.Equal(bytes, File.ReadAllBytes(owned));
+        }
+        finally { Directory.Delete(alias); }
+    }
+
+    [Fact]
     public void RelativeAndUnboundedChainsFailClosed()
     {
         var source = FilePath("source.lnk");

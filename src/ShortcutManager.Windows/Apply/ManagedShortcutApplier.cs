@@ -145,7 +145,10 @@ public sealed class ManagedShortcutApplier(
             foreach (var item in config.Shortcuts.Where(item => item.Enabled))
             {
                 var path = System.IO.Path.Combine(managedDirectory, ManagedFilename.For(item));
-                if (!ShellLinkComparison.Matches(shellLinks.Read(path), resolver.Resolve(config, item)))
+                var launch = resolver.Resolve(config, item);
+                if (launch.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+                    ShortcutReferenceGuard.EnsureAcyclic(launch.TargetPath, shellLinks, managedDirectory: managedDirectory);
+                if (!ShellLinkComparison.Matches(shellLinks.Read(path), launch))
                     throw new InvalidDataException($"Committed shortcut verification failed: {path}");
             }
             RecordCheckpoint("commit-verified");
