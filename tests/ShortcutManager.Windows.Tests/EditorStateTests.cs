@@ -44,9 +44,11 @@ public sealed class EditorStateTests : IDisposable
         Assert.False(await vm.ApplyAsync());
         var entry = Entry(); vm.Upsert(entry); vm.Selected=vm.Shortcuts.Single();
         Assert.True(vm.CanApply); Assert.True(vm.CanEditSelected); Assert.Equal(1,vm.PendingChangeCount);
+        Assert.Equal(vm.Shortcuts.Single().StateLabel,vm.TopRowKeys.Single(tile=>tile.Key==entry.Hotkey.Key).StatusLabel);
         Assert.True(await vm.ApplyAsync());
         Assert.False(vm.IsDirty); Assert.False(vm.CanApply); Assert.True(vm.ShellReflectionPending);
         Assert.DoesNotContain("確認済み",vm.Shortcuts.Single().StateLabel);
+        Assert.NotEqual(App.UiText.Unsaved,vm.TopRowKeys.Single(tile=>tile.Key==entry.Hotkey.Key).StatusLabel);
         var count=Directory.GetFiles(Path.Combine(root,"backups"),"*.zip").Length;
         Assert.False(await vm.ApplyAsync());
         Assert.Equal(count,Directory.GetFiles(Path.Combine(root,"backups"),"*.zip").Length);
