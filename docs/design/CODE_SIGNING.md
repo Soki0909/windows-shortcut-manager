@@ -1,6 +1,6 @@
 # Code signing policy / 導入準備
 
-対象Issue: #50。2026-11-02時点では証明書・サービス未契約。現在公開済みの版は未署名であり、署名提供を受けているとは表示しない。所有者から利用可能な方式の準備を進める指示を受けた。秘密鍵の送付は不要。
+対象Issue #50・#140。証明書・署名サービスは未契約で、現在公開済みの版は未署名。所有者から利用可能な方式の準備を進める指示を受けた。秘密鍵の送付は不要。
 
 ## 方式の候補
 
@@ -35,12 +35,14 @@ $env:CODE_SIGN_TIMESTAMP_URL = '<provider RFC3161 timestamp URL>'
 ./scripts/verify-release-artifacts.ps1 -Version X.Y.Z -RequireSigned
 ```
 
-app署名→ZIP/Setup生成→Setup署名→最終SHA-256の順。ZIPのSIGNING.jsonは4つの自作バイナリの署名後hash/署名状態を記録し、検査時に実体と照合する。Setupの検証記録はローカルSIGNING-SETUP.jsonへ保存する。必要な署名が失敗した場合、未署名へfallbackせず停止する。`Unsigned`は開発用パッケージを継続できる明示モードで、署名済みとは表示しない。
+app署名→ZIP生成→InnoによるSetupと内部イメージの署名→最終SHA-256の順。ZIPのSIGNING.jsonは4つの自作バイナリの署名後hash/署名状態を記録し、検査時に実体と照合する。Setupの検証記録はローカルSIGNING-SETUP.jsonへ保存する。`Unsigned`は未署名の開発用パッケージを生成する。
 
 GitHub-hosted runnerへ証明書は用意されていない。現Release workflowはUnsignedのまま。採択/契約後に署名段階とpublisherを固定し、`publish-release.ps1 -RequireSigned`を通じてdraftから再downloadした配布物にも同じ発行元/信頼/timestamp検査を要求する。契約前にv1.0.0署名済みと称してタグ/公開しない。
 
 ## 実施済みと残る検証
 
-継続レビューで、Setupのコンパイル後署名だけでは内部コピーとUninstallが未署名のままになる注意を公式Inno履歴から確認し#140を追加した。Inno内のSignTool/SignedUninstaller統合は、正式署名経路を有効にする前の未完了項目として扱う。
+証明書モードではInnoの`SignTool`と`SignedUninstaller=yes`を使い、Setup本体と、実行時の自己コピー・Uninstallに使われる内部イメージをコンパイラから署名する。ビルドごとの出力フォルダを使用し、コールバックは直下の指定Setup EXEとInno 7.1.1が生成する`uninst.e32.tmp` / `uninst.e64.tmp`に限定する。既存の証明書ストア・署名者・信頼チェーン・RFC3161 timestampの検証を適用し、コールバックの失敗でビルドを停止する。コンパイル後もSetup本体を検証し、成功してから配布先に移動してハッシュを作る。署名処理にはPowerShell 7が必要。 [Inno SignTool](https://jrsoftware.org/inno-setup/documentation/topic_setup_signtool.htm)、[SignedUninstaller](https://jrsoftware.org/inno-setup/documentation/topic_setup_signeduninstaller.htm)、[Inno 7.1.1のコンパイラ実装](https://github.com/jrsoftware/issrc/blob/is-7_1_1/Projects/Src/Compiler.SetupCompiler.pas)。
 
-11境界ケースで未署名検査の原本不変、署名必須時のfallback拒否、範囲外/欠損/非EXE/不正証明書/timestamp/junction拒否を確認。実証明書による署名成功、timestamp到達性、失効/信頼チェーン、GitHubからの署名付き再download、実機での発行元確認は外部前提が未用意のため未実施。#50は開いたまま維持する。
+15件の境界テストで、原本の不変、署名必須時のfallback拒否、範囲外・欠損・非EXE・不正証明書・timestamp・junction・想定外コールバック入力の拒否を確認した。Inno 7.1.1と仮ペイロードで未署名コンパイル成功と、証明書設定なしの署名コールバック失敗によるコンパイル中断を確認した。
+
+証明書の準備後に、同じ発行元の信頼できる署名とtimestampをSetup・内部イメージ・インストール済み`unins000.exe`で確認する。使い捨てGitHub Windows runnerで`verify-release-artifacts.ps1 -RequireSigned -RunInstallerSmoke`を実行すると、インストール済みUninstallを起動前に検証する。実署名、実サービスのtimestamp、配布物の再ダウンロード照合と発行元表示は未検証。#50・#140を継続する。

@@ -37,6 +37,11 @@ WizardStyle=modern
 CloseApplications=yes
 RestartApplications=no
 SetupLogging=yes
+#ifdef SignInstaller
+SignTool=ShortcutManagerCertificate
+SignedUninstaller=yes
+SignToolRetryCount=0
+#endif
 
 [Languages]
 Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"; InfoBeforeFile: "info-ja.txt"

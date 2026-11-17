@@ -4,7 +4,7 @@
 
 ## 固定と更新検知
 
-- .NET SDKは`global.json`で10.0.403を指定し、rollForwardを無効にする。CI/Releaseのsetup-dotnetも同じファイルを使う。
+- .NET SDKは`global.json`で10.0.404を指定し、rollForwardを無効にする。CI/Releaseのsetup-dotnetも同じファイルを使う。
 - GitHub Actionsは公式repositoryから取得したcommit SHAへ固定する。版はコメントだけに残す。major更新も手動で互換性を確認してから取り込む。来歴生成には公式actions/attestを使う。#142ではcheckout7.0.1/setup-dotnet6.0.0/setup-node7.1.0の公式SHA/MITとhosted runner互換を確認し、CI後に更新した。
 - Dependabotは毎週、github-actions、nuget、dotnet-sdkを確認する。Action/NuGetは関連更新をまとめ、自動mergeはしない。major更新は互換性と対応Windows/SDKを確認する。
 - Inno Setupは`scripts/build-tools.json`に版・公式URL・SHA-256を固定する。準備時にhashとAuthenticodeの両方を検証してからworkspaceのビルドツールを準備する。`Build tool updates` workflowは毎週公式最新releaseを照会し、新版/不明な版形式なら失敗して保守担当に確認を促す。自動ダウンロード/固定値変更は行わない。
