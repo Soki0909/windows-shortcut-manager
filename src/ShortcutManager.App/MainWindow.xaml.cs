@@ -89,7 +89,7 @@ public partial class MainWindow : Window
     private void Backup_Click(object sender, RoutedEventArgs e)
     {
         if (MessageBox.Show(this, Windows.Backup.BackupScope.Description + "\n\n保存先を選びますか？", "バックアップの範囲", MessageBoxButton.YesNo, MessageBoxImage.Information) != MessageBoxResult.Yes) return;
-        var dialog = new SaveFileDialog { Filter = "Shortcut Manager backup (*.zip)|*.zip", FileName = $"ShortcutManager-backup-{DateTime.Now:yyyyMMdd-HHmmss}.zip" };
+        var dialog = new SaveFileDialog { Filter = "バックアップZIP (*.zip)|*.zip", FileName = $"ShortcutManager-backup-{DateTime.Now:yyyyMMdd-HHmmss}.zip" };
         if (dialog.ShowDialog(this) != true) return;
         try { viewModel.Backup(dialog.FileName); }
         catch (Exception error) { MessageBox.Show(this, error.Message, "バックアップ失敗", MessageBoxButton.OK, MessageBoxImage.Error); }
@@ -97,7 +97,7 @@ public partial class MainWindow : Window
 
     private async void Restore_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog { Filter = "Shortcut Manager backup (*.zip)|*.zip" };
+        var dialog = new OpenFileDialog { Filter = "バックアップZIP (*.zip)|*.zip" };
         if (dialog.ShowDialog(this) != true) return;
         try
         {
@@ -152,7 +152,7 @@ public partial class MainWindow : Window
         var notice=definition.Target is Core.Models.ApplicationTarget app ? Windows.Launching.ApplicationLaunchAdvice.Describe(app,true) : string.Empty;
         new LaunchPreviewWindow(definition.Name,spec,notice,()=> {var succeeded=viewModel.ExecutePreview(definition,spec);return(succeeded,viewModel.Status);}) {Owner=this}.ShowDialog();
     }
-    private void Reload_Click(object sender, RoutedEventArgs e) { if (!viewModel.IsDirty || MessageBox.Show(this, $"未保存の変更 {viewModel.PendingChangeCount} 項目を破棄し、保存済み設定を読み直しますか？\nWindowsのリンク監査やExplorer再起動は行いません。", "編集を破棄して再読込", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes) viewModel.Load(); }
+    private void Reload_Click(object sender, RoutedEventArgs e) { if (!viewModel.IsDirty || MessageBox.Show(this, $"未保存の変更 {viewModel.PendingChangeCount} 項目を破棄し、保存済み設定を読み直しますか？\nWindowsのリンク監査やエクスプローラー再起動は行いません。", "編集を破棄して読み直す", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes) viewModel.Load(); }
     private async void AuditSaved_Click(object sender, RoutedEventArgs e) => await viewModel.AuditSavedAsync(auditor);
     private async void AuditHistory_Click(object sender,RoutedEventArgs e)
     {
@@ -174,17 +174,17 @@ public partial class MainWindow : Window
     private async void RecoverPending_Click(object sender,RoutedEventArgs e)
     {
         if(viewModel.IsBusy || viewModel.IsDirty){MessageBox.Show(this,"未保存の候補がある場合は、先に候補を保全または破棄してください。","中断処理の復旧");return;}
-        if(MessageBox.Show(this,"監査のみの起動では保留した、中断した反映・復元のjournalを明示復旧します。退避した完全な状態へ戻します。続行しますか？","中断処理の復旧",MessageBoxButton.YesNo,MessageBoxImage.Warning)==MessageBoxResult.Yes)await viewModel.RecoverPendingAsync();
+        if(MessageBox.Show(this,"監査のみの起動では保留した、中断した反映・復元の復旧記録を明示復旧します。退避した完全な状態へ戻します。続行しますか？","中断処理の復旧",MessageBoxButton.YesNo,MessageBoxImage.Warning)==MessageBoxResult.Yes)await viewModel.RecoverPendingAsync();
     }
     private void StateDetails_Click(object sender, RoutedEventArgs e) => MessageBox.Show(this, viewModel.EditingNotice + "\n\n" + viewModel.AuditNotice + "\n\n" + viewModel.ShellNotice + "\n\n" + viewModel.PhysicalConfirmationNotice, "保存・リンク・Windowsの状態", MessageBoxButton.OK, MessageBoxImage.Information);
     private void ConfirmHotkey_Click(object sender, RoutedEventArgs e)
     {
         if (!viewModel.CanConfirmHotkey) return;
-        if (MessageBox.Show(this, $"実際の {viewModel.Selected!.Hotkey} を押して「{viewModel.Selected.Name}」が意図どおり動くことを確認しましたか？\n対象のテスト起動・保存・Explorer再起動だけでは確認済みにしません。今回の起動中の利用者の申告として記録します。", "選択キーの実動作確認", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) viewModel.ConfirmSelectedHotkey();
+        if (MessageBox.Show(this, $"実際の {viewModel.Selected!.Hotkey} を押して「{viewModel.Selected.Name}」が意図どおり動くことを確認しましたか？\n「対象をテスト」・保存・エクスプローラー再起動だけでは確認済みにしません。今回の起動中の利用者の申告として記録します。", "選択キーの実動作確認", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) viewModel.ConfirmSelectedHotkey();
     }
     private void InitializeRecovery_Click(object sender, RoutedEventArgs e)
     {
-        if (MessageBox.Show(this, "破損設定をバックアップして空の候補設定を用意します。後で「変更を反映」を押すと既存の管理HotKeyが削除されます。初期化しますか？", "復旧用初期化", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        if (MessageBox.Show(this, "破損設定をバックアップして空の候補設定を用意します。後で「変更を反映」を押すと既存の管理ショートカットキーが削除されます。初期化しますか？", "復旧用初期化", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
         try { viewModel.InitializeRecovery(); }
         catch (Exception error) { MessageBox.Show(this, $"バックアップに失敗したため初期化を中止しました: {error.Message}", "復旧", MessageBoxButton.OK, MessageBoxImage.Error); }
     }
@@ -214,11 +214,11 @@ public partial class MainWindow : Window
         if (ConfirmShellReload()) await viewModel.ReloadShellAsync();
     }
 
-    internal const string ShellReloadExplanation = "新規・変更したHotKeyの有効化を試すため、Windows Explorerを再起動します。\n\n公開APIではHotKeyの即時反映は保証されないため、反映されない場合はWindowsの再起動が必要です。デスクトップとタスクバーが一瞬消え、開いているエクスプローラー画面が閉じる可能性があります。ファイルのコピーや移動中でないことを確認して続行してください。";
+    internal const string ShellReloadExplanation = "新規・変更したショートカットキーの有効化を試すため、エクスプローラーを再起動します。\n\nWindowsの仕組みではショートカットキーの即時反映は保証されないため、反映されない場合はWindowsの再起動が必要です。デスクトップとタスクバーが一瞬消え、開いているエクスプローラー画面が閉じる可能性があります。ファイルのコピーや移動中でないことを確認して続行してください。";
     private bool ConfirmShellReload() => MessageBox.Show(
         this,
         ShellReloadExplanation,
-        "Windows Explorerを再起動",
+        "エクスプローラーを再起動",
         MessageBoxButton.YesNo,
         MessageBoxImage.Warning) == MessageBoxResult.Yes;
     private void About_Click(object sender, RoutedEventArgs e) => new HelpWindow(owner => ShowGettingStarted(owner), showInformation: true) { Owner = this }.ShowDialog();

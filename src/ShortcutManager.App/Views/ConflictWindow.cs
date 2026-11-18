@@ -21,7 +21,7 @@ public sealed class ConflictWindow : Window
         var close=new Button {Content="戻る",IsCancel=true};close.Click+=(_,_)=>DialogResult=false;
         var buttons=new WrapPanel {HorizontalAlignment=HorizontalAlignment.Right};buttons.Children.Add(location);buttons.Children.Add(close);buttons.Children.Add(edit);
         var bottom=new StackPanel();bottom.Children.Add(details);bottom.Children.Add(buttons);
-        var top=new TextBlock {Text="外部の同じキーが残っているため反映を停止しました。対象を選び、場所を確認するか、候補に別のキーを指定してください。元ファイルのキーは自動解除しません。\n"+(report?.Summary ?? string.Empty)+"\nアプリが動的に取得したキーは検出できません。読取り不能や未走査がある場合、競合なしとは断定できません。",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)};
+        var top=new TextBlock {Text="外部の同じキーが残っているため反映を停止しました。対象を選び、場所を確認するか、候補に別のキーを指定してください。元ファイルのキーは自動解除しません。\n"+(report?.Summary ?? string.Empty)+"\nアプリが動的に取得したキーは検出できません。読取り不能や未スキャンがある場合、競合なしとは断定できません。",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)};
         var panel=new DockPanel {Margin=new(16)};DockPanel.SetDock(top,Dock.Top);panel.Children.Add(top);DockPanel.SetDock(bottom,Dock.Bottom);panel.Children.Add(bottom);panel.Children.Add(grid);Content=panel;
     }
 }
