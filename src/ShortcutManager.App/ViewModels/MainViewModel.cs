@@ -23,6 +23,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly LaunchSpecResolver resolver;
     private readonly ProcessLauncher launcher;
     private readonly ShortcutInventoryScanner scanner;
+    private readonly Func<IReadOnlyList<string>> defaultScanRoots;
     private readonly ShortcutImporter importer;
     private readonly BackupService backups;
     private readonly ManagedShortcutApplier applier;
@@ -56,6 +57,15 @@ public sealed class MainViewModel : ObservableObject
     private string? auditPolicyWarning;
 
     public MainViewModel(ApplicationPaths paths, ConfigRepository repository, ConfigValidator validator, LaunchSpecResolver resolver, ProcessLauncher launcher, ShortcutInventoryScanner scanner, ShortcutImporter importer, BackupService backups, ManagedShortcutApplier applier, RestoreService restore, FileLogger logger, IExplorerShellReloader shellReloader)
+        : this(paths, repository, validator, resolver, launcher, scanner, importer, backups, applier, restore, logger, shellReloader,
+            () => ShortcutInventoryScanner.DefaultRoots)
+    {
+    }
+
+    internal MainViewModel(ApplicationPaths paths, ConfigRepository repository, ConfigValidator validator, LaunchSpecResolver resolver,
+        ProcessLauncher launcher, ShortcutInventoryScanner scanner, ShortcutImporter importer, BackupService backups,
+        ManagedShortcutApplier applier, RestoreService restore, FileLogger logger, IExplorerShellReloader shellReloader,
+        Func<IReadOnlyList<string>> defaultScanRoots)
     {
         this.paths = paths;
         this.repository = repository;
@@ -63,6 +73,7 @@ public sealed class MainViewModel : ObservableObject
         this.resolver = resolver;
         this.launcher = launcher;
         this.scanner = scanner;
+        this.defaultScanRoots = defaultScanRoots;
         this.importer = importer;
         this.backups = backups;
         this.applier = applier;
@@ -195,7 +206,7 @@ public sealed class MainViewModel : ObservableObject
         {
             var saved=explicitRepair?repository.Load():candidate;
             var directory=paths.ResolveManagedDirectory(saved.Settings.ManagedShortcutDirectory);
-            async Task<IReadOnlyList<ShortcutInventoryItem>> Scan() {LastScanReport=await scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots.Concat(LastScanReport?.Roots ?? []),directory);return LastScanReport.Items;}
+            async Task<IReadOnlyList<ShortcutInventoryItem>> Scan() {LastScanReport=await scanner.ScanReportAsync(defaultScanRoots().Concat(LastScanReport?.Roots ?? []),directory);return LastScanReport.Items;}
             var result = await new StartupShortcutReconciler(auditor, applier).ReconcileAsync(saved,directory,Scan,AuditOnly || auditOnlyOverride,explicitRepair,auditControls,()=>LastScanReport?.IsComplete==true,()=>ConfigJson.Serialize(repository.Load())==ConfigJson.Serialize(saved));
             logger.Info($"Startup audit: repaired={result.Repaired}, differences={result.Differences}, backup={result.BackupPath}, message={result.Message}");
             Status = result.Message+(auditPolicyWarning is null?string.Empty:" "+auditPolicyWarning);
@@ -274,7 +285,7 @@ public sealed class MainViewModel : ObservableObject
         Status = "既存 .lnk / .url をスキャンしています…";
         try
         {
-            LastScanReport = await scanner.ScanReportAsync(roots ?? ShortcutInventoryScanner.DefaultRoots,ManagedDirectory);
+            LastScanReport = await scanner.ScanReportAsync(roots ?? defaultScanRoots(),ManagedDirectory);
             Status = LastScanReport.Summary;
             logger.Info($"Inventory scan: {LastScanReport.Items.Count} items, {LastScanReport.Issues.Count} excluded ranges");
             return LastScanReport;
@@ -305,7 +316,7 @@ public sealed class MainViewModel : ObservableObject
         Status = "入力と既存キーを確認し、自動バックアップして変更を反映しています…";
         try
         {
-            LastScanReport = await scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots.Concat(LastScanReport?.Roots ?? []),ManagedDirectory);
+            LastScanReport = await scanner.ScanReportAsync(defaultScanRoots().Concat(LastScanReport?.Roots ?? []),ManagedDirectory);
             var scan = LastScanReport.Items;
             ConflictingItems=scan.Where(item=>!item.IsManaged && candidate.Shortcuts.Any(entry=>entry.Enabled && entry.Hotkey.Canonical.Equals(item.Hotkey,StringComparison.OrdinalIgnoreCase))).ToArray();
             var external = scan.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
@@ -441,7 +452,7 @@ public sealed class MainViewModel : ObservableObject
             repository.EnsureCompatibleVersion();
             var before=CurrentSourceHash();ShortcutConfig? saved;
             try {saved=repository.Load();} catch(System.Text.Json.JsonException){saved=null;}
-            LastScanReport=await scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots.Concat(LastScanReport?.Roots ?? []),ManagedDirectory);
+            LastScanReport=await scanner.ScanReportAsync(defaultScanRoots().Concat(LastScanReport?.Roots ?? []),ManagedDirectory);
             var external=LastScanReport.Items.Where(item=>!item.IsManaged).Select(item=>item.Hotkey).ToArray();
             var preview=await Task.Run(()=>restore.Prepare(path,saved,external,mode,ManagedDirectory));
             if(before!=CurrentSourceHash())throw new InvalidOperationException("確認中に保存設定が変わりました。プレビューを開き直してください。");
@@ -470,7 +481,7 @@ public sealed class MainViewModel : ObservableObject
                 var saved = repository.Load();
                 return (Config: saved, Audit: auditor.Audit(saved, paths.ResolveManagedDirectory(saved.Settings.ManagedShortcutDirectory)));
             });
-            LastScanReport=await scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots.Concat(LastScanReport?.Roots ?? []),paths.ResolveManagedDirectory(result.Config.Settings.ManagedShortcutDirectory));
+            LastScanReport=await scanner.ScanReportAsync(defaultScanRoots().Concat(LastScanReport?.Roots ?? []),paths.ResolveManagedDirectory(result.Config.Settings.ManagedShortcutDirectory));
             var inventory = LastScanReport.Items;
             LastAuditDetails=result.Audit.Details;
             ConflictingItems=inventory.Where(item=>!item.IsManaged && result.Config.Shortcuts.Any(entry=>entry.Enabled && entry.Hotkey.Canonical.Equals(item.Hotkey,StringComparison.OrdinalIgnoreCase))).ToArray();
@@ -525,7 +536,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             if(prepared is not null && (Path.GetFullPath(path)!=prepared.BackupPath || CurrentSourceHash()!=prepared.CurrentConfigSha256)) {Status="確認後に現在の設定が変わりました。復元せず、プレビューを開き直してください。";return false;}
-            LastScanReport=await scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots.Concat(LastScanReport?.Roots ?? []),ManagedDirectory);
+            LastScanReport=await scanner.ScanReportAsync(defaultScanRoots().Concat(LastScanReport?.Roots ?? []),ManagedDirectory);
             var inventory = LastScanReport.Items;
             var external = inventory.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
             var result = await Task.Run(() => prepared is not null && CurrentSourceHash()!=prepared.CurrentConfigSha256 ? new ApplyResult(false,"確認後に現在の設定が変わりました。プレビューを開き直してください。") : restore.Restore(path, ManagedDirectory, external,prepared?.Mode ?? RestoreMode.Entire,prepared?.Preview.ArchiveSha256,prepared is null?null:ConfigJson.Serialize(prepared.Preview.Config)));

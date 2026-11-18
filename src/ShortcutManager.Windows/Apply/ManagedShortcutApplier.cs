@@ -95,6 +95,8 @@ public sealed class ManagedShortcutApplier(
             foreach (var item in config.Shortcuts.Where(item => item.Enabled))
             {
                 var launch = resolver.Resolve(config, item);
+                if (launch.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+                    ShortcutReferenceGuard.EnsureAcyclic(launch.TargetPath, shellLinks, managedDirectory: managedDirectory);
                 var path = System.IO.Path.Combine(stage, ManagedFilename.For(item));
                 shellLinks.Write(path, new(launch.TargetPath, launch.Arguments, launch.WorkingDirectory, launch.Hotkey, launch.IconLocation, launch.Description, launch.WindowStyle));
                 var read = shellLinks.Read(path);
@@ -143,7 +145,10 @@ public sealed class ManagedShortcutApplier(
             foreach (var item in config.Shortcuts.Where(item => item.Enabled))
             {
                 var path = System.IO.Path.Combine(managedDirectory, ManagedFilename.For(item));
-                if (!ShellLinkComparison.Matches(shellLinks.Read(path), resolver.Resolve(config, item)))
+                var launch = resolver.Resolve(config, item);
+                if (launch.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+                    ShortcutReferenceGuard.EnsureAcyclic(launch.TargetPath, shellLinks, managedDirectory: managedDirectory);
+                if (!ShellLinkComparison.Matches(shellLinks.Read(path), launch))
                     throw new InvalidDataException($"Committed shortcut verification failed: {path}");
             }
             RecordCheckpoint("commit-verified");

@@ -96,7 +96,7 @@ Ctrl+Alt+Key
 ```text
 Ctrl+Alt+Key
 → managed .lnk
-→ explorer.exe "<source .lnk>"
+→ source .lnk (Windows Shell link reference)
 ```
 
 元 shortcut の特殊な AppUserModelID 等を Shortcut Manager が再解釈しなくても動かせる fallback とする。

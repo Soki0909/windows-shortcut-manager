@@ -11,7 +11,7 @@ using ShortcutManager.Windows.ShellLinks;
 
 namespace ShortcutManager.Windows.Tests;
 
-public sealed class LaunchContractTests : IDisposable
+public sealed class LaunchContractTests : IAsyncLifetime
 {
     private readonly string root = Path.Combine(Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") == "github-hosted"
         ? Environment.GetEnvironmentVariable("RUNNER_TEMP") ?? Path.GetTempPath() : Path.GetTempPath(), "shortcut-manager-launch-" + Guid.NewGuid().ToString("N"));
@@ -80,7 +80,7 @@ public sealed class LaunchContractTests : IDisposable
         links.Write(source, new(probe, "--report " + LaunchSpecResolver.Quote(report) + " " + LaunchSpecResolver.Quote("元リンクの引数"), working, "", probe + ",0", "fixture"));
         var before = File.ReadAllBytes(source);
         var spec = Resolve(new() { LaunchMode = ApplicationLaunchMode.Shortcut, Value = source, Arguments = "legacy-ignored-extra" });
-        Assert.Equal(LaunchSpecResolver.Quote(source), spec.Arguments);
+        Assert.Equal(source, spec.TargetPath); Assert.Empty(spec.Arguments);
         new ProcessLauncher().Launch(spec);
         using var result = await ReadReport(report);
         Assert.Equal("元リンクの引数", result.RootElement.GetProperty("Arguments")[0].GetString());
@@ -163,7 +163,8 @@ public sealed class LaunchContractTests : IDisposable
         }
     }
 
-    public void Dispose() => Directory.Delete(root, true);
+    public Task InitializeAsync() => Task.CompletedTask;
+    public Task DisposeAsync() => LaunchProbeCleanup.RemoveAsync(root);
 }
 
 public sealed class HostedWindowsFactAttribute : FactAttribute
