@@ -17,7 +17,7 @@ using ShortcutManager.Windows.Storage;
 namespace ShortcutManager.Windows.Tests;
 
 [Collection("Apply transactions")]
-public sealed class ImportedLinkLaunchTests : IDisposable
+public sealed class ImportedLinkLaunchTests : IAsyncLifetime
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), "shortcut-manager-launch-" + Guid.NewGuid().ToString("N"));
     private readonly ShellLinkService links = new();
@@ -193,7 +193,8 @@ public sealed class ImportedLinkLaunchTests : IDisposable
         throw new TimeoutException("Imported link did not launch the isolated probe.");
     }
 
-    public void Dispose() => Directory.Delete(root, true);
+    public Task InitializeAsync() => Task.CompletedTask;
+    public Task DisposeAsync() => LaunchProbeCleanup.RemoveAsync(root);
 
     // The product deliberately does not reimplement the Shell property store.
     // This fixture adds/reads an opaque AppUserModelID to prove that import and
