@@ -104,15 +104,7 @@ public partial class App : Application
         var auditor = new ShortcutManager.Windows.Apply.ManagedShortcutAuditor(validator, resolver, shellLinks);
         var window = new MainWindow(viewModel, auditor);
         MainWindow = window;
-        window.Loaded += async (_, _) =>
-        {
-            window.IsEnabled = false;
-            bool repaired;
-            try { repaired = await viewModel.AuditStartupAsync(auditor,guiAuditOnly); }
-            finally { window.IsEnabled = true; }
-            if (repaired) await window.OfferShellReloadAsync();
-            if (!viewModel.RecoveryRequired && !File.Exists(paths.ConfigPath) && viewModel.Shortcuts.Count == 0) window.ShowGettingStarted();
-        };
+        window.AttachStartupActions(guiAuditOnly);
         window.Show();
     }
 
