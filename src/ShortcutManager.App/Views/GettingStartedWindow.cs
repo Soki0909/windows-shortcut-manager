@@ -13,7 +13,7 @@ public sealed class GettingStartedWindow : Window
     private readonly Button apply = new() { Content = UiText.Apply };
     private ShortcutRow? Website => model.Selected?.Definition.Target is WebsiteTarget ? model.Selected : model.Shortcuts.FirstOrDefault(row => row.Definition.Target is WebsiteTarget);
 
-    public GettingStartedWindow(MainViewModel model, Func<Window, bool> addWebsite)
+    internal GettingStartedWindow(MainViewModel model, Func<Window, bool> addWebsite, Func<Window, Task> offerShellReload)
     {
         this.model = model;
         Title = "初回ガイド — 最初のショートカット";
@@ -31,7 +31,7 @@ public sealed class GettingStartedWindow : Window
         apply.Click += async (_, _) =>
         {
             if (!model.IsDirty || model.IsBusy || model.RecoveryRequired) return;
-            if (await model.ApplyAsync() && MessageBox.Show(this, MainWindow.ShellReloadExplanation, "エクスプローラーを再起動", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes) await model.ReloadShellAsync();
+            if (await model.ApplyAsync()) await offerShellReload(this);
             UpdateButtons();
         };
         Step(content, "3  変更を反映して有効化を試す", "現在の状態を自動バックアップして、Windowsのショートカットへ反映します。新しいキーが反応しない場合にエクスプローラーの再起動を試せます。確認で「いいえ」を選んでも保存した設定は残ります。", apply);

@@ -6,6 +6,7 @@ $cases = @(
     @{ Paths=@('src/ShortcutManager.App/MainWindow.xaml'); Expected=@($true,$false,$false) },
     @{ Paths=@('src/ShortcutManager.Core/Serialization/ConfigJson.cs'); Expected=@($true,$false,$false) },
     @{ Paths=@('tests/ChromeExtension.Tests/protocol.test.js'); Expected=@($false,$true,$false) },
+    @{ Paths=@('scripts/test-chrome-startup-live.mjs'); Expected=@($false,$true,$false) },
     @{ Paths=@('src/ChromeExtension/service-worker.js'); Expected=@($true,$true,$true) },
     @{ Paths=@('installer/ShortcutManager.iss'); Expected=@($true,$false,$false) },
     @{ Paths=@('tests/Installer.Tests/PayloadMaintenance.iss'); Expected=@($true,$false,$false) },
