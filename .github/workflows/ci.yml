@@ -81,6 +81,7 @@ jobs:
           package-manager-cache: false
       - run: node --test tests/ChromeExtension.Tests/protocol.test.js tests/ChromeExtension.Tests/worker-regressions.test.js
       - run: node --check scripts/test-chrome-live.mjs
+      - run: node --check scripts/test-chrome-startup-live.mjs
       - shell: pwsh
         run: ./scripts/verify-version.ps1 -ExpectedVersion 0.4.0
   extension-deployment:
