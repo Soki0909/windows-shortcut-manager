@@ -11,7 +11,7 @@ using ShortcutManager.Windows.ShellLinks;
 
 namespace ShortcutManager.Windows.Tests;
 
-public sealed class LaunchContractTests : IDisposable
+public sealed class LaunchContractTests : IAsyncLifetime
 {
     private readonly string root = Path.Combine(Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") == "github-hosted"
         ? Environment.GetEnvironmentVariable("RUNNER_TEMP") ?? Path.GetTempPath() : Path.GetTempPath(), "shortcut-manager-launch-" + Guid.NewGuid().ToString("N"));
@@ -163,7 +163,8 @@ public sealed class LaunchContractTests : IDisposable
         }
     }
 
-    public void Dispose() => Directory.Delete(root, true);
+    public Task InitializeAsync() => Task.CompletedTask;
+    public Task DisposeAsync() => LaunchProbeCleanup.RemoveAsync(root);
 }
 
 public sealed class HostedWindowsFactAttribute : FactAttribute
