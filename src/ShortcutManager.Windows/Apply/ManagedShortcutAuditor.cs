@@ -31,6 +31,19 @@ public sealed class ManagedShortcutAuditor(ConfigValidator validator, LaunchSpec
             var expected = resolver.Resolve(config, definition);
             var path = Path.Combine(directory, name);
             if (!File.Exists(path)) { differences.Add($"{name}: ファイルがありません。");details.Add(new(path,"ファイル","なし","設定から生成")); continue; }
+            if (expected.TargetPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    ShortcutReferenceGuard.EnsureAcyclic(expected.TargetPath, links, managedDirectory: directory);
+                }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    differences.Add($"{name}: 元ショートカットの参照を確認できません ({error.Message})。");
+                    details.Add(new(path, "元リンク参照", error.Message, "管理外の有効な参照"));
+                    continue;
+                }
+            }
             try
             {
                 var actual = links.Read(path);

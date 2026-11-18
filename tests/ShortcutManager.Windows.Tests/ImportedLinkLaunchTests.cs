@@ -129,6 +129,43 @@ public sealed class ImportedLinkLaunchTests : IDisposable
         Assert.Equal(oldLink, File.ReadAllBytes(wrapper));
     }
 
+    [Fact]
+    public void AuditReportsASourceChangedToReferenceAnotherManagedLink()
+    {
+        var source = Path.Combine(root, "external.lnk");
+        var managed = Path.Combine(root, "managed");
+        var repository = new ConfigRepository(Path.Combine(root, "data", "config.json"));
+        var resolver = new LaunchSpecResolver(new ChromeLocator(), new DispatcherUriBuilder());
+        var direct = new ShortcutDefinition { Name = "direct", Hotkey = new() { Key = "J" }, Target = new ApplicationTarget { Value = probe } };
+        var imported = new ShortcutDefinition
+        {
+            Name = "imported", Hotkey = new() { Key = "K" },
+            Target = new ApplicationTarget { LaunchMode = ApplicationLaunchMode.Shortcut, Value = source }
+        };
+        var config = new ShortcutConfig { Shortcuts = [direct, imported] };
+        links.Write(source, new(probe, "", root, "", "", "external fixture"));
+        var applier = new ManagedShortcutApplier(repository, new(), resolver, links,
+            new BackupService(Path.Combine(root, "backups"), "0.4.0"), Path.Combine(root, "staging"), Path.Combine(root, "data", "state.json"));
+        var applied = applier.Apply(config, managed);
+        Assert.True(applied.Succeeded, applied.Message);
+        var wrapper = Path.Combine(managed, ManagedFilename.For(imported));
+        var wrapperBytes = File.ReadAllBytes(wrapper);
+        var auditor = new ManagedShortcutAuditor(new(), resolver, links);
+        Assert.True(auditor.Audit(config, managed).Matches);
+
+        links.Write(source, new(Path.Combine(managed, ManagedFilename.For(direct)), "", root, "", "", "external edit"));
+        var sourceBytes = File.ReadAllBytes(source);
+        var result = auditor.Audit(config, managed);
+
+        Assert.False(result.Matches);
+        var difference = Assert.Single(result.Details);
+        Assert.Equal(wrapper, difference.File);
+        Assert.Equal("元リンク参照", difference.Field);
+        Assert.Contains("管理フォルダ", difference.Actual);
+        Assert.Equal(sourceBytes, File.ReadAllBytes(source));
+        Assert.Equal(wrapperBytes, File.ReadAllBytes(wrapper));
+    }
+
     private static async Task<JsonDocument> ReadReport(string path)
     {
         var until = DateTime.UtcNow.AddSeconds(15);

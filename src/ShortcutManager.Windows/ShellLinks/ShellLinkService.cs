@@ -62,7 +62,8 @@ public sealed class ShellLinkService : IShellLinkService
                 var data = (IShellLinkDataList)link;
                 data.GetFlags(out var flags); data.SetFlags(flags | ReferencedLinkFlags);
                 data.GetFlags(out flags);
-                if ((flags & AllowLinkToLink) == 0) throw new IOException("Windows rejected link-to-link mode: " + flags.ToString("X8"));
+                if ((flags & ReferencedLinkFlags) != ReferencedLinkFlags)
+                    throw new IOException("Windows rejected the shortcut reference flags: " + flags.ToString("X8"));
                 var actualPath = new StringBuilder(BufferSize); link.GetPath(actualPath, BufferSize, IntPtr.Zero, 4);
                 if (!actualPath.ToString().Equals(spec.TargetPath, StringComparison.OrdinalIgnoreCase)) throw new IOException("Windows did not preserve the referenced shortcut path.");
                 SaveToStream((IPersistStream)link, path);
@@ -85,7 +86,7 @@ public sealed class ShellLinkService : IShellLinkService
         link.GetDescription(description, BufferSize);
         link.GetHotkey(out var hotkey); link.GetShowCmd(out var windowStyle);
         ((IShellLinkDataList)link).GetFlags(out var flags);
-        return new ShellLinkInfo(path, target.ToString(), arguments.ToString(), directory.ToString(), DecodeHotkey(hotkey), icon.Length == 0 ? string.Empty : icon + "," + iconIndex.ToString(CultureInfo.InvariantCulture), description.ToString(), windowStyle, (flags & AllowLinkToLink) != 0);
+        return new ShellLinkInfo(path, target.ToString(), arguments.ToString(), directory.ToString(), DecodeHotkey(hotkey), icon.Length == 0 ? string.Empty : icon + "," + iconIndex.ToString(CultureInfo.InvariantCulture), description.ToString(), windowStyle, (flags & ReferencedLinkFlags) == ReferencedLinkFlags);
     });
 
     private static T WithShortcut<T>(string path, bool create, Func<IShellLinkW, IPersistFile, T> action)
