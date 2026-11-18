@@ -1,8 +1,12 @@
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Automation.Peers;
 using Microsoft.Win32;
+using ShortcutManager.Windows.Inventory;
+using ShortcutManager.Windows.ShellLinks;
+using ShortcutManager.Windows.Storage;
 
 namespace ShortcutManager.App;
 
@@ -80,7 +84,15 @@ public partial class MainWindow : Window
         var options=new ScanOptionsWindow {Owner=this};if(options.ShowDialog()!=true)return;
         try {
             var results = await viewModel.ScanAsync(options.Roots);
-            var dialog = new ImportWindow(results,viewModel.Candidate,viewModel.LastScanReport) { Owner = this };
+            var migration = new ManualHotkeyMigration(Path.GetDirectoryName(viewModel.ConfigPath)!,
+                [viewModel.ManagedDirectory, ApplicationPaths.ForCurrentUser().ManagedShortcutDirectory,
+                    ApplicationPaths.ForCurrentUser(isDevelopment: true).ManagedShortcutDirectory], new ShellLinkService(), new UrlShortcutReader());
+            async Task<InventoryScanReport> Rescan()
+            {
+                await viewModel.ScanAsync(ShortcutInventoryScanner.DefaultRoots.Concat(options.Roots));
+                return viewModel.LastScanReport ?? throw new InvalidOperationException("再スキャン結果を読み取れませんでした。");
+            }
+            var dialog = new ImportWindow(results, viewModel.Candidate, viewModel.LastScanReport, migration, Rescan) { Owner = this };
             if (dialog.ShowDialog() == true && dialog.Selected is not null) viewModel.Import(dialog.Selected,dialog.SelectedKey);
         }
         catch(Exception error) {MessageBox.Show(this,error.Message,"スキャンできません",MessageBoxButton.OK,MessageBoxImage.Warning);}
