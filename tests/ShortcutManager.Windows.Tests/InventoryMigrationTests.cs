@@ -28,7 +28,7 @@ public sealed class InventoryMigrationTests : IDisposable
         var target=Assert.IsType<ApplicationTarget>(proposal.Target);
         Assert.Equal(ApplicationLaunchMode.Shortcut,target.LaunchMode);Assert.Equal(item.SourcePath,target.Value);Assert.Empty(target.Arguments);
         var spec=new LaunchSpecResolver(new ChromeLocator(),new DispatcherUriBuilder()).Resolve(new(),proposal);
-        Assert.EndsWith("explorer.exe",spec.TargetPath,StringComparison.OrdinalIgnoreCase);Assert.Equal(LaunchSpecResolver.Quote(item.SourcePath),spec.Arguments);
+        Assert.Equal(item.SourcePath,spec.TargetPath);Assert.Empty(spec.Arguments);
         Assert.Equal(bytes,File.ReadAllBytes(item.SourcePath));Assert.Equal(windowStyle,links.Read(item.SourcePath).WindowStyle);
         Assert.Equal(item.Hotkey,links.Read(item.SourcePath).Hotkey);
     }

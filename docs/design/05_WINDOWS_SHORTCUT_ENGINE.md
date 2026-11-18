@@ -70,10 +70,10 @@ configured value。空なら exe parent。
 ### Application shortcut
 
 TargetPath:
-`%WINDIR%\explorer.exe`
+元の `.lnk` のPIDL（リンク間参照を有効化）
 
 Arguments:
-quoted source `.lnk` path
+空欄。元リンクの引数をWindows Shellが処理する。
 
 ### Application URI
 

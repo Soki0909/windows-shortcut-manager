@@ -21,7 +21,10 @@ $oldSetup=Join-Path $temp 'previous-official.exe'
 Invoke-WebRequest -Uri $previous.SetupUrl -OutFile $oldSetup
 if((Get-FileHash -LiteralPath $oldSetup).Hash -ne $previous.SetupSha256){throw 'Pinned official previous Setup hash mismatch.'}
 if((Get-AuthenticodeSignature -LiteralPath $oldSetup).Status -notin 'NotSigned','Valid'){throw 'Previous Setup signature is invalid.'}
-if(-not ('ShortcutManager.Windows.ShellLinks.ShellLinkService' -as [type])){Add-Type -Path (Join-Path $root 'src/ShortcutManager.Windows/ShellLinks/ShellLinkService.cs')}
+if(-not ('ShortcutManager.Windows.ShellLinks.ShellLinkService' -as [type])){
+    $linkSources = Join-Path $root 'src/ShortcutManager.Windows/ShellLinks'
+    Add-Type -Path @((Join-Path $linkSources 'ShellLinkService.cs'), (Join-Path $linkSources 'ShortcutReferenceGuard.cs'))
+}
 $links=[ShortcutManager.Windows.ShellLinks.ShellLinkService]::new()
 $links.Write($unmanaged,[ShortcutManager.Windows.ShellLinks.ShellLinkSpec]::new($env:COMSPEC,'/c exit 0',$temp,'CTRL+ALT+V',"$env:COMSPEC,0",'Unmanaged CI fixture',1))
 function Install([string]$SetupPath,[string]$Destination,[string]$Name){

@@ -109,7 +109,8 @@ if ($RunInstallerSmoke) {
         # WScript loses paths outside the runner's ANSI code page. Compile the
         # same Unicode reader as the product; never rename or modify the source.
         if (-not ('ShortcutManager.Windows.ShellLinks.ShellLinkService' -as [type])) {
-            Add-Type -Path (Join-Path $PSScriptRoot '../src/ShortcutManager.Windows/ShellLinks/ShellLinkService.cs')
+            $linkSources = Join-Path $PSScriptRoot '../src/ShortcutManager.Windows/ShellLinks'
+            Add-Type -Path @((Join-Path $linkSources 'ShellLinkService.cs'), (Join-Path $linkSources 'ShortcutReferenceGuard.cs'))
         }
         $auditLink = [ShortcutManager.Windows.ShellLinks.ShellLinkService]::new().Read($auditLinkPath)
         if ($auditLink.TargetPath -ne $exe -or $auditLink.Arguments -ne '--audit-only' -or $auditLink.Hotkey) { throw 'Audit-only shortcut target, arguments or HotKey are incorrect.' }
