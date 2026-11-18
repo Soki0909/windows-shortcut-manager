@@ -2,7 +2,10 @@ using System.Globalization;
 
 namespace ShortcutManager.Windows.Inventory;
 
-public sealed record UrlShortcutInfo(string Path, string Url, string Hotkey, string IconFile, int? IconIndex);
+public sealed record UrlShortcutInfo(string Path, string Url, string Hotkey, string IconFile, int? IconIndex)
+{
+    public bool HasNoHotkey { get; init; }
+}
 
 public sealed class UrlShortcutReader
 {
@@ -16,8 +19,11 @@ public sealed class UrlShortcutReader
         values.TryGetValue("HotKey", out var hotkeyText);
         values.TryGetValue("IconFile", out var iconFile);
         int? iconIndex = values.TryGetValue("IconIndex", out var iconText) && int.TryParse(iconText, CultureInfo.InvariantCulture, out var index) ? index : null;
-        var hotkey = int.TryParse(hotkeyText, CultureInfo.InvariantCulture, out var value) ? DecodeHotkey(value) : string.Empty;
-        return new(path, url ?? string.Empty, hotkey, iconFile ?? string.Empty, iconIndex);
+        var isNumeric = int.TryParse(hotkeyText, CultureInfo.InvariantCulture, out var value);
+        return new(path, url ?? string.Empty, isNumeric ? DecodeHotkey(value) : string.Empty, iconFile ?? string.Empty, iconIndex)
+        {
+            HasNoHotkey = hotkeyText is null || isNumeric && value == 0
+        };
     }
 
     public static string DecodeHotkey(int value)
