@@ -37,6 +37,7 @@ foreach ($name in $Paths) {
         'tests/ChromeExtension.Tests/*' { $extension=$true; break }
         'tests/ChromeExtension.Live/*' { $extension=$true; break }
         'scripts/test-chrome-live.mjs' { $extension=$true; break }
+        'scripts/test-chrome-startup-live.mjs' { $extension=$true; break }
         'src/ShortcutManager.*/*' { $windows=$true; break }
         'tests/ShortcutManager.*/*' { $windows=$true; break }
         'tests/Installer.Tests/*' { $windows=$true; break }
