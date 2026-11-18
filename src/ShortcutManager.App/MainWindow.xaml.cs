@@ -83,16 +83,15 @@ public partial class MainWindow : Window
         if(!viewModel.CanModify) return;
         var options=new ScanOptionsWindow {Owner=this};if(options.ShowDialog()!=true)return;
         try {
-            var results = await viewModel.ScanAsync(options.Roots);
+            var initial = await viewModel.ScanReportAsync(options.Roots);
+            if (initial is null) return;
             var migration = new ManualHotkeyMigration(Path.GetDirectoryName(viewModel.ConfigPath)!,
                 [viewModel.ManagedDirectory, ApplicationPaths.ForCurrentUser().ManagedShortcutDirectory,
                     ApplicationPaths.ForCurrentUser(isDevelopment: true).ManagedShortcutDirectory], new ShellLinkService(), new UrlShortcutReader());
-            async Task<InventoryScanReport> Rescan()
-            {
-                await viewModel.ScanAsync(ShortcutInventoryScanner.DefaultRoots.Concat(options.Roots));
-                return viewModel.LastScanReport ?? throw new InvalidOperationException("再スキャン結果を読み取れませんでした。");
-            }
-            var dialog = new ImportWindow(results, viewModel.Candidate, viewModel.LastScanReport, migration, Rescan) { Owner = this };
+            async Task<InventoryScanReport> Rescan() =>
+                await viewModel.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots.Concat(options.Roots))
+                ?? throw new InvalidOperationException("再スキャンを開始できませんでした。別の処理が終わってからもう一度確認してください。");
+            var dialog = new ImportWindow(initial.Items, viewModel.Candidate, initial, migration, Rescan) { Owner = this };
             if (dialog.ShowDialog() == true && dialog.Selected is not null) viewModel.Import(dialog.Selected,dialog.SelectedKey);
         }
         catch(Exception error) {MessageBox.Show(this,error.Message,"スキャンできません",MessageBoxButton.OK,MessageBoxImage.Warning);}
