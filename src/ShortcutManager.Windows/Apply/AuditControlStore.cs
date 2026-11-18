@@ -9,32 +9,36 @@ public sealed record AuditHistoryItem(string Path,AuditHistoryRecord? Record,str
 
 public sealed class AuditControlStore(string directory)
 {
-    private const int MaxHistoryBytes=4*1024*1024;
-    private string PolicyPath=>Path.Combine(directory,"audit-settings.json");
-    private string AttemptPath=>Path.Combine(directory,"repair-attempt.json");
-    private string HistoryDirectory=>Path.Combine(directory,"audit-history");
+    internal const int MaxHistoryBytes=4*1024*1024;
+    internal const string PolicyFilename="audit-settings.json";
+    internal const string AttemptFilename="repair-attempt.json";
+    internal const string HistoryDirectoryName="audit-history";
+    internal const string HistoryTimestampFormat="yyyyMMddHHmmssfffffff";
+    private string PolicyPath=>Path.Combine(directory,PolicyFilename);
+    private string AttemptPath=>Path.Combine(directory,AttemptFilename);
+    private string HistoryDirectory=>Path.Combine(directory,HistoryDirectoryName);
     public (bool AuditOnly,string? Warning) ReadPolicy()
     {
-        try {var policy=Read<AuditPolicy>(PolicyPath,4096);if(policy is null || policy.FormatVersion!=1)throw new InvalidDataException("対応しない監査設定です。");return(policy.AuditOnly,null);}
+        try {using var input=OpenRecord(PolicyPath);return(ReadPolicyRecord(input).AuditOnly,null);}
         catch(Exception error) when(error is FileNotFoundException or DirectoryNotFoundException) {return(false,null);}
         catch(Exception error) when(error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException) {return(true,"監査設定を読めないため自動修復を保留します: "+error.Message);}
     }
     public void SavePolicy(bool auditOnly)=>Write(PolicyPath,new AuditPolicy(1,auditOnly));
     public bool WasAttempted(string fingerprint)
     {
-        try {var attempt=Read<Attempt>(AttemptPath,4096);return attempt is null || attempt.FormatVersion!=1 || attempt.Fingerprint is null || attempt.Fingerprint.Length!=64 || attempt.Fingerprint.Any(character=>!Uri.IsHexDigit(character)) || attempt.Fingerprint==fingerprint;}
+        try {using var input=OpenRecord(AttemptPath);return ReadAttemptRecord(input).Fingerprint==fingerprint;}
         catch(Exception error) when(error is FileNotFoundException or DirectoryNotFoundException) {return false;}
         catch(Exception error) when(error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException) {return true;}
     }
     public void MarkAttempt(string fingerprint)=>Write(AttemptPath,new Attempt(1,fingerprint,DateTimeOffset.Now));
-    public void Record(AuditHistoryRecord record)=>Write(Path.Combine(HistoryDirectory,$"{DateTime.UtcNow:yyyyMMddHHmmssfffffff}-{Guid.NewGuid():N}.json"),record);
+    public void Record(AuditHistoryRecord record)=>Write(Path.Combine(HistoryDirectory,$"{DateTime.UtcNow.ToString(HistoryTimestampFormat, System.Globalization.CultureInfo.InvariantCulture)}-{Guid.NewGuid():N}.json"),record);
     public IReadOnlyList<AuditHistoryItem> ReadHistory()
     {
         if(!Directory.Exists(HistoryDirectory))return [];
         var items=new List<AuditHistoryItem>();
         try {
             foreach(var path in Directory.EnumerateFiles(HistoryDirectory,"*.json").OrderDescending(StringComparer.Ordinal).Take(50)) {
-                try {var record=Read<AuditHistoryRecord>(path,MaxHistoryBytes);if(record is null || record.FormatVersion!=1 || record.Before is null || record.After is null || record.Before.Count>256 || record.After.Count>256 || record.Before.Concat(record.After).Any(item=>item is null || item.File is null || item.Field is null || item.Actual is null || item.Expected is null))throw new InvalidDataException("対応しない履歴です。");items.Add(new(path,record,null));}
+                try {using var input=OpenRecord(path);items.Add(new(path,ReadHistoryRecord(input),null));}
                 catch(Exception error) when(error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException) {items.Add(new(path,null,error.Message));}
             }
         }
@@ -43,10 +47,49 @@ public sealed class AuditControlStore(string directory)
     }
     public static string Fingerprint(string config,IReadOnlyList<AuditDifference> differences)=>Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(config+JsonSerializer.Serialize(differences.OrderBy(item=>item.File,StringComparer.OrdinalIgnoreCase).ThenBy(item=>item.Field,StringComparer.Ordinal)))));
     private sealed record Attempt(int FormatVersion,string Fingerprint,DateTimeOffset At);
-    private static T? Read<T>(string path,int limit)
+    internal static AuditPolicy ReadPolicyRecord(Stream input)
     {
-        using var input=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.Read);
-        var file=new FileInfo(path);if(file.Attributes.HasFlag(FileAttributes.ReparsePoint))throw new InvalidDataException("リンクになっている記録は読みません。");
+        var policy = Read<AuditPolicy>(input, 4096);
+        return policy is { FormatVersion: 1 } ? policy : throw new InvalidDataException("対応しない監査設定です。");
+    }
+
+    internal static void ValidateAttemptRecord(Stream input) => _ = ReadAttemptRecord(input);
+
+    private static Attempt ReadAttemptRecord(Stream input)
+    {
+        var attempt = Read<Attempt>(input, 4096);
+        if (attempt is not { FormatVersion: 1, Fingerprint.Length: 64 } || attempt.Fingerprint.Any(character => !Uri.IsHexDigit(character)))
+            throw new InvalidDataException("対応しない監査の修復試行記録です。");
+        return attempt;
+    }
+
+    internal static AuditHistoryRecord ReadHistoryRecord(Stream input)
+    {
+        var record = Read<AuditHistoryRecord>(input, MaxHistoryBytes);
+        if (record is not { FormatVersion: 1, Before.Count: <= 256, After.Count: <= 256 }
+            || record.Before.Concat(record.After).Any(item => item is null || item.File is null || item.Field is null || item.Actual is null || item.Expected is null))
+            throw new InvalidDataException("対応しない履歴です。");
+        return record;
+    }
+
+    private static FileStream OpenRecord(string path)
+    {
+        var input = File.OpenRead(path);
+        try
+        {
+            if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+                throw new InvalidDataException("リンクになっている記録は読みません。");
+            return input;
+        }
+        catch
+        {
+            input.Dispose();
+            throw;
+        }
+    }
+
+    private static T? Read<T>(Stream input,int limit)
+    {
         if(input.Length>limit)throw new InvalidDataException("記録のサイズが上限を超えています。");
         return JsonSerializer.Deserialize<T>(input,new JsonSerializerOptions {RespectRequiredConstructorParameters=true,UnmappedMemberHandling=System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow,AllowDuplicateProperties=false});
     }
