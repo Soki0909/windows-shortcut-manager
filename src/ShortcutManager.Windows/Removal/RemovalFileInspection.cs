@@ -5,6 +5,8 @@ using Microsoft.Win32.SafeHandles;
 
 namespace ShortcutManager.Windows.Removal;
 
+internal readonly record struct RemovalFileIdentity(uint Volume, ulong Index, ulong Created);
+
 internal static class RemovalFileInspection
 {
     private const uint ReadAttributes = 0x80;
@@ -18,7 +20,7 @@ internal static class RemovalFileInspection
         catch (DirectoryNotFoundException) { return null; }
     }
 
-    public static string DirectoryPath(string path)
+    public static string DirectoryPath(string path, ICollection<SafeFileHandle>? locked = null)
     {
         if (!Path.IsPathFullyQualified(path) || path.StartsWith(@"\\?\", StringComparison.Ordinal)
             || path.StartsWith(@"\\.\", StringComparison.Ordinal))
@@ -34,21 +36,35 @@ internal static class RemovalFileInspection
                 throw new InvalidDataException($"フォルダのリンクまたは別の種類のファイルを保護します: {part.FullName}");
             if (attributes is null)
             {
+                if (locked is not null) throw new DirectoryNotFoundException($"保存先が存在しません: {part.FullName}");
                 canonical = canonical is null ? part.FullName : Path.Combine(canonical, part.Name);
                 continue;
             }
-            using var handle = CreateFile(part.FullName, ReadAttributes, FileShare.ReadWrite | FileShare.Delete,
+            var handle = CreateFile(part.FullName, ReadAttributes, locked is null ? FileShare.ReadWrite | FileShare.Delete : FileShare.Read,
                 IntPtr.Zero, FileMode.Open, OpenDirectory | OpenReparsePoint, IntPtr.Zero);
-            if (handle.IsInvalid) throw NativeError(part.FullName);
-            var info = ReadInformation(handle, part.FullName);
-            if ((info.Attributes & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != FileAttributes.Directory)
-                throw new InvalidDataException($"フォルダが照会中に置き換わりました: {part.FullName}");
-            var resolved = FinalPath(handle, part.FullName);
-            if (canonical is not null && !SamePath(Path.GetDirectoryName(resolved) ?? resolved, canonical))
-                throw new InvalidDataException($"フォルダが別の場所に解決されました: {part.FullName}");
-            canonical = resolved;
+            try
+            {
+                if (handle.IsInvalid) throw NativeError(part.FullName);
+                var info = ReadInformation(handle, part.FullName);
+                if ((info.Attributes & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != FileAttributes.Directory)
+                    throw new InvalidDataException($"フォルダが照会中に置き換わりました: {part.FullName}");
+                var resolved = FinalPath(handle, part.FullName);
+                if (canonical is not null && !SamePath(Path.GetDirectoryName(resolved) ?? resolved, canonical))
+                    throw new InvalidDataException($"フォルダが別の場所に解決されました: {part.FullName}");
+                canonical = resolved;
+                if (locked is not null) { locked.Add(handle); continue; }
+            }
+            catch { handle.Dispose(); throw; }
+            handle.Dispose();
         }
         return Path.TrimEndingDirectorySeparator(canonical!);
+    }
+
+    public static RemovalFileIdentity Identity(FileStream stream, string path)
+    {
+        var info = ReadInformation(stream.SafeFileHandle, path);
+        return new(info.VolumeSerialNumber, ((ulong)info.FileIndexHigh << 32) | info.FileIndexLow,
+            ((ulong)(uint)info.CreationTime.dwHighDateTime << 32) | (uint)info.CreationTime.dwLowDateTime);
     }
 
     public static FileStream OpenFile(string path, int maxBytes)
@@ -83,7 +99,7 @@ internal static class RemovalFileInspection
     private static FileInformation ReadInformation(SafeFileHandle handle, string path) =>
         GetFileInformationByHandle(handle, out var info) ? info : throw NativeError(path);
 
-    private static string FinalPath(SafeFileHandle handle, string path)
+    internal static string FinalPath(SafeFileHandle handle, string path)
     {
         var result = new StringBuilder(32768);
         var length = GetFinalPathNameByHandle(handle, result, (uint)result.Capacity, 0);
@@ -95,7 +111,7 @@ internal static class RemovalFileInspection
         throw new InvalidDataException($"正規化されたパスを確認できません: {path}");
     }
 
-    private static IOException NativeError(string path) =>
+    internal static IOException NativeError(string path) =>
         new($"ファイルの実体を確認できません: {path}", new Win32Exception(Marshal.GetLastWin32Error()));
 
     [StructLayout(LayoutKind.Sequential)]
@@ -114,7 +130,7 @@ internal static class RemovalFileInspection
     }
 
     [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern SafeFileHandle CreateFile(string path, uint access, FileShare share, IntPtr security,
+    internal static extern SafeFileHandle CreateFile(string path, uint access, FileShare share, IntPtr security,
         FileMode disposition, uint flags, IntPtr template);
 
     [DllImport("kernel32.dll", SetLastError = true)]

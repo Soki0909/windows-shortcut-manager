@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using ShortcutManager.Core.Models;
@@ -13,12 +14,16 @@ namespace ShortcutManager.Windows.Removal;
 public enum RemovalDisposition { Candidate, RequiresIndividualSelection, Keep }
 
 public sealed record RemovalItem(string Path, string Kind, RemovalDisposition Disposition, string Reason,
-    long? Bytes = null, string? Sha256 = null, string? AutomaticArchive = null);
+    long? Bytes = null, string? Sha256 = null, string? AutomaticArchive = null)
+{
+    internal RemovalFileIdentity? Identity { get; init; }
+}
 
 public sealed record LocalDataRemovalPlan(string DataDirectory, bool IsDevelopment, int? SavedAssignments,
     IReadOnlyList<string> ManagedDirectories, IReadOnlyList<RemovalItem> Items, IReadOnlyList<string> Blockers)
 {
     public bool CanReviewCandidates => Blockers.Count == 0 && Items.Any(item => item.Disposition != RemovalDisposition.Keep);
+    internal string? UserSid { get; init; }
 }
 
 // These observations are for display and review. A later operation must revalidate them.
@@ -118,8 +123,10 @@ public sealed class LocalDataRemovalPreview(ApplicationPaths paths, ApplicationP
             blockers.Add(error.Message);
         }
 
+        using var user = WindowsIdentity.GetCurrent();
         return new(data, paths.IsDevelopment, config?.Shortcuts.Count, managedDirectories.AsReadOnly(),
-            items.OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase).ToArray(), blockers.AsReadOnly());
+            Array.AsReadOnly(items.OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase).ToArray()), blockers.AsReadOnly())
+        { UserSid = user.User?.Value };
     }
 
     private static void InspectManagedDirectory(string path, string data, string otherData, string otherManaged,
@@ -135,12 +142,16 @@ public sealed class LocalDataRemovalPreview(ApplicationPaths paths, ApplicationP
 
             ManagedShortcutApplier.EnsureOwnershipSafe(directory);
             var existing = Entries(directory).ToArray();
-            foreach (var entry in existing)
-                items.Add(Keep(entry, "管理フォルダ", IsOwnershipMarker(entry) ? "所有マーカーを保持します。" : "管理フォルダの内容を保護します。"));
             var markers = existing.Where(IsOwnershipMarker).ToArray();
             if (markers.Length > 1) throw new InvalidDataException("所有マーカーの名前が重複しています。");
             var marker = markers.SingleOrDefault();
-            using var markerRead = marker is null ? null : RemovalFileInspection.OpenFile(marker, 1024);
+            if (marker is not null)
+            {
+                using var input = RemovalFileInspection.OpenFile(marker, 1024);
+                items.Add(Describe(marker, input, "管理フォルダ", "所有マーカーを保持します。", RemovalDisposition.Keep));
+            }
+            foreach (var entry in existing.Where(entry => !IsOwnershipMarker(entry)))
+                items.Add(Keep(entry, "管理フォルダ", "管理フォルダの内容を保護します。"));
             if (existing.Any(entry => !IsOwnershipMarker(entry)))
                 throw new InvalidDataException("所有マーカー以外の項目が残っています。管理ショートカットの解除または内容確認が必要です。");
         }
@@ -257,11 +268,12 @@ public sealed class LocalDataRemovalPreview(ApplicationPaths paths, ApplicationP
         }
     }
 
-    private static RemovalItem Describe(string path, Stream input, string kind, string reason,
+    private static RemovalItem Describe(string path, FileStream input, string kind, string reason,
         RemovalDisposition disposition = RemovalDisposition.Candidate, string? archive = null)
     {
         input.Position = 0;
-        return new(path, kind, disposition, reason, input.Length, Convert.ToHexString(SHA256.HashData(input)), archive);
+        return new(path, kind, disposition, reason, input.Length, Convert.ToHexString(SHA256.HashData(input)), archive)
+        { Identity = RemovalFileInspection.Identity(input, path) };
     }
 
     private static RemovalItem Keep(string path, string kind, string reason) => new(path, kind, RemovalDisposition.Keep, reason);
