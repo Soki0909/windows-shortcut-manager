@@ -42,15 +42,14 @@ host permissions、content scripts、Native Messaging、externally_connectable�
 
 ## 画像の残作業
 
-掲載用の最終画像は未作成。直近の静的headless描画は開発時のレイアウト証拠で、実Chromeの画面写真として提出しない。
+2026-11-18にChrome for Testing 148.0.7778.97の専用プロファイルで、v0.4.0拡張のツールバーからPopupを開いて掲載候補2枚を撮影した。架空のタブグループ一覧と、URL保存・履歴管理の画面。1280×800、24ビットRGB PNG。ブラウザー外周のみを切り出し、個人データや公開前のStore IDを含まないことを確認した。提出対象のバージョンや表示が変わったら同じ条件で撮り直す。
 
-- Popupと架空グループの移動を示す実画面、URL保存/履歴削除UIの実画面を専用プロファイルから撮る。
-- 掲載候補は1280x800、最低1枚・最大5枚。公式に640x400の選択肢もあるが、提出時Dashboardを再確認する。個人タブ・ユーザー名・本物の履歴を含めない。承認済み/推薦等の未取得の表示を加えない。
-- 128pxアイコンはmanifestに既存。440x280の小プロモ画像等、提出画面で要求される素材を確認し、既存ブランドに合わせて用意する。
+- 掲載画像は1280×800、最低1枚・最大5枚。個人タブ・ユーザー名・本物の履歴を入れず、承認済みや推薦等の未取得の表示も加えない。提出時に実際のDashboardの画像要件を照合する。
+- 128pxアイコンはmanifestに既存。小プロモ画像とマーキー画像の要否を提出時に確認する。[掲載情報の仕様](https://developer.chrome.com/docs/webstore/cws-dashboard-listing)
 
 ## アカウント・提出・ID移行
 
-1. 所有者が開発者アカウントの有無と公開者情報を確認する。登録・規約同意・支払いは所有者が行う。パスワード/秘密鍵をIssueやソースへ置かない。
+1. 所有者が[開発者ダッシュボード](https://chrome.google.com/webstore/devconsole)で開発者アカウントの有無と公開者情報を確認する。新規の場合は、使用する開発者メールを選び、規約同意と初回登録料の支払いを行う。パスワードや秘密鍵はIssueやソースへ置かない。[登録手順](https://developer.chrome.com/docs/webstore/register)
 2. Actionsで生成した同版のroot manifest ZIPを、hash/source/権限確認後に提出する。初期のPrivate/Trusted testersまたはUnlistedと審査の条件をDashboardで確認する。アップロード時の割当IDと公開URLを記録する。公開・承認済みと先に記載しない。
 3. Store IDはproduct codeへ固定しない。試用版のIDを自動的に置き換えない。先にManagerのバックアップを作り、旧ID/版を控え、Store版を同じプロファイルへ導入して新しいIDを明示設定する。Managerの候補差分を確認して反映、テスト起動と実HotKeyを確認してから旧拡張を無効化する。異なるID間でChrome storageが自動移行するとは扱わない。
 4. 失敗時は旧IDと旧拡張を再び選び、必要ならManagerのバックアップから差分を確認して復元する。管理外のショートカットは変更しない。

@@ -15,12 +15,12 @@ Windows の `Ctrl+Alt+A-Z` を、常駐プロセスなしで Website / Applicati
 
 初回はアプリのガイドでWebサイト1件の登録から案内します。閉じた後も「使い方」から再開できます。キーは一覧から選べるので、登録時に実際のCtrl+Altを押す必要はありません。オフラインの症状別ヘルプと「情報」からの版確認も利用できます。
 
-1. `ShortcutManager-Setup-win-x64-v0.4.0.exe` を実行してインストールし、スタートメニューの「Shortcut Manager」から起動します。従来のportable ZIPを展開して起動する方法も利用できます。
-2. Chromeを使う場合は `ShortcutManager-TabBridge-v0.4.0.zip` を展開し、`chrome://extensions` のデベロッパーモードからフォルダを読み込みます。
-3. Extension Popupに表示される32文字のIDをManagerの「設定」に入力します。
-4. 「既存をスキャン」から既存 `.lnk/.url` をインポートするか、「追加」で登録します。
-5. 「テスト起動」でtargetを確認し、「変更を反映」を実行します。続く確認でExplorerの再起動を選ぶと、Windowsを再起動せず新しいHotKeyが有効になります。
-6. Managerを閉じ、登録した `Ctrl+Alt+キー` を使用します。
+1. `ShortcutManager-Setup-win-x64-v0.4.0.exe` を実行し、スタートメニューの「Shortcut Manager」から起動します。管理者権限や別途.NET Runtimeの導入は不要です。 [公開版のダウンロード](https://github.com/Soki0909/windows-shortcut-manager/releases/latest)
+2. 初回ガイドの「Webサイトを追加」、または一覧の「追加」から、例として `https://example.com/` を登録します。空いているキーを選んで「候補に保存」を押します。既存のファイルは「既存をスキャン」から取り込めます。
+3. 一覧から登録した割当を選び、「対象をテスト」でURLが開くことを確認します。「変更を反映」を実行します。初回ガイド内でも同じ操作ができます。キーが反応しない場合はエクスプローラーの再起動を試せます。
+4. Managerを閉じ、割り当てた `Ctrl+Alt+キー` を押して同じURLが開くことを確認します。
+
+Chromeタブグループを登録する場合はChrome拡張を別途導入します。v0.4.0の試用版は `ShortcutManager-TabBridge-v0.4.0.zip` を展開し、`chrome://extensions` のデベロッパーモードから展開先を読み込みます。拡張メニューの「IDをコピー」で取得した32文字のIDを、Managerの「設定」に入力します。
 
 Applyは、検証 → 外部競合scan → staging生成 → `.lnk` read-back検証 → 自動backup → ownership確認 → commit の順に動作し、失敗時は以前のconfigと管理 `.lnk` を復元します。Markerのない非空フォルダや管理外shortcutは変更しません。
 
