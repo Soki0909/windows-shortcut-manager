@@ -41,7 +41,7 @@ try {
     foreach ($unexpected in @($file, (Join-Path $link 'uninst.e32.tmp'), (Join-Path $outsideRoot 'uninst.e32.tmp'))) {
         $message = $null
         try {
-            & "$PSScriptRoot/sign-inno-output.ps1" -Path $unexpected -AllowedRoot $allowedRoot -SetupName 'ShortcutManager-Setup-win-x64-v0.4.0.exe'
+            & "$PSScriptRoot/sign-inno-output.ps1" -Path $unexpected -AllowedRoot $allowedRoot -SetupName 'ShortcutManager-Setup-win-x64-v1.0.0.exe'
         } catch { $message = $_.Exception.Message }
         if ($message -notmatch 'rejected an unexpected output path') { throw 'Unexpected Inno signer input was not rejected at the callback boundary.' }
         $cases++

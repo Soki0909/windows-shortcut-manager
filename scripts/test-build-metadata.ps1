@@ -1,4 +1,4 @@
-param([string]$PublishDirectory="$PSScriptRoot/../artifacts/publish/win-x64",[string]$Version='0.4.0')
+param([string]$PublishDirectory="$PSScriptRoot/../artifacts/publish/win-x64",[string]$Version='1.0.0')
 $ErrorActionPreference='Stop'
 $source=(Resolve-Path -LiteralPath $PublishDirectory).Path
 $fixture=Join-Path ([IO.Path]::GetTempPath()) ('sm-metadata-test-'+[guid]::NewGuid().ToString('N'))
