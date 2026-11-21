@@ -19,3 +19,10 @@
 - 同じWindowsユーザー、エディション、管理先、候補、ファイルの実体・ハッシュを再確認する。個別指定のバックアップを検査し、保存先とその親がデータ保存先や管理先へ重ならないことを確かめる。
 - 新規の一時ファイルに書き、確定前にZIPの一覧と各項目のサイズ・ハッシュを読み戻す。書込みに使用したファイルハンドルで検証済みの一時ファイルを改名する。別の処理が保存先を作った場合は既存ファイルを保護する。
 - SDK 10.0.404、Releaseで `LocalDataRemovalArchiveTests`、`LocalDataRemovalPreviewTests`、`AuditControlTests`、`BackupRetentionTests` の対象40件が成功した。保存先競合、同じ長さの内容変更、確認後の置換、意図的な書込み失敗を隔離フィクスチャで検証した。本体から利用する際にはインスタンスリースと、退避・復元のジャーナルの検証が必要。
+
+## 退避・取り消し・確定消去・復元・GUI（2026-11-21）
+
+- [PR #181](https://github.com/Soki0909/windows-shortcut-manager/pull/181)（[CI 44881410187](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44881410187) 成功後、main `ef5a0d4` へ統合）で、`LocalDataRemovalStaging`、`RemovalJournal`、`LocalDataRemovalRestore`、起動時未完了削除ゲート（`App.xaml.cs`）、解除前バックアップ検証付き全キー解除（`MainViewModel.DisableAllForRemovalAsync`）、および「削除の準備・データ削除と復元…」GUI（`RemovalPreparationWindow.cs`）を実装した。
+- 親ディレクトリロック＋同一ハンドル移動（`FileRenameInfo`）＋同一ハンドル削除（`FileDispositionInfo`）により、ハッシュ検証後の差替え（TOCTOU）を防止した。退避・取り消し・確定消去の各チェックポイントおよび `ShortcutManager.CrashDriver` による実プロセスキル（`file-staged` / `file-restored` / `file-deleted`）からの再開、アーカイブ改変・欠損時の停止、削除前アーカイブからの復元（エディション一致・既存競合停止・旧 `state.json` 除外・中断時ロールバック）を自動テストで検証した。
+- ローカル `dotnet build ShortcutManager.sln -c Debug` 0警告・0エラー、`LocalDataRemoval` テスト 62/62（関連 `EditorStateTests` 含む 84/84）成功、PR CI `44881410187` 成功。
+- 正式候補での独立検証機における代表の物理キー操作と削除後に残る項目の実機確認（#54と連動）が残るため、Issue #52 は open を維持する。
