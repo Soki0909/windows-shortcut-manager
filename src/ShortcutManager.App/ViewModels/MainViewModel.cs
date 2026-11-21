@@ -433,6 +433,32 @@ public sealed class MainViewModel : ObservableObject
         return path;
     }
 
+    internal ApplicationPaths Paths => paths;
+    public bool HasUnsavedChanges => isDirty;
+
+    public async Task<bool> DisableAllForRemovalAsync(string backupDestination, ApplicationPaths otherEdition)
+    {
+        if (IsBusy) throw new InvalidOperationException("処理中は解除できません。");
+        if (isDirty) throw new InvalidOperationException("未保存の変更を反映するか破棄してから解除してください。");
+        if (recoveryRequired) throw new InvalidOperationException("設定の復旧が必要です。");
+        ShortcutManager.Windows.Removal.LocalDataRemovalArchive.ValidateExternalBackupDestination(paths, otherEdition, ManagedDirectory, backupDestination);
+
+        var created = backups.Create("pre-disable", paths.ConfigPath, ManagedDirectory, paths.StatePath, backupDestination);
+        _ = restore.Preview(created);
+        logger.Info($"Pre-disable backup created and verified: {created}");
+
+        var previous = candidate;
+        candidate = candidate with { Shortcuts = candidate.Shortcuts.Select(shortcut => shortcut with { Enabled = false }).ToList() };
+        Refresh();
+        var applied = await ApplyAsync();
+        if (!applied)
+        {
+            candidate = previous;
+            Refresh();
+        }
+        return applied;
+    }
+
     public string PreviewRestore(string path) => restore.Preview(path);
 
     public Task<IReadOnlyList<BackupHistoryEntry>> ReadBackupHistoryAsync() => Task.Run(()=>BackupHistory.Read(paths.BackupDirectory));

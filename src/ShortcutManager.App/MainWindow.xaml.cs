@@ -72,6 +72,13 @@ public partial class MainWindow : Window
 
     private void Add_Click(object sender, RoutedEventArgs e) => Edit(null, null);
     private void LaunchDiagnostics_Click(object sender, RoutedEventArgs e) { if (!viewModel.IsBusy) new LaunchDiagnosticsWindow { Owner = this }.ShowDialog(); }
+    private void RemovalPreparation_Click(object sender, RoutedEventArgs e)
+    {
+        if (viewModel.IsBusy) return;
+        var otherEdition = ApplicationPaths.ForCurrentUser(!BuildIdentity.IsDevelopment);
+        var dialog = new RemovalPreparationWindow(viewModel.Paths, otherEdition, viewModel, () => OfferShellReloadAsync(this)) { Owner = this };
+        showDialog(dialog);
+    }
     private void ExportDiagnostic_Click(object sender, RoutedEventArgs e)
     {
         if (viewModel.IsBusy) return;

@@ -48,18 +48,24 @@ public static class BackupArchive
         return (manifest, config);
     }
 
-    private static byte[] ReadBounded(ZipArchiveEntry entry, int limit)
+    internal static byte[] ReadBounded(ZipArchiveEntry entry, int limit)
+    {
+        using var output = new MemoryStream();
+        CopyBounded(entry, output, limit);
+        return output.ToArray();
+    }
+
+    internal static void CopyBounded(ZipArchiveEntry entry, Stream output, int limit)
     {
         using var input = entry.Open();
-        using var output = new MemoryStream();
         var buffer = new byte[8192];
+        long total = 0;
         int count;
         while ((count = input.Read(buffer)) != 0)
         {
-            if (output.Length + count > limit) throw new InvalidDataException($"Backup entry exceeds size limit: {entry.FullName}");
+            if ((total += count) > limit) throw new InvalidDataException($"Backup entry exceeds size limit: {entry.FullName}");
             output.Write(buffer, 0, count);
         }
-        if (output.Length != entry.Length) throw new InvalidDataException("Backup entry length mismatch.");
-        return output.ToArray();
+        if (total != entry.Length) throw new InvalidDataException("Backup entry length mismatch.");
     }
 }

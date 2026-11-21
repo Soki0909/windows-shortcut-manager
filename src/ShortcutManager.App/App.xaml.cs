@@ -71,6 +71,37 @@ public partial class App : Application
             else if (guiLaunch) MessageBox.Show(message, "Shortcut Manager", MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown(1); return;
         }
+        var commandMode = IsCommandMode(e.Args);
+        var otherEdition = ShortcutManager.Windows.Storage.ApplicationPaths.ForCurrentUser(!BuildIdentity.IsDevelopment);
+        var removalStaging = new ShortcutManager.Windows.Removal.LocalDataRemovalStaging(paths, otherEdition, holdsInstanceLease: true);
+        if (removalStaging.InspectPending() is not null)
+        {
+            var outcome = removalStaging.RecoverInterrupted();
+            if (outcome == ShortcutManager.Windows.Removal.RemovalRecoveryOutcome.AwaitingDecision)
+            {
+                if (commandMode)
+                {
+                    const string pendingMessage = "未完了のローカルデータ退避（確認待ち）があります。GUIを起動して取り消しまたは確定消去を完了してください。";
+                    var resultPath = ValueAfter(e.Args, "--result");
+                    if (resultPath is not null) { Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(resultPath))!); File.WriteAllText(resultPath, JsonSerializer.Serialize(new { ok = false, message = pendingMessage })); }
+                    Shutdown(1); return;
+                }
+                var pendingDialog = new RemovalPreparationWindow(paths, otherEdition);
+                pendingDialog.ShowDialog();
+                if (removalStaging.InspectPending() is not null)
+                {
+                    Shutdown(0); return;
+                }
+            }
+            else if (guiLaunch && outcome == ShortcutManager.Windows.Removal.RemovalRecoveryOutcome.Restored)
+            {
+                MessageBox.Show("中断していたローカルデータの退避を取り消し、元の場所へ戻しました。", "中断処理の復旧", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else if (guiLaunch && outcome == ShortcutManager.Windows.Removal.RemovalRecoveryOutcome.Deleted)
+            {
+                MessageBox.Show("中断していた確定消去を完了しました。復元が必要な場合は「削除の準備」から削除前アーカイブを選択できます。", "中断処理の復旧", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
         var repository = new ShortcutManager.Windows.Storage.ConfigRepository(paths.ConfigPath);
         var validator = new ShortcutManager.Core.Validation.ConfigValidator();
         var shellLinks = new ShortcutManager.Windows.ShellLinks.ShellLinkService();
@@ -82,7 +113,6 @@ public partial class App : Application
         applicationLogger = logger;
         var restore = new ShortcutManager.Windows.Backup.RestoreService(validator, applier);
         var guiAuditOnly=e.Args.Contains("--audit-only",StringComparer.OrdinalIgnoreCase) || new ShortcutManager.Windows.Apply.AuditControlStore(paths.DataDirectory).ReadPolicy().AuditOnly;
-        var commandMode=IsCommandMode(e.Args);
         if ((!guiAuditOnly || commandMode) && !e.Args.Contains("--scan", StringComparer.OrdinalIgnoreCase) && !e.Args.Contains("--validate-config", StringComparer.OrdinalIgnoreCase) && !e.Args.Contains("--diagnose-launch", StringComparer.OrdinalIgnoreCase))
         {
             var recovery = applier.RecoverPending();
