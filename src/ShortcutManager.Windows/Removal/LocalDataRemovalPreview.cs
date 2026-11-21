@@ -113,8 +113,15 @@ public sealed class LocalDataRemovalPreview(ApplicationPaths paths, ApplicationP
             InspectBackups(backups, items);
             var staging = DataFile(data, paths.StagingDirectory);
             InspectStaging(staging, items, blockers);
+            var removalRecovery = Path.Combine(data, RemovalJournal.RootName);
+            if (RemovalFileInspection.Attributes(removalRecovery) is not null)
+            {
+                items.Add(Keep(removalRecovery, "復旧・退避", "削除の退避・復旧記録を保持します。"));
+                if (RemovalJournal.FindActive(data) is not null)
+                    blockers.Add("未完了の削除準備があります。先に退避の状態を確認してください。");
+            }
 
-            var known = new[] { configPath, statePath, policyPath, attemptPath, history, logs, backups, staging }.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var known = new[] { configPath, statePath, policyPath, attemptPath, history, logs, backups, staging, removalRecovery }.ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var path in Entries(data).Where(path => !known.Contains(path)))
                 items.Add(Keep(path, "その他", "この版が所有するデータとして識別できない項目です。"));
         }
@@ -299,7 +306,7 @@ public sealed class LocalDataRemovalPreview(ApplicationPaths paths, ApplicationP
         error is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException or JsonException
             or ArgumentException or NotSupportedException or System.Security.SecurityException;
 
-    private static bool IsAuditHistoryName(string name)
+    internal static bool IsAuditHistoryName(string name)
     {
         var timestampLength = AuditControlStore.HistoryTimestampFormat.Length;
         return name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && name.Length == timestampLength + 38

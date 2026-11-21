@@ -41,6 +41,17 @@ internal sealed class RemovalArchiveDestination : IDisposable
     public void Publish()
     {
         var handle = Stream.SafeFileHandle;
+        SetTemporary(handle, false);
+        try { RenameWithoutReplacement(handle, destination); }
+        catch
+        {
+            SetTemporary(handle, true);
+            throw;
+        }
+    }
+
+    internal static void RenameWithoutReplacement(SafeFileHandle handle, string destination)
+    {
         var nameOffset = (int)Marshal.OffsetOf<RenameInformation>(nameof(RenameInformation.FileName));
         var size = nameOffset + (destination.Length + 1) * sizeof(char);
         var buffer = Marshal.AllocHGlobal(size);
@@ -54,11 +65,8 @@ internal sealed class RemovalArchiveDestination : IDisposable
                 destination.Length * sizeof(char));
             Marshal.Copy(destination.ToCharArray(), 0, buffer + nameOffset, destination.Length);
             Marshal.WriteInt16(buffer, size - sizeof(char), 0);
-            SetTemporary(handle, false);
             if (SetFileInformation(handle, FileRenameInfo, buffer, (uint)size)) return;
-            var error = RemovalFileInspection.NativeError(destination);
-            SetTemporary(handle, true);
-            throw new IOException("削除前アーカイブを新しいファイルとして保存できません。", error);
+            throw new IOException("ファイルを上書きせずに移動できません。", RemovalFileInspection.NativeError(destination));
         }
         finally { Marshal.FreeHGlobal(buffer); }
     }

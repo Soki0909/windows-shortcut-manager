@@ -60,19 +60,21 @@ internal static class RemovalFileInspection
         return Path.TrimEndingDirectorySeparator(canonical!);
     }
 
-    public static RemovalFileIdentity Identity(FileStream stream, string path)
+    public static RemovalFileIdentity Identity(FileStream stream, string path) => Identity(stream.SafeFileHandle, path);
+
+    public static RemovalFileIdentity Identity(SafeFileHandle handle, string path)
     {
-        var info = ReadInformation(stream.SafeFileHandle, path);
+        var info = ReadInformation(handle, path);
         return new(info.VolumeSerialNumber, ((ulong)info.FileIndexHigh << 32) | info.FileIndexLow,
             ((ulong)(uint)info.CreationTime.dwHighDateTime << 32) | (uint)info.CreationTime.dwLowDateTime);
     }
 
-    public static FileStream OpenFile(string path, int maxBytes)
+    public static FileStream OpenFile(string path, int maxBytes, bool forMove = false)
     {
         var attributes = Attributes(path);
         if (attributes is null || (attributes.Value & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0)
             throw new InvalidDataException("通常ファイルとして確認できません。リンクやフォルダを保護します。");
-        var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var stream = forMove ? OpenRenameHandle(path) : new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         try
         {
             var info = ReadInformation(stream.SafeFileHandle, path);
@@ -88,6 +90,18 @@ internal static class RemovalFileInspection
             stream.Dispose();
             throw;
         }
+    }
+
+    private static FileStream OpenRenameHandle(string path)
+    {
+        const uint readAndRename = 0x80010000;
+        var handle = CreateFile(path, readAndRename, FileShare.None, IntPtr.Zero, FileMode.Open, OpenReparsePoint, IntPtr.Zero);
+        try
+        {
+            if (handle.IsInvalid) throw NativeError(path);
+            return new FileStream(handle, FileAccess.Read);
+        }
+        catch { handle.Dispose(); throw; }
     }
 
     public static bool SamePath(string left, string right) =>

@@ -8,7 +8,20 @@ using ShortcutManager.Windows.Storage;
 
 namespace ShortcutManager.Windows.Removal;
 
-public sealed record VerifiedRemovalArchive(string Path, string Sha256, int FileCount);
+public sealed class VerifiedRemovalArchive
+{
+    public string Path { get; }
+    public string Sha256 { get; }
+    public int FileCount => Files.Count;
+    internal IReadOnlyList<RemovalItem> Files { get; }
+
+    internal VerifiedRemovalArchive(string path, string sha256, IReadOnlyList<RemovalItem> files)
+    {
+        Path = path;
+        Sha256 = sha256;
+        Files = files;
+    }
+}
 
 public sealed class LocalDataRemovalArchive(ApplicationPaths paths, ApplicationPaths otherEdition, Action<string>? checkpoint = null)
 {
@@ -16,7 +29,7 @@ public sealed class LocalDataRemovalArchive(ApplicationPaths paths, ApplicationP
     private const string ManifestName = "removal.json";
     private const int MaxManifestBytes = 1024 * 1024;
     private const int MaxEntryCount = 4096;
-    private const long MaxTotalBytes = 1024L * 1024 * 1024;
+    internal const int MaxTotalBytes = 1024 * 1024 * 1024;
 
     public VerifiedRemovalArchive Create(LocalDataRemovalPlan approval, IReadOnlyCollection<string> individuallySelected,
         string destination, bool hasUnsavedChanges)
@@ -25,13 +38,7 @@ public sealed class LocalDataRemovalArchive(ApplicationPaths paths, ApplicationP
         var current = preview.Inspect(hasUnsavedChanges);
         EnsureUnchanged(approval, current);
 
-        var selected = individuallySelected.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var eligible = current.Items.Where(item => item.Disposition == RemovalDisposition.RequiresIndividualSelection)
-            .Select(item => item.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (selected.Count != individuallySelected.Count || !selected.IsSubsetOf(eligible))
-            throw new InvalidDataException("確認一覧から個別に選べるバックアップだけを指定してください。");
-
-        var sources = current.Items.Where(item => item.Disposition == RemovalDisposition.Candidate || selected.Contains(item.Path))
+        var sources = SelectItems(current, individuallySelected)
             .Select(item => new SourceEntry(item, ManifestEntry(current.DataDirectory, item))).ToArray();
         if (sources.Length is 0 or > MaxEntryCount)
             throw new InvalidDataException("削除前アーカイブに保存できる件数を確認してください。");
@@ -79,7 +86,7 @@ public sealed class LocalDataRemovalArchive(ApplicationPaths paths, ApplicationP
             checkpoint?.Invoke("archive-verified");
             EnsureUnchanged(approval, preview.Inspect(hasUnsavedChanges));
             prepared.Publish();
-            return new(output, hash, sources.Length);
+            return new(output, hash, Array.AsReadOnly(sources.Select(source => source.Item).ToArray()));
         }
         finally
         {
@@ -87,7 +94,17 @@ public sealed class LocalDataRemovalArchive(ApplicationPaths paths, ApplicationP
         }
     }
 
-    private static void EnsureUnchanged(LocalDataRemovalPlan approval, LocalDataRemovalPlan current)
+    internal static IEnumerable<RemovalItem> SelectItems(LocalDataRemovalPlan plan, IReadOnlyCollection<string> individuallySelected)
+    {
+        var selected = individuallySelected.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var eligible = plan.Items.Where(item => item.Disposition == RemovalDisposition.RequiresIndividualSelection)
+            .Select(item => item.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (selected.Count != individuallySelected.Count || !selected.IsSubsetOf(eligible))
+            throw new InvalidDataException("確認一覧から個別に選べるバックアップだけを指定してください。");
+        return plan.Items.Where(item => item.Disposition == RemovalDisposition.Candidate || selected.Contains(item.Path));
+    }
+
+    internal static void EnsureUnchanged(LocalDataRemovalPlan approval, LocalDataRemovalPlan current)
     {
         if (!approval.CanReviewCandidates || !current.CanReviewCandidates || current.UserSid is null
             || current.UserSid != approval.UserSid || current.IsDevelopment != approval.IsDevelopment
@@ -107,7 +124,7 @@ public sealed class LocalDataRemovalArchive(ApplicationPaths paths, ApplicationP
         return new(string.Join('/', components), item.Kind, item.Bytes.Value, item.Sha256);
     }
 
-    private static void EnsureSafeName(string name)
+    internal static void EnsureSafeName(string name)
     {
         var stem = name.Split('.')[0].TrimEnd().ToUpperInvariant();
         if (name.Length == 0 || name.EndsWith(' ') || name.EndsWith('.') || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
