@@ -22,7 +22,7 @@ public sealed class ShortcutInventoryScanner(IShellLinkService shellLinks, UrlSh
         }.Where(path=>!string.IsNullOrWhiteSpace(path)).ToArray();
 
     public Task<IReadOnlyList<ShortcutInventoryItem>> ScanDefaultAsync(string managedDirectory, CancellationToken cancellationToken = default) => ScanAsync(DefaultRoots,managedDirectory,cancellationToken);
-    public async Task<IReadOnlyList<ShortcutInventoryItem>> ScanAsync(IEnumerable<string> roots, string managedDirectory, CancellationToken cancellationToken = default) => (await ScanReportAsync(roots,managedDirectory,cancellationToken)).Items;
+    public async Task<IReadOnlyList<ShortcutInventoryItem>> ScanAsync(IEnumerable<string> roots, string managedDirectory, CancellationToken cancellationToken = default) => (await ScanReportAsync(roots,managedDirectory,cancellationToken).ConfigureAwait(false)).Items;
     public Task<InventoryScanReport> ScanReportAsync(IEnumerable<string> roots, string managedDirectory, CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         var uniqueRoots = DeduplicateRoots(roots);
