@@ -1,4 +1,4 @@
-param([string]$Version = '0.4.0', [string]$CompilerPath, [switch]$SkipPublish,[ValidateSet('Unsigned','Certificate')][string]$SigningMode='Unsigned',[switch]$RequireSigned)
+param([string]$Version = '1.0.0', [string]$CompilerPath, [switch]$SkipPublish,[ValidateSet('Unsigned','Certificate')][string]$SigningMode='Unsigned',[switch]$RequireSigned)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path "$PSScriptRoot\..").Path
 if ($RequireSigned -and $SigningMode -ne 'Certificate') { throw 'A signed release requires Certificate mode; unsigned fallback is forbidden.' }
