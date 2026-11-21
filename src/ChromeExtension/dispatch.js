@@ -1,8 +1,12 @@
 import { parseDispatchQuery, TOGGLE_GROUP_ACTION } from "./lib/dispatch-protocol.js";
-import { dispatchDiagnostic } from "./lib/diagnostics.js";
+import { dispatchDiagnostic, recordDispatchFailure } from "./lib/diagnostics.js";
+import { runtimeRequest } from "./lib/runtime-request.js";
 
 const status = document.querySelector("#status");
 const details = document.querySelector("#details");
+const actions = document.querySelector("#failure-actions");
+const FAILURE_DISPLAY_MS = 15000;
+document.querySelector("#close-dispatch").addEventListener("click", () => void closeSelf());
 
 async function closeSelf() {
   try {
@@ -11,38 +15,35 @@ async function closeSelf() {
   } catch { /* The user may close the tab first. */ }
 }
 
+function showFailure(response) {
+  status.textContent = response?.message ?? "タブグループを開けませんでした。";
+  actions.hidden = false;
+  setTimeout(closeSelf, FAILURE_DISPLAY_MS);
+  void recordDispatchFailure(chrome.storage?.session, response).catch(() => {});
+  void chrome.storage.local.get("settings").then(stored => {
+    if (!stored.settings?.debugMode) return;
+    details.hidden = false;
+    details.textContent = JSON.stringify(dispatchDiagnostic(response), null, 2);
+  }).catch(() => {});
+}
+
 async function run() {
   const parsed = parseDispatchQuery(location.search, chrome.runtime.getManifest().version);
   if (!parsed.ok) {
-    status.textContent = parsed.message;
-    details.hidden = false;
-    details.textContent = parsed.code;
-    setTimeout(closeSelf, 1500);
+    showFailure(parsed);
     return;
   }
 
   const groupName = parsed.request.payload.groupName;
   status.textContent = parsed.request.action === TOGGLE_GROUP_ACTION ? `「${groupName}」を切り替えています…` : `「${groupName}」を開いています…`;
-  const response = await chrome.runtime.sendMessage(parsed.request);
+  const response = await runtimeRequest(message => chrome.runtime.sendMessage(message), parsed.request);
   if (response?.ok) {
     status.textContent = response.code === "collapsed" ? `「${groupName}」を折りたたみました。` : `「${groupName}」へ移動しました。`;
     await closeSelf();
     return;
   }
 
-  status.textContent = response?.message ?? "タブグループを開けませんでした。";
-  const stored = await chrome.storage.local.get("settings");
-  if (stored.settings?.debugMode) {
-    details.hidden = false;
-    details.textContent = JSON.stringify(dispatchDiagnostic(response), null, 2);
-  } else {
-    setTimeout(closeSelf, 1500);
-  }
+  showFailure(response);
 }
 
-run().catch(() => {
-  status.textContent = "Dispatcher でエラーが発生しました。";
-  details.hidden = false;
-  details.textContent = "dispatcher-error";
-  setTimeout(closeSelf, 1500);
-});
+await run().catch(() => showFailure({ code: "dispatcher-error" }));
