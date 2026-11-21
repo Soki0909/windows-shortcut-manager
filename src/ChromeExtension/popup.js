@@ -1,7 +1,9 @@
 import { runtimeRequest } from "./lib/runtime-request.js";
+import { LAST_DISPATCH_FAILURE_KEY, readDispatchFailure } from "./lib/diagnostics.js";
 
 const groupsElement = document.querySelector("#groups");
 const statusElement = document.querySelector("#status");
+const dispatchFailure = document.querySelector("#dispatch-failure");
 const collapseStartup = document.querySelector("#collapse-startup");
 const debugMode = document.querySelector("#debug-mode");
 const rememberUrls = document.querySelector("#remember-urls");
@@ -24,6 +26,22 @@ const send = message => runtimeRequest(value => chrome.runtime.sendMessage(value
 let busy = false;
 let savedSettings = {};
 let settingsLoaded = false;
+
+async function refreshDispatchFailure() {
+  try {
+    const failure = await readDispatchFailure(chrome.storage?.session);
+    dispatchFailure.hidden = !failure;
+    dispatchFailure.textContent = failure
+      ? `直近のキー起動エラー（${new Date(failure.at).toLocaleTimeString("ja-JP")}）\n${failure.message} [${failure.code}]`
+      : "";
+  } catch {
+    dispatchFailure.hidden = false;
+    dispatchFailure.textContent = "直近のキー起動エラーを読み込めません。";
+  }
+}
+chrome.storage?.onChanged?.addListener((changes, area) => {
+  if (area === "session" && Object.hasOwn(changes, LAST_DISPATCH_FAILURE_KEY)) void refreshDispatchFailure();
+});
 async function run(operation) {
   if (busy) return;
   busy = true;
@@ -62,6 +80,7 @@ function reflectPrivacy(result) {
   document.querySelector("#history-count").textContent = `保存 ${result.historyCount} グループ / URL補助 ${result.urlCount} 件（最大100グループ）`;
 }
 document.querySelector("#refresh").addEventListener("click", () => void run(async () => {
+  void refreshDispatchFailure();
   try { await loadSettings(); } catch { settingsLoaded = false; statusElement.textContent = "設定を読み込めません。設定の変更は停止しています。"; }
   await refresh();
 }));
@@ -90,6 +109,7 @@ clearHistory.addEventListener("click", () => void run(async () => {
   reflectPrivacy(result); confirmClear.checked = false;
   statusElement.textContent = "タブ復帰履歴を消去しました。開いているタブやグループは保持しています。";
 }));
+void refreshDispatchFailure();
 await run(async () => {
   try { await loadSettings(); }
   catch { statusElement.textContent = "設定を読み込めませんでした。グループ一覧は更新して再試行できます。"; }
