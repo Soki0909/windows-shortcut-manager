@@ -275,9 +275,12 @@ public sealed class MainViewModel : ObservableObject
             validator.Validate(candidate, checkFileSystem: false).Issues, LastAuditDetails, LastScanReport);
     }
     public IReadOnlyList<ShortcutInventoryItem> ConflictingItems {get;private set;}=[];
-    public async Task<IReadOnlyList<ShortcutInventoryItem>> ScanAsync(IEnumerable<string>? roots = null)
+    public async Task<IReadOnlyList<ShortcutInventoryItem>> ScanAsync(IEnumerable<string>? roots = null) =>
+        (await ScanReportAsync(roots))?.Items ?? [];
+
+    public async Task<InventoryScanReport?> ScanReportAsync(IEnumerable<string>? roots = null)
     {
-        if (IsBusy) return [];
+        if (IsBusy) return null;
         IsBusy = true;
         Status = "既存 .lnk / .url をスキャンしています…";
         try
@@ -285,7 +288,7 @@ public sealed class MainViewModel : ObservableObject
             LastScanReport = await scanner.ScanReportAsync(roots ?? defaultScanRoots(),ManagedDirectory);
             Status = LastScanReport.Summary;
             logger.Info($"Inventory scan: {LastScanReport.Items.Count} items, {LastScanReport.Issues.Count} excluded ranges");
-            return LastScanReport.Items;
+            return LastScanReport;
         }
         finally { IsBusy = false; }
     }

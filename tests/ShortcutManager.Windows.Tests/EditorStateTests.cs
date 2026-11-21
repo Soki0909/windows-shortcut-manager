@@ -5,6 +5,7 @@ using ShortcutManager.Core.Serialization;
 using ShortcutManager.Windows.Apply;
 using ShortcutManager.Windows.Backup;
 using ShortcutManager.Windows.Chrome;
+using ShortcutManager.Windows.Inventory;
 using ShortcutManager.Windows.Launching;
 using ShortcutManager.Windows.Shell;
 using ShortcutManager.Windows.ShellLinks;
@@ -32,9 +33,44 @@ public sealed class EditorStateTests : IDisposable
         backups = new(Path.Combine(root,"backups"),"test");
         applier = new(repository,new(),resolver,links,backups,Path.Combine(root,"stage"),State);
     }
-    private App.MainViewModel Model() => new(new(root,repository.Path,State,Path.Combine(root,"log.txt"),Path.Combine(root,"backups"),Path.Combine(root,"stage"),Managed), repository,new(),resolver,new(),new(links,new()),new(),backups,applier,new(new(),applier),new(Path.Combine(root,"log.txt")),reloader);
+    private App.MainViewModel Model(Func<string, string[]>? enumerate = null) => new(new(root,repository.Path,State,Path.Combine(root,"log.txt"),Path.Combine(root,"backups"),Path.Combine(root,"stage"),Managed), repository,new(),resolver,new(),new ShortcutInventoryScanner(links,new(),enumerate),new(),backups,applier,new(new(),applier),new(Path.Combine(root,"log.txt")),reloader);
     private static ShortcutDefinition Entry(string key = "U") => new() { Name="Fixture " + key, Hotkey=new() {Key=key},Target=new WebsiteTarget {Url="https://example.com"} };
     private void Save(params ShortcutDefinition[] entries) => Assert.True(applier.Apply(new() {Shortcuts=[..entries]},Managed).Succeeded);
+
+    [Fact]
+    public async Task SkippedInventoryScanDoesNotReturnPreviousReport()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var resume = new ManualResetEventSlim();
+        var scans = 0;
+        var vm = Model(path =>
+        {
+            if (Interlocked.Increment(ref scans) == 2)
+            {
+                entered.SetResult();
+                if (!resume.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException("Inventory fixture was not released.");
+            }
+            return Directory.GetFileSystemEntries(path);
+        });
+        File.WriteAllText(Path.Combine(root, "source.url"), "[InternetShortcut]\r\nURL=https://example.invalid/\r\n");
+        var previous = await vm.ScanReportAsync([root]);
+        Assert.NotNull(previous);
+        Assert.Single(previous.Items);
+        var pending = vm.ScanReportAsync([root]);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Null(await vm.ScanReportAsync([root]));
+            Assert.Empty(await vm.ScanAsync([root]));
+            Assert.Same(previous, vm.LastScanReport);
+        }
+        finally
+        {
+            resume.Set();
+            await pending;
+        }
+        Assert.NotSame(previous, vm.LastScanReport);
+    }
 
     [Fact]
     public async Task NoChangeApplyIsDisabledAndDoesNotCreateBackupOrClaimPhysicalConfirmation()
