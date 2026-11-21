@@ -1,6 +1,6 @@
 # 対応環境と検証マトリクス / #54
 
-更新: 2026-11-05。正式v1.0.0の全条件がpassedした表ではない。実行済み・未検証・配布対象外・条件付きの区別を公開する。公式資料の取得点とSetup変更の根拠は[Issue #54の検証記録](ISSUE_54.md)を参照。
+更新: 2026-11-18。実行済み・未検証・配布対象外・条件付きを示す。Setup変更の根拠は[Issue #54の検証記録](ISSUE_54.md)を参照。
 
 ## 配布要件と確定前の条件
 
@@ -14,14 +14,14 @@
 
 「候補」は正式版で検証すべき対象であり、製品の全機能を受け入れ済みという意味ではない。公式.NET資料・OS lifecycle・製品実行証拠の3つを分けて判定する。
 
-| 環境 | 2026-11-05時点の判定 | Setupとの関係 / 次に必要な確認 |
+| 環境 | 2026-11-18時点の判定 | Setupとの関係 / 次に必要な確認 |
 |---|---|---|
-| Windows 11 / x64 / OS・.NETの双方が維持サポート中 | 正式版の主な検証候補 | 数値条件は通過。エディション/機能更新版ごとのlifecycleを確認し、下記シナリオを実施 |
-| Windows 11 Home 26H2 / x64 | 所有者PCの実行実績あり、公式.NET一覧との照合は保留 | 公式.NETデータは2026-09-28更新で26H2未記載。OS側の現行版であることだけから.NET公式対象と断定しない。候補時に資料/追跡情報を再確認 |
-| Windows 10 Enterprise LTSC 2019 (1809) / LTSC 2021 (21H2) / x64 | .NET一覧にある検証候補、製品GUIは未検証 | 17763/19044は数値下限を満たす。固有lifecycleと候補時点の更新状態も要確認 |
+| Windows 11 25H2 / x64 | 正式版の代表検証を優先する候補 | OSと.NET 10の双方の対応表を確認済み。標準ユーザーの検証機またはゲストで下記シナリオを実施する |
+| Windows 11 Home 26H2 / x64 | 所有者PCの実行実績あり、公式.NET一覧との照合は保留 | 2026-11-18に再照合。公式.NET 10対応OSデータは2026-09-28更新で26H2未記載。上流照会[dotnet/core #10652](https://github.com/dotnet/core/issues/10652)は未解決 |
+| Windows 10 Enterprise LTSC 2019 (1809) / LTSC 2021 (21H2) / x64 | .NET一覧にある検証候補、製品GUIは未検証 | 17763/19044は数値下限を満たす。2019は延長サポートが2029年1月まで。2021の通常サポートは2027年1月まで |
 | Windows 10 1607 Enterprise LTSB / x64 | 通常lifecycleは2026年10月終了。条件付き調査のみ | 14393は下限を満たすが、通常サポート中とは扱わない。ESU等の条件と.NET側の扱いを別途確認。Home/Proの対応を意味しない |
 | Windows 10 1507/1511、32bit Windows | この配布の対象外 | 1507/1511は数値下限、32bit OSはarchitecture条件で拒否。旧OS上での実拒否試験は未実施 |
-| Windows 10のその他エディション、OSサポート終了済みのWindows 11 | 正式版のサポート確定対象に含めない | Setupが通る場合がある。Home/Pro 24H2は2026年10月終了、Enterprise/Education 23H2も2026年11月終了予定のため候補時再確認 |
+| Windows 10のその他エディション、OSサポート終了済みのWindows 11 | 正式版のサポート確定対象に含めない | Setupが通る場合がある。Windows 11 Home/Pro 24H2とEnterprise/Education 23H2の通常サポートは終了済み |
 | Windows 11 Arm64 / x64エミュレーション | 技術的に許可、製品未検証 | `x64compatible`を通過。ネイティブARM64配布はない。HotKey/COM/Chromeを実機検証するまで正式対応としない |
 | Windows Serverデスクトップ / x64 | hosted CI実行環境、一般利用者向けGUIは未検証 | 現在の数値条件はServer 2016以降も許可。Server Core/Nanoには通常のGUI/Explorer実行証拠がなく製品対象へ広げない |
 
@@ -32,7 +32,7 @@
 | 環境・条件 | 確認する内容 | 現在の状態・証拠 |
 |---|---|---|
 | Windows Server 2025 Datacenter 10.0.26100 / x64 / Release | build、トランザクション、COM、CLI、配布構造、Setup更新 | [CI 41893214665](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/41893214665): Core39/Windows208・skip0、配布/旧Setup更新保持passed。image windows-2025-vs2026 / 20261030.294.1。Windows clientの実GUI全条件の代わりではない |
-| 所有者PC / Windows 11 Home 26H2 10.0.26300.9818 / x64 | 関連テストと製品分離、OS情報の読取り | 2026-11-05のOS/architecture/非昇格PowerShell tokenを読取り確認。#157のhelper8件と関連実起動2件passed。配列・倍率・物理HotKeyはこの記録から推定しない |
+| 所有者PC / Windows 11 Home 26H2 10.0.26300.9974 / x64 | 関連テストと製品分離、OS情報の読取り | 2026-11-18にOS、OSとCLIのx64、CLIが非昇格であることを読取り確認。専用標準ユーザー、配列、倍率、物理キーの実機検証は未実施 |
 | 所有者PC / v0.4.0公式Setup更新 | 製品更新、保存設定/管理リンクの保持 | [2026-11-03更新記録](../releases/post-release/v0.4.0.md): 本体413ファイル一致、データ28/管理23保持、読取り監査差分0。拡張ファイル22件一致。11月5日に所有者がChrome再読み込み/v0.4.0表示を手動確認。物理キーはnot-tested。今回のtoken読取りを過去のSetup実行tokenの証拠に転用しない |
 | 日本語・空白・引用符・末尾バックスラッシュ・空引数 | 引数と実際の作業フォルダ | WinExeプローブの実レポートpassed。元lnk byte/HotKey不変も確認 |
 | localhost SMB / UNC日本語・空白 / hosted runner | 共有からの実起動・作業フォルダ | CIのUNCプローブpassed、skip0。任意のサーバー、Kerberos、VPN、オフライン切断の全条件とは別 |
@@ -66,5 +66,7 @@
 候補commit・製品/拡張の実行version・OS数値版/エディション・プロセスarchitecture・通常/管理者token・入力配列/IME・倍率/画面構成・操作手順・実結果・rollback/残存物を記録する。個人のアプリ一覧や設定原本を公開ログへ添付しない。失敗は再現条件と保持された資料、未実施は必要な環境を明記する。
 
 代表シナリオはSetup→空状態→Web/アプリ/BAT/Chrome登録→対象テスト→差分/反映→Manager終了後の実キー→バックアップ/復元→旧版から更新→uninstall時保持。GUIと実キーはAPI/描画の成功から推定しない。日常製品の更新にはRelease Setupを使用し、バックアップと戻し方を確認する。
+
+独立したWindows 11 25H2 x64の検証機、またはスナップショット可能なゲストを使用する。Administratorsに属さない専用アカウントでExplorerに対話ログオンし、旧版と候補版のSetupはハッシュと出所を照合する。架空の割当、非同梱のプローブ、専用Chromeプロファイルで確認し、管理リンクと管理外fixtureのハッシュも記録する。ゲスト内でDPI・IME・Narratorを確認できる。ホストに捕捉されたキー操作は実機確認に含めない。物理JIS/US配列と混在DPIモニターの切断・再接続には対応する機材を使う。所有者PCのWindows 11 HomeではWindows Sandboxを利用できない。[対応エディション](https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/)
 
 正式版の配布対象の確定、上記代表GUI/入力/DPI/非管理者の実行、Setup制約との整合が未完了のため#54はopenのままとする。環境の準備がない条件を失敗と数えたり、逆にpassedへ置換したりしない。

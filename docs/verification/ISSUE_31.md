@@ -10,4 +10,5 @@
 - `.lnk` と `.url` の原本バイトとキーの保持、復旧ZIPのハッシュ照合、利用者の操作を模したキー解除後の再スキャン、復旧ファイルからの手動復元を隔離フォルダーで確認した。
 - 元キーの残存、別ファイルの同キー、不明な `.url` のキー値、一部未走査、スキャン後の原本変更、保存失敗、別版と所有マーカー付きフォルダーで継続を拒否することを確認した。
 - 再スキャン処理にはその呼び出しが返したレポートだけを使用する。前回レポートを保持している状態で別の走査が処理中の場合、新しい呼び出しがレポートを返さないことを確認した。
-- 日本語Windowsで隔離した `.lnk` と `.url` を使い、WPFの案内で復旧用コピーを保存してから `SHObjectProperties` でファイルのプロパティを開いた。両方で「ショートカット キー」欄の表示を確認し、キャンセル後に原本のバイトが一致した。キー欄での変更保存と物理キー操作は未実施。プロパティを呼び出せない場合は同じファイルの場所を表示する導線を使える。[Microsoft Learn](https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shobjectproperties)
+- 日本語Windowsで隔離した `.lnk` と `.url` を使い、WPFの案内で復旧用コピーを保存してから `SHObjectProperties` でファイルのプロパティを開いた。両方のキー欄を「なし」にして保存し、WPFの再スキャンで解除を確認した。復旧ZIPから手動で戻した両ファイルのSHA-256は解除前と一致した。物理キーは#54で確認する。プロパティを呼び出せない場合は同じファイルの場所を表示できる。[Microsoft Learn](https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shobjectproperties)
+- PR #177をmain `204b25a` に統合し、[統合後CI 44289337197](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44289337197) の成功を確認した。

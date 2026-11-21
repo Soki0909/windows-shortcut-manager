@@ -1,6 +1,25 @@
 # Shortcut Manager Verification
 
-Updated: 2026-11-05 (Asia/Tokyo)
+Updated: 2026-11-21 (Asia/Tokyo)
+
+## v1.0.0開発の再開（2026-11-18）
+
+- 開始時のローカル・GitHub main `c28e1ba0faa2638138f2098696abd57cecd0803c`、[main CI 44011854444](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44011854444) の4ジョブ成功、最新公開版 [v0.4.0](https://github.com/Soki0909/windows-shortcut-manager/releases/tag/v0.4.0) を確認した。
+- #32の旧head `ad00186` は[CI 44011552125](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44011552125) 成功。mainの#170を取り込んで起動時監査の参照鎖検査を追加した `da844ca` は、SDK 10.0.404で対象47件成功、UNC共有とURI登録はrunner専用のため2件スキップ。初回pushを自動承認審査が拒否した後、所有者の明示承認により [PR #168](https://github.com/Soki0909/windows-shortcut-manager/pull/168) を更新し、[最新CI 44237902202](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44237902202) を開始した。実Storeアプリ、物理キー、実画面の表示状態は要実機確認。
+- #168の最新PR CIでCore39件とWindows222件が成功し、スキップ0。Windows runnerのUNC・URI、Release配布物検証、Setupの導入／更新／アンインストールでの保持が成功。main `f9d5cdb` へ統合後、[CI 44238658155](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44238658155)のWindowsテスト1件が起動検証後の一時EXE削除でアクセス拒否。221件成功。保持元のプロセスは未特定。
+- [#176](https://github.com/Soki0909/windows-shortcut-manager/issues/176)を登録し、テスト用フォルダの削除で一時ロック等に対処する[PR #178](https://github.com/Soki0909/windows-shortcut-manager/pull/178)を作成。ファイルを意図的に使用中にして解放後の削除を検証し、起動契約と合わせてRelease対象8件成功、runner専用2件スキップ。
+- 修正head `82b4fb6` の[PR CI 44239518837](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44239518837)はCore39件・Windows223件、スキップ0。Release成果物とSetupの更新・保持検証も成功。main `0b9959f` に統合後、[CI 44240211142](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44240211142) の成功を確認し、#32と#176をclose。
+- #55の `a87836a` は隔離データで実WPFのイベント経路を実行し、Debug対象1件と[PR CI 44237868178](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44237868178)が成功。main `35a5e0f` に統合した。Explorerの再起動は模擬、物理キーは実機確認に残る。
+- #52の[設計PR #174](https://github.com/Soki0909/windows-shortcut-manager/pull/174)をmain `43c3ffb` へ統合。候補プレビューとアーカイブ作成では、Releaseで隔離テスト40件成功・スキップ0。専用ブランチの `5cd1684` に保全した。実際の退避、確定消去、復元とGUIは実装・検証が残る。
+- #118の `ed830a2` はChrome for Testing 148.0.7778.97の専用プロファイルで3回連続成功。実起動イベントによる2窓の復元グループ折りたたみ、Dispatcher・Popup操作、Worker停止からの復帰と次セッションでの保護リセットを確認。[PR #175](https://github.com/Soki0909/windows-shortcut-manager/pull/175) のCIは構文、拡張の回帰と配布チェックを実行する。Windows物理キーとCWS版は未実施。
+- 依存更新は、[PR #171](https://github.com/Soki0909/windows-shortcut-manager/pull/171) のSDK 11.0.100を採用せず、要件に沿って.NET 10 LTSと修正済みSDK 10.0.404を選ぶ。[PR #172](https://github.com/Soki0909/windows-shortcut-manager/pull/172) はテスト2プロジェクトのMicrosoft.NET.Test.Sdkだけを18.12.0に更新し、[CI 44210672150](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44210672150) 成功。製品の参照とTargetFrameworkはこの変更の対象外。[.NETサポート方針](https://dotnet.microsoft.com/en-us/platform/support/policy) [Microsoftの修正済みSDK一覧](https://github.com/dotnet/announcements/issues/517)
+- #173、#174、#172、#175の統合を含むmain `0f44fc4` の[CI 44240940536](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44240940536)でCore39件・Windows224件・拡張29件・拡張配備28件とSetup更新・保持が成功。#172単体のmain実行は後続のmain更新で取り消され、同じ変更を含むこのCIで確認した。
+- #31の手動移行は[PR #177](https://github.com/Soki0909/windows-shortcut-manager/pull/177)の `268851c` でローカル14件とCIが成功。最新mainを取り込んだhead `6ca721b` では、実Windowsプロパティから隔離 `.lnk` と `.url` のキー解除・保存、WPFの再スキャンを確認した。各復旧用ZIPを手動のファイル操作で戻し、解除前のSHA-256と一致した。[PR CI 44288224410](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44288224410)でCore39件・Windows230件、Setupの更新と保持が成功し、main `204b25a` へ統合。物理キーは実機確認に残る。
+- 2026-11-21、main `204b25a` の[統合後CI 44289337197](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44289337197) 成功を確認し、#31をclose。公開済みの基準版はv0.4.0。
+- 2026-11-21、#88（Dispatcher失敗の15秒表示・手動閉じ・ヘルプ導線・セッション内直近エラー表示）をNode 31/31および隔離Chrome実確認後に[PR #179](https://github.com/Soki0909/windows-shortcut-manager/pull/179) として提出。[PR CI 44880187336](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44880187336) 全4ジョブ成功後にmain `108f029` へ統合し、[統合後CI 44880623711](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44880623711) 全4ジョブ成功を確認。Issue #88はclose。
+- 2026-11-21、#87（複数Chromeプロファイル挙動とID取り違え診断案内）を隔離Chrome (`Chrome/149.0.7827.55`) で実測確認し、Node 31/31およびDebug build 0警告・0エラーを確認して[PR #180](https://github.com/Soki0909/windows-shortcut-manager/pull/180) を提出。[PR CI 44880775571](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44880775571) 全4ジョブ成功後にmain `2434e3c` へ統合し、[統合後CI 44881181272](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44881181272) 全4ジョブ成功を確認。Issue #87はclose。
+- 2026-11-21、#52（任意ローカルデータ削除・ジャーナル付き退避/取り消し/確定消去/クラッシュ再開・削除前アーカイブ復元・起動時復旧ゲート・削除準備GUI）を実装し、ローカル `LocalDataRemoval` 62/62（関連 `EditorStateTests` 含む84/84、実プロセスキル3種含む）およびDebug build 0警告・0エラーを確認して[PR #181](https://github.com/Soki0909/windows-shortcut-manager/pull/181) を提出。[PR CI 44881410187](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44881410187) 成功後にmain `ef5a0d4` へ統合し、[統合後CI 44881815123](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44881815123) 成功を確認。独立検証機での代表物理キーと削除後残留項目の実機確認は継続。
+- 2026-11-21、#15の常設ボタンと確認・復旧メニューの比較およびキーボード到達性を[検討記録](ISSUE_15.md)へ整理。最終判定は#14の初回利用者テストと連動する。
 
 ## 所有者指定の中断と保全（2026-11-05）
 

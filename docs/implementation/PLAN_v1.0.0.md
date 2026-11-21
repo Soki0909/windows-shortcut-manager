@@ -4,6 +4,25 @@
 
 ## Progress
 
+- [x] 2026-11-18再開。GitHubとローカルのmain `c28e1ba`、公開版v0.4.0、未解決40件（索引の#1を除く）を照合。#11/#161/#166はclose、#170までの変更とmain CI 44011854444を確認。
+- [x] #32 / PR #168: 起動時監査に元リンクの参照鎖検査を追加。ローカル47件成功・runner専用2件スキップ。[CI 44237902202](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44237902202) 成功後、main `f9d5cdb` へ統合。後片付けの修正 #176 を含む統合後CIの成功を確認し、#32をclose。
+- [x] #55 / [PR #173](https://github.com/Soki0909/windows-shortcut-manager/pull/173): WPF画面の実イベントを隔離データで検証。ローカル対象1件とPR CIが成功し、main `35a5e0f` へ統合。Explorer再起動は模擬し、物理キーは実機確認に残る。
+- [ ] #52 / [PR #174](https://github.com/Soki0909/windows-shortcut-manager/pull/174) / [PR #181](https://github.com/Soki0909/windows-shortcut-manager/pull/181): 設計（main `43c3ffb`）に続き、プレビュー・削除前アーカイブ・ジャーナル付き退避/取り消し/確定消去/クラッシュ再開・削除前アーカイブ復元・起動時復旧ゲート・削除準備GUIを実装。ローカル62/62（関連84/84）および[PR CI 44881410187](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44881410187) 成功後、main `ef5a0d4` へ統合。独立検証機での物理キーと削除後残留項目の実機確認が残るためIssueはopenを維持。
+- [x] #118 / [PR #175](https://github.com/Soki0909/windows-shortcut-manager/pull/175): 専用Chromeで実起動イベント、2窓の復元・折りたたみ、Worker停止復帰、次セッションの保護リセットを3回連続で確認。PR CI成功後、main `0f44fc4` へ統合。配布版の実キー確認は継続する。
+- [x] #31 / [PR #177](https://github.com/Soki0909/windows-shortcut-manager/pull/177): 所有者の承認を受け、元リンクの手動解除・手動復元を案内するGUIを実装。ローカル対象14件と、実Windowsプロパティでの解除・再スキャン・復旧コピーからの原本再現が成功。main `204b25a` へ統合し、[統合後CI 44289337197](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44289337197) 成功後にIssueをclose。
+- [x] #88 / [PR #179](https://github.com/Soki0909/windows-shortcut-manager/pull/179): 失敗ページの表示時間を15秒へ延長し、手動閉じ・ヘルプ導線と、同じChromeセッションの拡張メニューに直近の固定エラーコードと時刻のみを表示する機能を実装。Node 31/31、隔離Chrome実確認、[PR CI 44880187336](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44880187336)、main `108f029` 統合後[CI 44880623711](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44880623711) 全4ジョブ成功でclose。
+- [x] #87 / [PR #180](https://github.com/Soki0909/windows-shortcut-manager/pull/180): 隔離Chrome（`Chrome/149.0.7827.55`）で複数プロファイル時の挙動（最後に前面だったプロファイルへURIが渡されること、別プロファイル前面時は対象グループが変化せず前面復帰で動くこと）を実測確認。公開API制約と3段階切り分け手順をManagerと拡張ヘルプへ反映し、Node 31/31、Debug build、[PR CI 44880775571](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44880775571)、main `2434e3c` 統合後[CI 44881181272](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44881181272) 全4ジョブ成功でclose。
+- [ ] #15: [検討記録](../verification/ISSUE_15.md)に現行の主操作5ボタン・確認と復旧メニュー集約の比較案とキーボード到達性を整理。最終判定は#14の初回利用者テストと連動するためopenを維持。
+- [ ] 2026-11-21、Gemini4Neonへ引き継ぎ後、#88・#87・#52を実装・検証・main統合。残る正式公開ゲートは外部契約/アカウント（#50/#140実署名、#46 Chrome Web Store提出・審査）および独立検証機・第三者テスト（#19/#20/#21/#54/#12/#14/#15）。
+- [x] #171 / #172: .NET 10 LTSと修正済みSDK 10.0.404を維持し、SDK 11.0.100のPRをclose。テスト用Microsoft.NET.Test.Sdk 18.12.0はmain `7363c08` へ統合。
+- [ ] #54: 公式.NET 10とWindowsの対応範囲を再照合。正式版の代表確認はWindows 11 25H2 x64の検証機またはVMで実施する候補。物理JIS/US、混在DPI、標準ユーザー環境が残る。
+- [ ] #14: [初回利用者の検証手順](../verification/ISSUE_14.md)に初回導入、編集、競合対処、復元のタスクと観察基準を記録。第三者参加者と独立した検証環境を用意して実施する。
+- [ ] #12: [クイックスタート](../../README.md#クイックスタート)を現在のUI用語と操作順に揃え、対象のテストと物理キー確認を明示した。掲載用のSetup／反映／キー確認の実画面と候補リリースからの導線が残る。
+- [ ] #46: [Store提出資料](../design/CHROME_WEB_STORE_SUBMISSION.md)に、専用Chromeで撮影した掲載候補2枚と提出時の手順を記録。提出版の表示確認と開発者アカウント、提出・審査・公開が残る。
+- [x] #176 / [PR #178](https://github.com/Soki0909/windows-shortcut-manager/pull/178): #168統合後の起動契約テストの一時EXE削除で発生したアクセス拒否に対処。ローカル対象8件、[PR CI 44239518837](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44239518837)、[統合後CI 44240211142](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44240211142) が成功し、#176をclose。
+
+2026-11-18時点の判断と証拠は[検証記録](../verification/VERIFICATION.md)を参照。
+
 - [x] 2026-11-05再中断: 所有者の依頼により、統合済みPR #159/#160/#162と、未統合WIP2ブランチを[再開メモ](PAUSE_2026-11-05.md)に記録して保全。main fbf54b6のCI41897036016はsuccess。#11/#32/#54/#161は未完了、v1.0.0未達のまま目標を一時停止する。Chrome拡張v0.4.0の再読み込みは所有者が手動確認済み。
 - [ ] #161: main66f5084のCIでWPF配色probeが30秒timeout。新Issueを作成し、子プロセス分離と停止時の残留防止をWIPへ追加。対象2件passedの担当報告があるが、fixture正常終了と最終CI/レビューが残る。後続mainの一度の成功だけでは完了扱いにしない。
 - [x] #54の限定改善: PR #162をmain fbf54b6へ統合。公式.NET/Inno/API資料に基づくSetup下限14393、x64compatible/lowest維持、環境表更新。Core39/Windows208・skip0、配布/旧Setup保持とnative payload検証passed。実機条件が残るためIssueはopenを維持する。
