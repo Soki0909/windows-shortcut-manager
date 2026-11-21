@@ -10,6 +10,11 @@
   <main>
     <h1>Shortcut Manager</h1>
     <p id="status" aria-live="polite">処理中…</p>
+    <div id="failure-actions" hidden>
+      <p>このタブは15秒後に閉じます。同じChromeセッション中は拡張メニューで直近のエラーを確認できます。</p>
+      <p><a href="help.html" target="_blank" rel="noopener">接続と再試行の手順</a></p>
+      <button id="close-dispatch" type="button">閉じる</button>
+    </div>
     <pre id="details" hidden></pre>
   </main>
   <script type="module" src="dispatch.js"></script>

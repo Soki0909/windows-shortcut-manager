@@ -19,4 +19,5 @@ button:disabled { opacity: .5; cursor: default; }
 .extension-identity input { min-width: 0; flex: 1; font: 11px monospace; }
 .extension-identity button { white-space: nowrap; }
 #copy-status { font-size: 12px; }
+#dispatch-failure { white-space: pre-line; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 

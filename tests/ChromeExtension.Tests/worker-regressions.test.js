@@ -1,10 +1,69 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { runtimeRequest } from "../../src/ChromeExtension/lib/runtime-request.js";
-import { dispatchDiagnostic } from "../../src/ChromeExtension/lib/diagnostics.js";
+import { dispatchDiagnostic, LAST_DISPATCH_FAILURE_KEY, readDispatchFailure, recordDispatchFailure } from "../../src/ChromeExtension/lib/diagnostics.js";
 
 let serial = 0;
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+test("recent dispatcher diagnostics keep one allowlisted code and timestamp in session storage", async () => {
+  const session = {};
+  const store = { async get(key) { return { [key]: session[key] }; }, async set(value) { Object.assign(session, value); } };
+  assert.equal(await readDispatchFailure(store), null);
+  await recordDispatchFailure(store, { code: "group-not-found", message: "secret", url: "https://private.invalid" });
+  const first = await readDispatchFailure(store);
+  assert.equal(first.code, "group-not-found");
+  assert.ok(first.message.includes("Chrome"));
+  assert.deepEqual(session, { [LAST_DISPATCH_FAILURE_KEY]: { code: first.code, at: first.at } });
+  await recordDispatchFailure(store, { code: "arbitrary-name", groupName: "secret" });
+  assert.equal((await readDispatchFailure(store)).code, "dispatcher-error");
+  session[LAST_DISPATCH_FAILURE_KEY].at = "private";
+  assert.equal(await readDispatchFailure(store), null);
+});
+
+test("the dispatcher auto-closes success and keeps a failed tab readable before closing", async () => {
+  const controls = new Map(["status", "details", "failure-actions", "close-dispatch"].map(id => [`#${id}`, {
+    hidden: true, textContent: "", addEventListener(_event, fn) { this.click = fn; },
+  }]));
+  const session = {}; const closed = []; let closeTimer;
+  const schedule = globalThis.setTimeout;
+  globalThis.setTimeout = (fn, ms, ...args) => {
+    if (ms !== 15000) return schedule(fn, ms, ...args);
+    closeTimer = fn;
+  };
+  globalThis.document = { querySelector: selector => controls.get(selector) };
+  globalThis.location = { search: "?v=1&action=toggle-group&group=private" };
+  globalThis.chrome = {
+    runtime: { getManifest: () => ({ version: "0.4.0" }), sendMessage: async () => ({ ok: true }) },
+    storage: {
+      local: { async get() { throw new Error("storage failed"); } },
+      session: { async set(value) { Object.assign(session, value); } },
+    },
+    tabs: { async getCurrent() { return { id: 42 }; }, async remove(id) { closed.push(id); } },
+  };
+  try {
+    await import(`../../src/ChromeExtension/dispatch.js?regression=${++serial}`);
+    assert.deepEqual(closed, [42]);
+    assert.deepEqual(session, {});
+    assert.equal(closeTimer, undefined);
+
+    globalThis.chrome.runtime.sendMessage = async () => { throw new Error("secret assertion"); };
+    await import(`../../src/ChromeExtension/dispatch.js?regression=${++serial}`);
+    assert.equal(controls.get("#failure-actions").hidden, false);
+    assert.match(controls.get("#status").textContent, /通信に失敗/);
+    assert.equal(controls.get("#details").hidden, true);
+    assert.equal(session[LAST_DISPATCH_FAILURE_KEY].code, "message-failed");
+    assert.deepEqual(Object.keys(session[LAST_DISPATCH_FAILURE_KEY]).sort(), ["at", "code"]);
+    assert.deepEqual(closed, [42]);
+    await closeTimer();
+    assert.deepEqual(closed, [42, 42]);
+  } finally {
+    globalThis.setTimeout = schedule;
+    delete globalThis.document;
+    delete globalThis.location;
+    delete globalThis.chrome;
+  }
+});
 async function fixture() {
   const hooks = {}; const local = {}; const session = {};
   const groups = [{ id: 1, windowId: 10, title: "same", collapsed: true }, { id: 2, windowId: 20, title: "same", collapsed: true }];
@@ -132,7 +191,7 @@ test("runtime rejection, missing response and timeout remain actionable without 
 
 test("Popup requires explicit clear confirmation, sends a URL-only patch and disables settings after a failed write", async () => {
   const controls = new Map(); const calls = [];
-  for (const id of ["extension-id", "copy-id", "copy-status", "groups", "status", "identity", "collapse-startup", "debug-mode", "remember-urls", "confirm-clear", "clear-history", "history-count", "refresh", "collapse-all"]) {
+  for (const id of ["extension-id", "copy-id", "copy-status", "groups", "status", "identity", "collapse-startup", "debug-mode", "remember-urls", "confirm-clear", "clear-history", "history-count", "refresh", "collapse-all", "dispatch-failure"]) {
     controls.set(id, { tagName: ["collapse-startup", "debug-mode", "remember-urls", "confirm-clear"].includes(id) ? "INPUT" : ["clear-history", "refresh", "collapse-all"].includes(id) ? "BUTTON" : "DIV",
       checked: false, disabled: false, textContent: "", listeners: {}, addEventListener(event, fn) { this.listeners[event] = fn; }, replaceChildren() {} });
   }
@@ -289,7 +348,7 @@ test("protection cap suppresses automatic collapse instead of forgetting prior i
 test("ID copy works without Worker settings and clipboard rejection selects the ID", { timeout: 5000 }, async () => {
   const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
   const controls = new Map();
-  for (const id of ["extension-id", "copy-id", "copy-status", "groups", "status", "identity", "collapse-startup", "debug-mode", "remember-urls", "confirm-clear", "clear-history", "history-count", "refresh", "collapse-all"]) {
+  for (const id of ["extension-id", "copy-id", "copy-status", "groups", "status", "identity", "collapse-startup", "debug-mode", "remember-urls", "confirm-clear", "clear-history", "history-count", "refresh", "collapse-all", "dispatch-failure"]) {
     const input = ["extension-id", "collapse-startup", "debug-mode", "remember-urls", "confirm-clear"].includes(id);
     controls.set(id, { id, tagName: input ? "INPUT" : "BUTTON", disabled: false, checked: false, listeners: {},
       addEventListener(event, action) { this.listeners[event] = action; },
