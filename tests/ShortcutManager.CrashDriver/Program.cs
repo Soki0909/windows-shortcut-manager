@@ -12,7 +12,7 @@ using ShortcutManager.Windows.Storage;
 
 var root = Path.GetFullPath(args[0]);
 if (!Path.GetFileName(root).StartsWith("shortcut-manager-tests-", StringComparison.Ordinal)) throw new ArgumentException("Isolated fixture required.");
-if (args is [_, "removal", var asPoint] && asPoint is "file-staged" or "file-restored")
+if (args is [_, "removal", var asPoint] && asPoint is "file-staged" or "file-restored" or "file-deleted")
 {
     if (!Path.GetFileName(root).StartsWith("shortcut-manager-tests-removal-", StringComparison.Ordinal))
         throw new ArgumentException("Isolated removal fixture required.");
@@ -30,7 +30,8 @@ if (args is [_, "removal", var asPoint] && asPoint is "file-staged" or "file-res
         var archive = new LocalDataRemovalArchive(edition, other).Create(plan, [], Path.Combine(root, "driver-before.zip"), false);
         service.Stage(plan, [], archive, false);
     }
-    else service.Cancel();
+    else if (asPoint == "file-restored") service.Cancel();
+    else service.Commit();
     return;
 
     ApplicationPaths RemovalPaths(string dataName, string managedName, bool debug)

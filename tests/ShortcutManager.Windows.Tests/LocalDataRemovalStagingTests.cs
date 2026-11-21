@@ -208,6 +208,103 @@ public sealed class LocalDataRemovalStagingTests : IDisposable
         Assert.Equal(archive.Sha256, Hash(saved));
     }
 
+    [Fact]
+    public void CommitDeletesOnlyVerifiedStashedFilesAndPreservesArchiveAndUnknownFiles()
+    {
+        Service().Stage(approved, [], archive, false);
+        var pending = Service().InspectPending();
+        Assert.NotNull(pending);
+        Assert.True(pending!.IsStaged);
+        Assert.False(pending.IsCommitting);
+
+        var result = Service().Commit();
+
+        Assert.Equal(3, result.DeletedCount);
+        Assert.Equal(archive.Path, result.ArchivePath);
+        Assert.All(sourceHashes, pair => Assert.False(File.Exists(pair.Key)));
+        Assert.Empty(Directory.GetFiles(OperationDirectory(), "stash-*"));
+        Assert.True(File.Exists(Path.Combine(OperationDirectory(), "committed")));
+        Assert.Equal("preserve", File.ReadAllText(unknown));
+        Assert.Equal(archive.Sha256, Hash(archive.Path));
+        Assert.Null(Service().InspectPending());
+        Assert.Equal(RemovalRecoveryOutcome.NothingPending, Service().RecoverInterrupted());
+    }
+
+    [Theory]
+    [InlineData("commit-prepared", 1)]
+    [InlineData("file-deleted", 1)]
+    [InlineData("file-deleted", 2)]
+    [InlineData("file-deleted", 3)]
+    [InlineData("commit-complete", 1)]
+    public void ResumesInterruptedCommitWithoutDeletingUnknownFiles(string point, int occurrence)
+    {
+        Service().Stage(approved, [], archive, false);
+        Assert.Throws<SimulatedExit>(() => InterruptAt(point, occurrence).Commit());
+        if (point != "commit-complete") Assert.Throws<InvalidOperationException>(() => Service().Cancel());
+
+        var expectedOutcome = point == "commit-complete" ? RemovalRecoveryOutcome.NothingPending : RemovalRecoveryOutcome.Deleted;
+        Assert.Equal(expectedOutcome, Service().RecoverInterrupted());
+        Assert.Empty(Directory.GetFiles(OperationDirectory(), "stash-*"));
+        Assert.All(sourceHashes, pair => Assert.False(File.Exists(pair.Key)));
+        Assert.Equal("preserve", File.ReadAllText(unknown));
+        Assert.Equal(archive.Sha256, Hash(archive.Path));
+    }
+
+    [Fact]
+    public void ResumesCommitAfterFixtureProcessIsKilled()
+    {
+        Service().Stage(approved, [], archive, false);
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repo is not null && !File.Exists(Path.Combine(repo.FullName, "ShortcutManager.sln"))) repo = repo.Parent;
+        var configuration = typeof(LocalDataRemovalStagingTests).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()!.Configuration;
+        var exe = Path.Combine(repo!.FullName, "tests", "ShortcutManager.CrashDriver", "bin", configuration, "net10.0-windows", "ShortcutManager.CrashDriver.exe");
+        var start = new ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true };
+        start.ArgumentList.Add(root);
+        start.ArgumentList.Add("removal");
+        start.ArgumentList.Add("file-deleted");
+        using var process = Process.Start(start)!;
+        try
+        {
+            Assert.True(process.WaitForExit(20000), "Fixture process timed out.");
+            Assert.NotEqual(0, process.ExitCode);
+            Assert.True(File.Exists(Path.Combine(root, "crash-confirmed-file-deleted")));
+        }
+        finally { if (!process.HasExited) { process.Kill(); process.WaitForExit(); } }
+
+        Assert.Equal(RemovalRecoveryOutcome.Deleted, Service().RecoverInterrupted());
+        Assert.Empty(Directory.GetFiles(OperationDirectory(), "stash-*"));
+        Assert.Equal("preserve", File.ReadAllText(unknown));
+        Assert.Equal(archive.Sha256, Hash(archive.Path));
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("tampered")]
+    public void CommitAndResumeStopWhenArchiveCannotBeVerified(string fault)
+    {
+        Service().Stage(approved, [], archive, false);
+        if (fault == "missing") File.Move(archive.Path, Path.Combine(root, "moved.zip"));
+        else File.AppendAllText(archive.Path, "tampered");
+
+        Assert.Throws<InvalidDataException>(() => Service().Commit());
+        Assert.Equal(3, Directory.GetFiles(OperationDirectory(), "stash-*").Length);
+        Assert.False(File.Exists(Path.Combine(OperationDirectory(), "committing")));
+    }
+
+    [Fact]
+    public void ResumeCommitStopsWhenRemainingStashOrArchiveChangesAfterInterruption()
+    {
+        Service().Stage(approved, [], archive, false);
+        Assert.Throws<SimulatedExit>(() => InterruptAt("file-deleted", 1).Commit());
+        var remaining = Directory.GetFiles(OperationDirectory(), "stash-*").Order().ToArray();
+        Assert.Equal(2, remaining.Length);
+        File.AppendAllText(remaining[^1], "tampered");
+
+        Assert.Throws<InvalidDataException>(() => Service().RecoverInterrupted());
+        Assert.Equal(2, Directory.GetFiles(OperationDirectory(), "stash-*").Length);
+        Assert.False(File.Exists(Path.Combine(OperationDirectory(), "committed")));
+    }
+
     private static string Hash(string path)
     {
         using var input = File.OpenRead(path);

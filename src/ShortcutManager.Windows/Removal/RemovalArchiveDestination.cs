@@ -71,6 +71,18 @@ internal sealed class RemovalArchiveDestination : IDisposable
         finally { Marshal.FreeHGlobal(buffer); }
     }
 
+    internal static void DeleteOnClose(SafeFileHandle handle, string path)
+    {
+        var buffer = Marshal.AllocHGlobal(1);
+        try
+        {
+            Marshal.WriteByte(buffer, 1);
+            if (!SetFileInformation(handle, FileDispositionInfo, buffer, 1))
+                throw new IOException("検証済みのファイルを削除できません。", RemovalFileInspection.NativeError(path));
+        }
+        finally { Marshal.FreeHGlobal(buffer); }
+    }
+
     private void SetTemporary(SafeFileHandle handle, bool deleteOnClose)
     {
         var buffer = Marshal.AllocHGlobal(1);

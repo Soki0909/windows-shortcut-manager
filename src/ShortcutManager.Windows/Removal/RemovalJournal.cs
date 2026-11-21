@@ -13,6 +13,8 @@ internal static class RemovalJournal
     internal const string Staged = "staged";
     internal const string Cancelling = "cancelling";
     internal const string Cancelled = "cancelled";
+    internal const string Committing = "committing";
+    internal const string Committed = "committed";
     private const int MaxJournalBytes = 4 * 1024 * 1024;
     internal const int MaxCount = 4096;
 
@@ -34,10 +36,10 @@ internal static class RemovalJournal
             if (!Guid.TryParseExact(Path.GetFileName(operation), "N", out _))
                 throw new InvalidDataException($"退避フォルダに確認できない項目があります: {operation}");
             RemovalFileInspection.DirectoryPath(operation);
-            if (HasMarker(operation, Cancelled))
+            if (HasMarker(operation, Cancelled) || HasMarker(operation, Committed))
             {
                 if (Directory.EnumerateFileSystemEntries(operation).Any(path => !IsRecordName(Path.GetFileName(path))))
-                    throw new InvalidDataException($"取り消し済みの退避フォルダに項目が残っています: {operation}");
+                    throw new InvalidDataException($"完了済みの退避フォルダに項目が残っています: {operation}");
                 continue;
             }
             // The operation directory can be left empty if the process exited
@@ -83,5 +85,5 @@ internal static class RemovalJournal
         record.Publish();
     }
 
-    private static bool IsRecordName(string name) => name is Intent or Staged or Cancelling or Cancelled;
+    private static bool IsRecordName(string name) => name is Intent or Staged or Cancelling or Cancelled or Committing or Committed;
 }

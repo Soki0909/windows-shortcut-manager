@@ -7,9 +7,15 @@ using ShortcutManager.Windows.Storage;
 
 namespace ShortcutManager.Windows.Removal;
 
-public enum RemovalRecoveryOutcome { NothingPending, AwaitingDecision, Restored }
+public enum RemovalRecoveryOutcome { NothingPending, AwaitingDecision, Restored, Deleted }
 
-public sealed class LocalDataRemovalStaging(ApplicationPaths paths, ApplicationPaths otherEdition, Action<string>? checkpoint = null)
+public sealed record PendingRemovalSummary(string OperationDirectory, string ArchivePath, string ArchiveSha256,
+    IReadOnlyList<string> RelativePaths, bool IsStaged, bool IsCancelling, bool IsCommitting);
+
+public sealed record RemovalCommitResult(int DeletedCount, string ArchivePath, string OperationDirectory,
+    IReadOnlyList<string> DeletedRelativePaths);
+
+public sealed class LocalDataRemovalStaging(ApplicationPaths paths, ApplicationPaths otherEdition, Action<string>? checkpoint = null, bool holdsInstanceLease = false)
 {
     public int Stage(LocalDataRemovalPlan approval, IReadOnlyCollection<string> individuallySelected,
         VerifiedRemovalArchive archive, bool hasUnsavedChanges) => UnderLease(() =>
@@ -57,15 +63,41 @@ public sealed class LocalDataRemovalStaging(ApplicationPaths paths, ApplicationP
         finally { ReleaseDirectories(locked); }
     });
 
+    public PendingRemovalSummary? InspectPending()
+    {
+        if (RemovalFileInspection.Attributes(paths.DataDirectory) is null) return null;
+        var data = GetDataDirectory();
+        var operation = RemovalJournal.FindActive(data);
+        if (operation is null) return null;
+        var journal = RemovalJournal.ReadIntent(operation);
+        ValidateJournal(journal, data);
+        return new PendingRemovalSummary(
+            operation,
+            journal.ArchivePath,
+            journal.ArchiveSha256,
+            journal.Files.Select(file => file.RelativePath).ToArray(),
+            RemovalJournal.HasMarker(operation, RemovalJournal.Staged),
+            RemovalJournal.HasMarker(operation, RemovalJournal.Cancelling),
+            RemovalJournal.HasMarker(operation, RemovalJournal.Committing));
+    }
+
     public RemovalRecoveryOutcome RecoverInterrupted() => UnderLease(() => Recover(cancelStaged: false));
 
     public RemovalRecoveryOutcome Cancel() => UnderLease(() => Recover(cancelStaged: true));
+
+    public RemovalCommitResult Commit() => UnderLease(() => CommitPending(fromRecovery: false));
 
     private RemovalRecoveryOutcome Recover(bool cancelStaged)
     {
         var data = GetDataDirectory();
         var operation = RemovalJournal.FindActive(data);
         if (operation is null) return RemovalRecoveryOutcome.NothingPending;
+        if (RemovalJournal.HasMarker(operation, RemovalJournal.Committing))
+        {
+            if (cancelStaged) throw new InvalidOperationException("確定消去がすでに開始されているため取り消せません。");
+            CommitPending(fromRecovery: true);
+            return RemovalRecoveryOutcome.Deleted;
+        }
         var locked = new List<SafeFileHandle>();
         try
         {
@@ -92,6 +124,48 @@ public sealed class LocalDataRemovalStaging(ApplicationPaths paths, ApplicationP
             RemovalJournal.Mark(operation, RemovalJournal.Cancelled);
             checkpoint?.Invoke("cancel-complete");
             return RemovalRecoveryOutcome.Restored;
+        }
+        finally { ReleaseDirectories(locked); }
+    }
+
+    private RemovalCommitResult CommitPending(bool fromRecovery)
+    {
+        var data = GetDataDirectory();
+        var operation = RemovalJournal.FindActive(data)
+            ?? throw new InvalidOperationException("確定消去できる退避済みのデータがありません。");
+        var locked = new List<SafeFileHandle>();
+        try
+        {
+            var volume = LockDirectory(operation, locked);
+            var journal = RemovalJournal.ReadIntent(operation);
+            ValidateJournal(journal, data);
+            var startedCancelling = RemovalJournal.HasMarker(operation, RemovalJournal.Cancelling);
+            var startedCommitting = RemovalJournal.HasMarker(operation, RemovalJournal.Committing);
+            if (startedCancelling) throw new InvalidOperationException("取り消しが開始されているため確定消去できません。");
+            if (!RemovalJournal.HasMarker(operation, RemovalJournal.Staged))
+                throw new InvalidOperationException("退避が完了していないため確定消去できません。");
+            if (fromRecovery && !startedCommitting)
+                throw new InvalidOperationException("確定消去の開始記録がありません。");
+
+            VerifyArchiveUnchanged(journal.ArchivePath, journal.ArchiveSha256);
+            var entries = ResolveEntries(operation, data, journal, volume, locked);
+            var remaining = CheckCommitLocations(entries, allowAlreadyDeleted: startedCommitting);
+            if (!startedCommitting) RemovalJournal.Mark(operation, RemovalJournal.Committing);
+            checkpoint?.Invoke("commit-prepared");
+            foreach (var entry in remaining)
+            {
+                DeleteChecked(entry.Stashed, entry.File);
+                checkpoint?.Invoke("file-deleted");
+            }
+            if (CheckCommitLocations(entries, allowAlreadyDeleted: true).Count != 0)
+                throw new InvalidDataException("すべての退避ファイルの消去を確認できません。");
+            RemovalJournal.Mark(operation, RemovalJournal.Committed);
+            checkpoint?.Invoke("commit-complete");
+            return new RemovalCommitResult(
+                entries.Length,
+                journal.ArchivePath,
+                operation,
+                entries.Select(entry => entry.File.RelativePath).ToArray());
         }
         finally { ReleaseDirectories(locked); }
     }
@@ -139,7 +213,7 @@ public sealed class LocalDataRemovalStaging(ApplicationPaths paths, ApplicationP
             if (LockDirectory(parent, locked) != volume)
                 throw new InvalidDataException("元ファイルと退避先のボリュームが一致しません。");
         var knownNames = entries.Select(entry => entry.Stashed)
-            .Concat(new[] { RemovalJournal.Intent, RemovalJournal.Staged, RemovalJournal.Cancelling, RemovalJournal.Cancelled }
+            .Concat(new[] { RemovalJournal.Intent, RemovalJournal.Staged, RemovalJournal.Cancelling, RemovalJournal.Cancelled, RemovalJournal.Committing, RemovalJournal.Committed }
                 .Select(name => Path.Combine(operation, name))).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (Directory.EnumerateFileSystemEntries(operation).Any(path => !knownNames.Contains(path)))
             throw new InvalidDataException("退避フォルダに確認できない項目があります。");
@@ -175,6 +249,43 @@ public sealed class LocalDataRemovalStaging(ApplicationPaths paths, ApplicationP
             if (stashExists) moved.Add(entry);
         }
         return moved;
+    }
+
+    private static List<ResolvedEntry> CheckCommitLocations(IEnumerable<ResolvedEntry> entries, bool allowAlreadyDeleted)
+    {
+        var remaining = new List<ResolvedEntry>();
+        foreach (var entry in entries)
+        {
+            if (RemovalFileInspection.Attributes(entry.Original) is not null)
+                throw new InvalidDataException($"元の場所にファイルが存在するため確定消去できません: {entry.Original}");
+            var stashExists = RemovalFileInspection.Attributes(entry.Stashed) is not null;
+            if (!stashExists)
+            {
+                if (!allowAlreadyDeleted)
+                    throw new InvalidDataException($"退避ファイルが見つからないため確定消去できません: {entry.Stashed}");
+                continue;
+            }
+            using var source = OpenChecked(entry.Stashed, entry.File, forMove: false);
+            remaining.Add(entry);
+        }
+        return remaining;
+    }
+
+    private static void DeleteChecked(string path, RemovalJournalEntry file)
+    {
+        using (var input = OpenChecked(path, file, forMove: true))
+            RemovalArchiveDestination.DeleteOnClose(input.SafeFileHandle, path);
+        if (RemovalFileInspection.Attributes(path) is not null)
+            throw new InvalidDataException($"退避ファイルの消去を確認できません: {path}");
+    }
+
+    private static void VerifyArchiveUnchanged(string archivePath, string expectedSha256)
+    {
+        if (RemovalFileInspection.Attributes(archivePath) is null)
+            throw new InvalidDataException($"削除前アーカイブが見つからないため確定消去できません: {archivePath}");
+        using var archived = RemovalFileInspection.OpenFile(archivePath, LocalDataRemovalArchive.MaxTotalBytes + 32 * 1024 * 1024);
+        if (Convert.ToHexString(SHA256.HashData(archived)) != expectedSha256)
+            throw new InvalidDataException("削除前アーカイブが変更されているため確定消去できません。");
     }
 
     private static void MoveChecked(string source, string destination, RemovalJournalEntry file)
@@ -214,8 +325,8 @@ public sealed class LocalDataRemovalStaging(ApplicationPaths paths, ApplicationP
 
     private T UnderLease<T>(Func<T> action)
     {
-        using var instance = new InstanceLease(paths.ConfigPath);
-        if (!instance.Acquired) throw new InvalidOperationException("このエディションの別の操作が実行中です。");
+        using var instance = holdsInstanceLease ? null : new InstanceLease(paths.ConfigPath);
+        if (instance is not null && !instance.Acquired) throw new InvalidOperationException("このエディションの別の操作が実行中です。");
         using var apply = new Mutex(false, ManagedShortcutApplier.MutexName);
         try
         {
