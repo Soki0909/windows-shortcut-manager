@@ -27,10 +27,11 @@ public sealed class ManagedShortcutApplier(
     IShellChangeNotifier? shellNotifier = null)
 {
     public const string OwnershipMarker = ".shortcut-manager-owned";
+    internal const string MutexName = "Local\\ShortcutManager.Apply";
 
     public ApplyResult RecoverPending()
     {
-        using var mutex = new Mutex(false, "Local\\ShortcutManager.Apply");
+        using var mutex = new Mutex(false, MutexName);
         try { if (!mutex.WaitOne(TimeSpan.Zero)) return new(false, "別の Apply/Restore が実行中です。"); }
         catch (AbandonedMutexException) { /* This process now owns the mutex. */ }
         try
@@ -44,7 +45,7 @@ public sealed class ManagedShortcutApplier(
 
     public ApplyResult Apply(ShortcutConfig config, string managedDirectory, IReadOnlyCollection<string>? externalConflictHotkeys = null, string backupReason = "apply")
     {
-        using var mutex = new Mutex(false, "Local\\ShortcutManager.Apply");
+        using var mutex = new Mutex(false, MutexName);
         try { if (!mutex.WaitOne(TimeSpan.Zero)) return new(false, "別の Apply/Restore が実行中です。"); }
         catch (AbandonedMutexException) { /* Ownership was acquired. Pending journals still block writes. */ }
         try { return ApplyCore(config, managedDirectory, externalConflictHotkeys ?? [], backupReason); }

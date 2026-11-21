@@ -6,11 +6,42 @@ using ShortcutManager.Windows.Apply;
 using ShortcutManager.Windows.Backup;
 using ShortcutManager.Windows.Chrome;
 using ShortcutManager.Windows.Launching;
+using ShortcutManager.Windows.Removal;
 using ShortcutManager.Windows.ShellLinks;
 using ShortcutManager.Windows.Storage;
 
 var root = Path.GetFullPath(args[0]);
 if (!Path.GetFileName(root).StartsWith("shortcut-manager-tests-", StringComparison.Ordinal)) throw new ArgumentException("Isolated fixture required.");
+if (args is [_, "removal", var asPoint] && asPoint is "file-staged" or "file-restored" or "file-deleted")
+{
+    if (!Path.GetFileName(root).StartsWith("shortcut-manager-tests-removal-", StringComparison.Ordinal))
+        throw new ArgumentException("Isolated removal fixture required.");
+    var edition = RemovalPaths("data", "managed", false);
+    var other = RemovalPaths("debug-data", "debug-managed", true);
+    var service = new LocalDataRemovalStaging(edition, other, point =>
+    {
+        if (point != asPoint) return;
+        File.WriteAllText(Path.Combine(root, "crash-confirmed-" + point), point);
+        Process.GetCurrentProcess().Kill();
+    });
+    if (asPoint == "file-staged")
+    {
+        var plan = new LocalDataRemovalPreview(edition, other).Inspect(false);
+        var archive = new LocalDataRemovalArchive(edition, other).Create(plan, [], Path.Combine(root, "driver-before.zip"), false);
+        service.Stage(plan, [], archive, false);
+    }
+    else if (asPoint == "file-restored") service.Cancel();
+    else service.Commit();
+    return;
+
+    ApplicationPaths RemovalPaths(string dataName, string managedName, bool debug)
+    {
+        var data = Path.Combine(root, dataName);
+        return new(data, Path.Combine(data, "config.json"), Path.Combine(data, "state.json"),
+            Path.Combine(data, "logs", "shortcut-manager.log"), Path.Combine(data, "backups"), Path.Combine(data, "staging"),
+            Path.Combine(root, managedName), debug);
+    }
+}
 if (args[1] == "hung-window")
 {
     var thread = new Thread(() => {
