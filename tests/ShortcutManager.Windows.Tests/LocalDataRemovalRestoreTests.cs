@@ -116,6 +116,30 @@ public sealed class LocalDataRemovalRestoreTests : IDisposable
         Assert.False(File.Exists(edition.LogPath));
     }
 
+    [Fact]
+    public void ExternalBackupDestinationValidationRejectsProtectedDirectoriesAndExistingFiles()
+    {
+        var insideData = Path.Combine(edition.DataDirectory, "before-disable.zip");
+        var insideManaged = Path.Combine(edition.ManagedShortcutDirectory, "before-disable.zip");
+        var insideOther = Path.Combine(other.DataDirectory, "before-disable.zip");
+        var valid = Path.Combine(root, "outside-before-disable.zip");
+
+        Directory.CreateDirectory(edition.ManagedShortcutDirectory);
+        Directory.CreateDirectory(other.DataDirectory);
+
+        Assert.Throws<InvalidDataException>(() =>
+            LocalDataRemovalArchive.ValidateExternalBackupDestination(edition, other, edition.ManagedShortcutDirectory, insideData));
+        Assert.Throws<InvalidDataException>(() =>
+            LocalDataRemovalArchive.ValidateExternalBackupDestination(edition, other, edition.ManagedShortcutDirectory, insideManaged));
+        Assert.Throws<InvalidDataException>(() =>
+            LocalDataRemovalArchive.ValidateExternalBackupDestination(edition, other, edition.ManagedShortcutDirectory, insideOther));
+        LocalDataRemovalArchive.ValidateExternalBackupDestination(edition, other, edition.ManagedShortcutDirectory, valid);
+
+        File.WriteAllText(valid, "existing");
+        Assert.Throws<IOException>(() =>
+            LocalDataRemovalArchive.ValidateExternalBackupDestination(edition, other, edition.ManagedShortcutDirectory, valid));
+    }
+
     private static string Hash(string path)
     {
         using var input = File.OpenRead(path);

@@ -94,6 +94,28 @@ public sealed class LocalDataRemovalArchive(ApplicationPaths paths, ApplicationP
         }
     }
 
+    public static void ValidateExternalBackupDestination(ApplicationPaths paths, ApplicationPaths otherEdition,
+        string managedDirectory, string destination)
+    {
+        if (string.IsNullOrWhiteSpace(destination) || !Path.IsPathFullyQualified(destination))
+            throw new InvalidDataException("解除前バックアップの保存先を絶対パスで指定してください。");
+        var fileName = Path.GetFileName(destination);
+        EnsureSafeName(fileName);
+        var parent = RemovalFileInspection.DirectoryPath(Path.GetDirectoryName(destination)!);
+        var resolved = Path.Combine(parent, fileName);
+        if (RemovalFileInspection.Attributes(resolved) is not null)
+            throw new IOException("指定の保存先には既にファイルまたはフォルダがあります。");
+        var protectedRoots = new[]
+        {
+            RemovalFileInspection.DirectoryPath(paths.DataDirectory),
+            RemovalFileInspection.DirectoryPath(managedDirectory),
+            RemovalFileInspection.DirectoryPath(otherEdition.DataDirectory),
+            RemovalFileInspection.DirectoryPath(otherEdition.ManagedShortcutDirectory)
+        };
+        if (protectedRoots.Any(root => RemovalFileInspection.IsWithin(resolved, root)))
+            throw new InvalidDataException("解除前バックアップはデータ保存先や管理フォルダの外へ保存してください。");
+    }
+
     internal static IEnumerable<RemovalItem> SelectItems(LocalDataRemovalPlan plan, IReadOnlyCollection<string> individuallySelected)
     {
         var selected = individuallySelected.ToHashSet(StringComparer.OrdinalIgnoreCase);
