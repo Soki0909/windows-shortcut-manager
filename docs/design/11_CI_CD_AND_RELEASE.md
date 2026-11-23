@@ -81,6 +81,8 @@ ZIP root is manifest.
 
 `v*` タグのpushでGitHub Releaseへ公開する。タグを作成する前に、対象ブランチを指定して手動実行し、検証された同じ4資産をActionsから取得できる。[取得と来歴照合](SUPPLY_CHAIN.md)
 
+Windowsの製品版は `Directory.Build.props`、Tab Bridgeの版は `src/ChromeExtension/manifest.json` に設定する。CIは2つの版が一致することを確認し、その版で配布物を生成・検証する。タグ付きのReleaseではタグの版も一致する必要がある。
+
 Sequence:
 1. version validation
 2. full test gate
