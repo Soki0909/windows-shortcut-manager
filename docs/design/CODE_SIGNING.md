@@ -51,4 +51,6 @@ GitHub-hosted runnerへ証明書は用意されていない。現Release workflo
 
 15件の境界テストで、原本の不変、署名必須時のfallback拒否、範囲外・欠損・非EXE・不正証明書・timestamp・junction・想定外コールバック入力の拒否を確認した。Inno 7.1.1と仮ペイロードで未署名コンパイル成功と、証明書設定なしの署名コールバック失敗によるコンパイル中断を確認した。
 
+契約前の署名経路は `gh workflow run installer-native.yml --ref <branch>` で検証できる。手動実行だけで動く署名ジョブは、使い捨てGitHub Windows runnerのユーザーストア内に試験証明書と鍵を作り、公開部分をrunnerのルートストアに登録する。DigiCertのRFC3161タイムスタンプで配布物とインストール済みUninstallを検証する。ジョブの後処理で証明書と鍵をストアから除去し、試験配布物はアップロードしない。[DigiCertのRFC3161エンドポイント](https://knowledge.digicert.com/general-information/rfc3161-compliant-time-stamp-authority-server)
+
 証明書の準備後に、同じ発行元の信頼できる署名とtimestampをSetup・内部イメージ・インストール済み`unins000.exe`で確認する。使い捨てGitHub Windows runnerで`verify-release-artifacts.ps1 -RequireSigned -RunInstallerSmoke`を実行すると、インストール済みUninstallを起動前に検証する。実署名、実サービスのtimestamp、配布物の再ダウンロード照合と発行元表示は未検証。#50・#140を継続する。

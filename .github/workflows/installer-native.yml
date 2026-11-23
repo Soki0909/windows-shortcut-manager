@@ -36,3 +36,54 @@ jobs:
           ./scripts/prepare-installer-tools.ps1
           ./scripts/test-installer-payload.ps1
           ./scripts/test-installer-maintenance.ps1
+  signed-rehearsal:
+    if: github.event_name == 'workflow_dispatch' && github.ref_type == 'branch'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - name: Verify the signed Windows installer with a disposable test certificate
+        shell: pwsh
+        env:
+          CODE_SIGN_TIMESTAMP_URL: http://timestamp.digicert.com
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          if ($env:GITHUB_ACTIONS -ne 'true' -or $env:GITHUB_EVENT_NAME -ne 'workflow_dispatch' -or
+              $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or -not $env:RUNNER_TEMP) {
+            throw 'The test certificate may only be installed on a disposable GitHub Windows runner.'
+          }
+          $version = ([xml](Get-Content -Raw -LiteralPath 'Directory.Build.props')).Project.PropertyGroup.Version
+          Write-Host 'Preparing the pinned Inno Setup compiler.'
+          ./scripts/prepare-installer-tools.ps1
+          Write-Host 'Creating a one-day non-exportable test certificate.'
+          $certificate = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Shortcut Manager CI Test $env:GITHUB_RUN_ID" `
+            -CertStoreLocation Cert:\CurrentUser\My -KeyExportPolicy NonExportable -HashAlgorithm SHA256 -NotAfter (Get-Date).AddDays(1)
+          $publicCertificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate.RawData)
+          # The current-user root store may ask for interactive confirmation.
+          $roots = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+          try {
+            Write-Host 'Trusting the public certificate on this runner.'
+            $roots.Open('ReadWrite')
+            $roots.Add($publicCertificate)
+            $env:CODE_SIGN_THUMBPRINT = $certificate.Thumbprint
+            Write-Host 'Building and signing the Windows package.'
+            ./scripts/package.ps1 -Version $version -SigningMode Certificate -RequireSigned -RequireCleanSource
+            Write-Host 'Compiling and signing Setup and its embedded uninstaller.'
+            ./scripts/package-installer.ps1 -Version $version -SkipPublish -SigningMode Certificate -RequireSigned
+            Write-Host 'Verifying the signed release and running an install/uninstall smoke test.'
+            ./scripts/verify-release-artifacts.ps1 -Version $version -RequireSigned -RunInstallerSmoke `
+              -RequireMetadata -ExpectedSourceCommit $env:GITHUB_SHA -RequireCleanSource
+            Write-Host 'Test publisher and RFC3161 timestamp verified for the Windows package, Setup and installed Uninstall.'
+          } finally {
+            try {
+              if ($roots.IsOpen) { $roots.Remove($publicCertificate) }
+            } finally {
+              $roots.Dispose()
+              $publicCertificate.Dispose()
+              Remove-Item -LiteralPath "Cert:\CurrentUser\My\$($certificate.Thumbprint)" -DeleteKey
+            }
+          }
