@@ -4,6 +4,8 @@ using System.Windows;
 using System.Text.Json;
 using System.IO;
 using ShortcutManager.Core.Serialization;
+using ShortcutManager.Windows.Apply;
+using ShortcutManager.Windows.Inventory;
 
 namespace ShortcutManager.App;
 
@@ -156,9 +158,9 @@ public partial class App : Application
             if (diagnoseRequested) result = new ShortcutManager.Windows.Diagnostics.ShellResponsivenessProbe().Run();
             else if (restorePath is not null)
             {
-                var inventory = scanner.ScanDefaultAsync(paths.ManagedShortcutDirectory).GetAwaiter().GetResult();
-                var external = inventory.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
-                result = restore.Restore(restorePath, paths.ManagedShortcutDirectory, external);
+                var report = scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots, paths.ManagedShortcutDirectory).GetAwaiter().GetResult();
+                var external = report.Items.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
+                result = WithScanSummary(restore.Restore(restorePath, paths.ManagedShortcutDirectory, external), report);
             }
             else if (scanRequested)
             {
@@ -175,9 +177,9 @@ public partial class App : Application
                 else
                 {
                     var managed = paths.ResolveManagedDirectory(config.Settings.ManagedShortcutDirectory);
-                    var inventory = scanner.ScanDefaultAsync(managed).GetAwaiter().GetResult();
-                    var external = inventory.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
-                    result = applier.Apply(config, managed, external);
+                    var report = scanner.ScanReportAsync(ShortcutInventoryScanner.DefaultRoots, managed).GetAwaiter().GetResult();
+                    var external = report.Items.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
+                    result = WithScanSummary(applier.Apply(config, managed, external), report);
                 }
             }
         }
@@ -193,6 +195,16 @@ public partial class App : Application
         File.WriteAllText(resultPath, json.GetRawText());
         return true;
     }
+
+    private static object WithScanSummary(ApplyResult result, InventoryScanReport report) => new
+    {
+        result.Succeeded,
+        result.Message,
+        result.BackupPath,
+        result.GeneratedCount,
+        result.ConfigSha256,
+        Scan = new { Complete = report.IsComplete, report.ReadFailureCount, IssueCount = report.Issues.Count, report.Summary }
+    };
 
     private static string? ValueAfter(string[] args, string key)
     {
