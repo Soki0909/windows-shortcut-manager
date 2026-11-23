@@ -77,7 +77,7 @@ internal static class Program
 
     internal static void Log(string step)
     {
-        Console.WriteLine(step);
+        Console.WriteLine($"{DateTimeOffset.UtcNow:O} {step}");
         Console.Out.Flush();
     }
 }
@@ -187,47 +187,67 @@ internal sealed class GuiScenario
 
     private (MainWindow Window, MainViewModel Model) Open(bool auditOnly)
     {
+        Program.Log("create workflow view model");
         var scanner = new ShortcutInventoryScanner(links, new());
         var model = new MainViewModel(paths, repository, validator, resolver, new ProcessLauncher(), scanner,
             new ShortcutImporter(), backups, applier, new RestoreService(validator, applier),
             new FileLogger(paths.LogPath), shell, () => [scanRoot]);
+        Program.Log("create workflow main window");
         var main = new MainWindow(model, new ManagedShortcutAuditor(validator, resolver, links),
             ShowFixtureDialog, ConfirmFixtureRestart);
         Hide(main);
+        main.Loaded += (_, _) => Program.Log("workflow main window loaded");
         main.AttachStartupActions(auditOnly);
+        Program.Log("show workflow main window");
         main.Show();
+        Program.Log("workflow main window show returned");
         return (main, model);
     }
 
     private bool? ShowFixtureDialog(Window dialog)
     {
         Hide(dialog);
-        dialog.Loaded += (_, _) => dialog.Dispatcher.BeginInvoke(new Action(async () =>
+        var name = dialog.GetType().Name;
+        dialog.Loaded += (_, _) =>
         {
-            try
+            Program.Log($"{name} loaded");
+            dialog.Dispatcher.BeginInvoke(new Action(async () =>
             {
-                switch (dialog)
+                Program.Log($"{name} fixture actions started");
+                try
                 {
-                    case GettingStartedWindow guide:
-                        Check(!guideOffered, "First-run guide reopened unexpectedly");
-                        await FinishFirstRunAsync(guide);
-                        guideOffered = true;
-                        guide.Close();
-                        break;
-                    case ShortcutEditorWindow editor:
-                        FinishEditor(editor);
-                        break;
-                    default:
-                        throw new InvalidOperationException($"Unexpected dialog {dialog.GetType().Name}");
+                    switch (dialog)
+                    {
+                        case GettingStartedWindow guide:
+                            Check(!guideOffered, "First-run guide reopened unexpectedly");
+                            await FinishFirstRunAsync(guide);
+                            guideOffered = true;
+                            guide.Close();
+                            break;
+                        case ShortcutEditorWindow editor:
+                            FinishEditor(editor);
+                            break;
+                        default:
+                            throw new InvalidOperationException($"Unexpected dialog {name}");
+                    }
                 }
-            }
-            catch (Exception error)
-            {
-                dialogError = error;
-                dialog.Close();
-            }
-        }));
+                catch (Exception error)
+                {
+                    dialogError = error;
+                    Console.Error.WriteLine(error);
+                    Console.Error.Flush();
+                    dialog.Close();
+                    if (dialog.IsVisible)
+                    {
+                        Program.Log($"{name} refused to close after fixture failure");
+                        Application.Current.Shutdown(1);
+                    }
+                }
+            }));
+        };
+        Program.Log($"show {name} modal");
         var result = dialog.ShowDialog();
+        Program.Log($"{name} modal returned");
         if (dialogError is not null) throw new InvalidOperationException("GUI action failed inside modal dialog", dialogError);
         return result;
     }
@@ -236,11 +256,14 @@ internal sealed class GuiScenario
     {
         var apply = Button(guide, UiText.Apply);
         Check(!apply.IsEnabled && !Button(guide, UiText.TestTarget).IsEnabled, "Empty guide must disable Apply and test launch");
+        Program.Log("open first-run website editor");
         Click(Button(guide, "Webサイトを追加"));
         Check(apply.IsEnabled && Button(guide, UiText.TestTarget).IsEnabled, "Valid saved candidate must enable guide actions");
         Check(!File.Exists(paths.ConfigPath), "Save Candidate wrote configuration before Apply");
+        Program.Log("apply first-run fixture");
         Click(apply);
         await Until(() => reloadPrompts == 1 && !apply.IsEnabled, "first Apply did not offer Explorer restart");
+        Program.Log("first-run fixture apply confirmed");
     }
 
     private void FinishEditor(ShortcutEditorWindow editor)
