@@ -79,9 +79,7 @@ ZIP root is manifest.
 
 ## 4. release.yml
 
-Trigger:
-- tag `v*`
-- workflow_dispatch optional
+`v*` タグのpushでGitHub Releaseへ公開する。タグを作成する前に、対象ブランチを指定して手動実行し、検証された同じ4資産をActionsから取得できる。[取得と来歴照合](SUPPLY_CHAIN.md)
 
 Sequence:
 1. version validation
