@@ -32,7 +32,9 @@ SBOMはpackage単位で、runtimeの全ファイルや組み込まれた第三�
 
 ## 署名された来歴
 
-Release workflowは最終ZIP・Setup・SHA256SUMSにGitHub artifact attestationを作成する。OIDC/attestations権限は配布jobだけに付け、鍵をrepositoryへ置かない。workflow_dispatchは公開せず来歴の生成/検証まで、tagの場合はdraftから再downloadした全4assetの来歴とhashも確認してから公開する。
+Release workflowは最終ZIP・Setup・SHA256SUMSにGitHub artifact attestationを作成する。OIDC/attestations権限は配布jobだけに付け、鍵をrepositoryへ置かない。タグのpushではdraftから再取得した全4資産の来歴とハッシュを確認してから公開する。手動実行では、ブランチまたはタグから作成した同じ4資産を検証し、実行結果のActions成果物へ14日間保存する。
+
+公開前に成果物を確認する場合は対象ブランチで `gh workflow run release.yml --ref <branch>` を実行する。成功した実行のArtifacts、または `gh run download <run-id> -n release-rehearsal-<attempt>` から取得し、`SHA256SUMS.txt` と各ファイルのハッシュを照合する。来歴検証には手動実行の実際のソースSHAとref（ブランチなら `refs/heads/<branch>`）を指定する。正式配布物の検証にはタグのrefを指定する。[Actions成果物の取得方法](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
 
 検証ではrepositoryだけでなく、`.github/workflows/release.yml`、ソースcommit/ref、GitHub-hosted runnerを固定する。BUILD-INFOの自己申告を署名された来歴と同じ証拠にしない。Windows Authenticodeとも別であり、attestationがあっても未署名EXEがコード署名済みにはならない。[GitHub公式の仕組み](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations)を使う。
 
