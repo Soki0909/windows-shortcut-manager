@@ -566,7 +566,8 @@ public sealed class MainViewModel : ObservableObject
             var inventory = LastScanReport.Items;
             var external = inventory.Where(item => !item.IsManaged && !string.IsNullOrWhiteSpace(item.Hotkey)).Select(item => item.Hotkey).ToArray();
             var result = await Task.Run(() => prepared is not null && CurrentSourceHash()!=prepared.CurrentConfigSha256 ? new ApplyResult(false,"確認後に現在の設定が変わりました。プレビューを開き直してください。") : restore.Restore(path, ManagedDirectory, external,prepared?.Mode ?? RestoreMode.Entire,prepared?.Preview.ArchiveSha256,prepared is null?null:ConfigJson.Serialize(prepared.Preview.Config)));
-            Status = result.Message;
+            var scanNotice = LastScanReport.IsComplete ? string.Empty : "\n" + LastScanReport.Summary;
+            Status = result.Message + scanNotice;
             logger.Info($"Restore: success={result.Succeeded}, source={path}");
             if (result.Succeeded)
             {
@@ -578,10 +579,10 @@ public sealed class MainViewModel : ObservableObject
                 auditNotice = "保存リンク: 復元後の読戻しで一致を確認しました。実キー動作は未確認です。";
                 shellReloadCompleted = false;
                 ShellReflectionPending = true;
-                restoreSummary = $"復元しました: {result.GeneratedCount} 件。復元前バックアップ: {result.BackupPath}";
+                restoreSummary = $"復元しました: {result.GeneratedCount} 件。復元前バックアップ: {result.BackupPath}" + scanNotice;
                 Raise(nameof(RestoreNotice));
                 if (RecoveryRequired) { Status = restoreSummary + "\n復元後の読込に失敗しました。" + Status; return false; }
-                Status = "バックアップの復元が完了しました。";
+                Status = "バックアップの復元が完了しました。" + scanNotice;
             }
             return result.Succeeded;
         }

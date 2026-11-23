@@ -229,6 +229,32 @@ public sealed class EditorStateTests : IDisposable
     }
 
     [Fact]
+    public async Task RestoreKeepsIncompleteConflictScanVisibleAfterSuccess()
+    {
+        var entry = Entry();
+        Save(entry);
+        var archive = backups.Create("manual", repository.Path, Managed, State);
+        Save(entry with { Name = "Edited before restore" });
+        var unreadableLink = Path.Combine(root, "missing-url.url");
+        const string malformedContents = "[InternetShortcut]\r\n";
+        File.WriteAllText(unreadableLink, malformedContents);
+        var vm = Model(path => path == root || path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            ? Directory.GetFileSystemEntries(path) : []);
+        await vm.ScanReportAsync([root]);
+
+        var prepared = await vm.PrepareRestoreAsync(archive);
+        Assert.True(await vm.RestoreAsync(archive, prepared));
+
+        var report = Assert.IsType<InventoryScanReport>(vm.LastScanReport);
+        Assert.False(report.IsComplete);
+        Assert.Equal(1, report.ReadFailureCount);
+        Assert.Contains(report.Summary, vm.Status);
+        Assert.Contains(report.Summary, vm.RestoreNotice);
+        Assert.Equal(entry.Name, Assert.Single(vm.Shortcuts).Name);
+        Assert.Equal(malformedContents, File.ReadAllText(unreadableLink));
+    }
+
+    [Fact]
     public async Task UndoUsesOnlyThisSessionsLastApplyAndCreatesRestoreBackup()
     {
         var entry=Entry();Save(entry);var vm=Model();Assert.False(vm.CanUndoLastApply);

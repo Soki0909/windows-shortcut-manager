@@ -203,3 +203,24 @@ Assert-WebsiteFixture 'Q' $initialUrl
 if((Get-FileHash -LiteralPath $legacyEdit.backupPath).Hash -ne $legacyBackupHash){throw 'Restore or uninstall changed the selected archive.'}
 Assert-BackupConfig $restored.backupPath $editedConfigHash
 Write-Host "Official v$($previous.Version) backup retained through v$($rollback.Target.Version), then restored through installed v$($rollback.Source.Version); settings, state and website HotKey recovered, and the pre-restore backup and unmanaged shortcut were preserved."
+
+# An unreadable external shortcut must be reported even if the operation succeeds.
+Install $setup $app 'cli-conflict-scan-install'
+$unreadable=Join-Path $programs ('ci-unreadable-'+[guid]::NewGuid().ToString('N')+'.url')
+[IO.File]::WriteAllText($unreadable,"[InternetShortcut]`r`n")
+$unreadableHash=(Get-FileHash -LiteralPath $unreadable).Hash
+try {
+    $applied=Command $app @('--apply-config',"`"$source`"") 'cli-incomplete-apply'
+    Assert-WebsiteFixture 'R' $editedUrl
+    $restored=Command $app @('--restore-backup',"`"$($legacyEdit.backupPath)`"") 'cli-incomplete-restore'
+    Assert-WebsiteFixture 'Q' $initialUrl
+    foreach($result in @($applied,$restored)){
+        if(-not $result.succeeded -or $result.scan.complete -ne $false -or $result.scan.readFailureCount -lt 1 -or
+            -not $result.scan.summary){throw 'Successful Apply/Restore did not report the incomplete external conflict scan.'}
+    }
+    if((Get-FileHash -LiteralPath $unreadable).Hash -ne $unreadableHash){throw 'The unreadable external shortcut was modified.'}
+}finally{
+    Remove-Item -LiteralPath $unreadable
+    Uninstall $app 'cli-conflict-scan-uninstall'
+}
+Write-Host 'Installed CLI Apply and Restore report incomplete external conflict scans without changing the fixture shortcut.'
