@@ -6,7 +6,12 @@ namespace ShortcutManager.Windows.Tests;
 public sealed class GuiWorkflowTests
 {
     [Fact]
-    public async Task FirstRunApplyAndEditSurviveProcessRestartAndReadOnlyAudit()
+    public Task FirstRunApplyAndEditSurviveProcessRestartAndReadOnlyAudit() => RunScenariosAsync("edit", "audit");
+
+    [Fact]
+    public Task MainWindowCannotReturnToEditingWithStagedRemoval() => RunScenariosAsync("removal");
+
+    private static async Task RunScenariosAsync(params string[] scenarios)
     {
         var repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
@@ -19,8 +24,7 @@ public sealed class GuiWorkflowTests
         Directory.CreateDirectory(root);
         var marker = Path.Combine(root, ".gui-probe");
         using (File.Open(marker, FileMode.CreateNew, FileAccess.Write)) { }
-        await RunProbeAsync(executable, "edit", root);
-        await RunProbeAsync(executable, "audit", root);
+        foreach (var scenario in scenarios) await RunProbeAsync(executable, scenario, root);
         if (string.Equals(Path.GetDirectoryName(Path.GetFullPath(root)), temp, StringComparison.OrdinalIgnoreCase) &&
             File.Exists(marker) && !File.GetAttributes(root).HasFlag(FileAttributes.ReparsePoint))
             Directory.Delete(root, recursive: true);

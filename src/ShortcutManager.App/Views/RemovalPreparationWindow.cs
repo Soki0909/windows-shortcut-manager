@@ -20,10 +20,18 @@ public sealed class RemovalPreparationWindow : Window
 
     private readonly StackPanel body = new();
     private readonly TextBlock statusBanner = new() { TextWrapping = TextWrapping.Wrap, Margin = new(0, 0, 0, 12) };
+    private readonly Button closeButton = new() { Margin = new(4), Padding = new(16, 6, 16, 6), IsCancel = true };
     private readonly List<CheckBox> individualCheckBoxes = [];
     private LocalDataRemovalPlan? currentPlan;
     private RemovalArchiveRestorePreview? currentRestorePreview;
-    public bool CompletedDecision { get; private set; }
+    internal bool RequiresRecovery
+    {
+        get
+        {
+            try { return staging.InspectPending() is not null; }
+            catch (Exception) { return true; }
+        }
+    }
 
     public RemovalPreparationWindow(ApplicationPaths paths, ApplicationPaths otherEdition, MainViewModel? viewModel = null, Func<Task>? offerShellReload = null)
     {
@@ -48,10 +56,9 @@ public sealed class RemovalPreparationWindow : Window
         var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new(0, 12, 0, 0) };
         var refresh = new Button { Content = "状態を更新(_R)", Margin = new(4), Padding = new(12, 6, 12, 6) };
         refresh.Click += (_, _) => RebuildView();
-        var close = new Button { Content = "閉じる", Margin = new(4), Padding = new(16, 6, 16, 6), IsCancel = true };
-        close.Click += (_, _) => Close();
+        closeButton.Click += (_, _) => Close();
         footer.Children.Add(refresh);
-        footer.Children.Add(close);
+        footer.Children.Add(closeButton);
         DockPanel.SetDock(footer, Dock.Bottom);
         root.Children.Add(footer);
 
@@ -66,17 +73,29 @@ public sealed class RemovalPreparationWindow : Window
         RebuildView();
     }
 
+    internal void ShowForStartup()
+    {
+        var application = Application.Current;
+        var previousMode = application.ShutdownMode;
+        // Before the main window exists, closing this dialog must not schedule shutdown.
+        application.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        try { ShowDialog(); }
+        finally { application.ShutdownMode = previousMode; }
+    }
+
     private void RebuildView(string? notice = null)
     {
         body.Children.Clear();
         individualCheckBoxes.Clear();
         currentPlan = null;
+        closeButton.Content = "閉じる";
         statusBanner.Text = notice ?? "公式アンインストーラーは本体のみを削除し、設定・バックアップ・管理ショートカットキーを保持します。ここでは管理キーの解除、確認済みローカルデータの退避・消去、および削除前アーカイブからの復元を行えます。";
 
         PendingRemovalSummary? pending;
         try { pending = staging.InspectPending(); }
         catch (Exception error)
         {
+            closeButton.Content = "閉じて終了";
             body.Children.Add(MakeSection("未完了の削除記録に異常があります",
                 $"復旧に必要なファイルを保護するため、新しい削除や書込みを停止しています。\n{error.Message}"));
             return;
@@ -84,6 +103,7 @@ public sealed class RemovalPreparationWindow : Window
 
         if (pending is not null)
         {
+            closeButton.Content = "閉じて終了";
             BuildPendingDecisionView(pending);
             return;
         }
@@ -98,7 +118,8 @@ public sealed class RemovalPreparationWindow : Window
             + $"アーカイブ SHA-256: {pending.ArchiveSha256}\n"
             + $"作業記録フォルダ: {pending.OperationDirectory}\n\n"
             + "・取り消すと、退避済みファイルを元の場所へ戻します。\n"
-            + "・確定消去すると、アーカイブと退避内容を再検証した上で退避済みファイルを削除します。消去後は上記の削除前アーカイブから復元できます。";
+            + "・確定消去すると、アーカイブと退避内容を再検証した上で退避済みファイルを削除します。消去後は上記の削除前アーカイブから復元できます。\n"
+            + "・閉じて終了すると、次回起動時にこの確認画面から再開できます。";
 
         var section = MakeSection("退避完了 — 取り消しまたは確定消去を選択してください", summary);
         var list = new TextBox
@@ -343,7 +364,7 @@ public sealed class RemovalPreparationWindow : Window
         }
         catch (Exception error)
         {
-            MessageBox.Show(this, "削除前アーカイブの作成または退避を停止しました（元データは変更されていません）:\n" + error.Message, "退避エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, "削除前アーカイブの作成または退避を停止しました。下の画面で、未完了の処理があるか確認してください。\n" + error.Message, "退避エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
             RebuildView();
         }
     }
@@ -353,7 +374,6 @@ public sealed class RemovalPreparationWindow : Window
         try
         {
             var outcome = staging.Cancel();
-            CompletedDecision = true;
             viewModel?.Load();
             var message = outcome == RemovalRecoveryOutcome.Restored
                 ? "退避を取り消し、すべてのファイルを元の場所へ戻しました。"
@@ -380,7 +400,6 @@ public sealed class RemovalPreparationWindow : Window
         try
         {
             var result = staging.Commit();
-            CompletedDecision = true;
             viewModel?.Load();
             var message = $"{result.DeletedCount} 件のローカルデータを確定消去しました。\n\n"
                 + $"削除前アーカイブ: {result.ArchivePath}\n"

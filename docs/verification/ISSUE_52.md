@@ -26,3 +26,8 @@
 - 親ディレクトリロック＋同一ハンドル移動（`FileRenameInfo`）＋同一ハンドル削除（`FileDispositionInfo`）により、ハッシュ検証後の差替え（TOCTOU）を防止した。退避・取り消し・確定消去の各チェックポイントおよび `ShortcutManager.CrashDriver` による実プロセスキル（`file-staged` / `file-restored` / `file-deleted`）からの再開、アーカイブ改変・欠損時の停止、削除前アーカイブからの復元（エディション一致・既存競合停止・旧 `state.json` 除外・中断時ロールバック）を自動テストで検証した。
 - ローカル `dotnet build ShortcutManager.sln -c Debug` 0警告・0エラー、`LocalDataRemoval` テスト 62/62（関連 `EditorStateTests` 含む 84/84）成功、PR CI `44881410187`・main 統合後CI [44881815123](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44881815123) 成功。
 - 正式候補での独立検証機における代表の物理キー操作と削除後に残る項目の実機確認（#54と連動）が残るため、Issue #52 は open を維持する。
+
+## 未完了の退避を残して閉じる操作（2026-11-23）
+
+- 削除確認画面を閉じる時点で未完了の退避があれば、通常の編集画面へ戻らずManagerを終了する。次回起動時は既存の復旧処理に入り、退避の確認を再開する。退避のない状態で閉じた場合は一覧へ戻る。
+- 隔離WPF回帰では、通常時と実際の退避済みファイルがある場合の両方でメニューから画面を開いて閉じる。後者はメイン画面の終了、その時点の設定・反映状態の退避継続、取り消し後のバイト一致を確認する。次回起動の確認画面を閉じた後、起動処理が退避の状態を再確認できることも確認する。ローカルの `GuiWorkflowTests` と `LocalDataRemovalStagingTests` 31件が成功。
