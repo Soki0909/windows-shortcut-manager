@@ -1,12 +1,13 @@
 ﻿param([string]$Version='1.0.0',[string]$ArtifactDirectory="$PSScriptRoot/../artifacts",[string]$CompilerPath="$PSScriptRoot/../.work/tools/inno/ISCC.exe")
 $ErrorActionPreference='Stop'
 $PSNativeCommandUseErrorActionPreference=$true
-if($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows'){throw 'Installer lifecycle checks are restricted to a disposable GitHub Windows runner.'}
+if($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or -not $env:RUNNER_TEMP){throw 'Installer lifecycle checks are restricted to a disposable GitHub Windows runner.'}
 if($Version -notmatch '^\d+\.\d+\.\d+$'){throw 'Invalid lifecycle version.'}
 $root=(Resolve-Path "$PSScriptRoot/..").Path
 $artifacts=(Resolve-Path -LiteralPath $ArtifactDirectory).Path
 $setup=Join-Path $artifacts "ShortcutManager-Setup-win-x64-v$Version.exe"
 $previous=Get-Content -LiteralPath (Join-Path $root 'tests/Installer.Tests/previous-release.json') -Raw|ConvertFrom-Json
+$rollback=Get-Content -LiteralPath (Join-Path $root 'tests/Installer.Tests/rollback-release.json') -Raw|ConvertFrom-Json
 $temp=Join-Path $env:RUNNER_TEMP ('sm-lifecycle-'+[guid]::NewGuid().ToString('N'))
 $app=Join-Path $temp 'legacy-app'
 $data=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'ShortcutManager'
@@ -17,10 +18,16 @@ $unmanaged=Join-Path $programs ('ci-unmanaged-'+[guid]::NewGuid().ToString('N')+
 $registration='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{B51D02E8-2292-464D-B2CD-1486E5315750}_is1'
 if((Test-Path -LiteralPath $config) -or (Test-Path -LiteralPath $managed) -or (Test-Path -LiteralPath $registration)){throw 'Unexpected existing product state on the disposable runner; refusing to replace it.'}
 New-Item -ItemType Directory -Path $temp|Out-Null
-$oldSetup=Join-Path $temp 'previous-official.exe'
-Invoke-WebRequest -Uri $previous.SetupUrl -OutFile $oldSetup
-if((Get-FileHash -LiteralPath $oldSetup).Hash -ne $previous.SetupSha256){throw 'Pinned official previous Setup hash mismatch.'}
-if((Get-AuthenticodeSignature -LiteralPath $oldSetup).Status -notin 'NotSigned','Valid'){throw 'Previous Setup signature is invalid.'}
+function Get-PinnedSetup($Release,[string]$Filename){
+    $path=Join-Path $temp $Filename
+    Invoke-WebRequest -Uri $Release.SetupUrl -OutFile $path
+    if((Get-FileHash -LiteralPath $path).Hash -ne $Release.SetupSha256){throw "Pinned official v$($Release.Version) Setup hash mismatch."}
+    if((Get-AuthenticodeSignature -LiteralPath $path).Status -notin 'NotSigned','Valid'){throw "Official v$($Release.Version) Setup signature is invalid."}
+    return $path
+}
+$oldSetup=Get-PinnedSetup $previous 'previous-official.exe'
+$rollbackSourceSetup=Get-PinnedSetup $rollback.Source 'rollback-source-official.exe'
+$rollbackTargetSetup=Get-PinnedSetup $rollback.Target 'rollback-target-official.exe'
 if(-not ('ShortcutManager.Windows.ShellLinks.ShellLinkService' -as [type])){
     $linkSources = Join-Path $root 'src/ShortcutManager.Windows/ShellLinks'
     Add-Type -Path @((Join-Path $linkSources 'ShellLinkService.cs'), (Join-Path $linkSources 'ShortcutReferenceGuard.cs'))
@@ -62,6 +69,16 @@ function Assert-Current([string]$Destination){
     if(-not $validation.ok){throw 'Retained configuration cannot be validated by the installed application.'}
     Assert-Protected
 }
+function Assert-PinnedInstallation([string]$Destination,$Release,[string]$Phase){
+    $exe=Get-Item -LiteralPath (Join-Path $Destination 'ShortcutManager.exe')
+    if($exe.VersionInfo.ProductVersion -cne "$($Release.Version)+$($Release.TagCommit)"){throw "$Phase executable version or source identity mismatch."}
+    $key=Get-ItemProperty -LiteralPath $registration
+    if($key.DisplayVersion -ne $Release.Version -or -not $key.UninstallString.Contains($Destination,[StringComparison]::OrdinalIgnoreCase)){throw "$Phase registration mismatch."}
+    Assert-Protected
+    $validation=Command $Destination @('--validate-config',"`"$config`"") "$Phase-validate"
+    if(-not $validation.ok){throw "$Phase edition could not validate the retained configuration."}
+    Assert-Protected
+}
 Install $oldSetup $app 'legacy-install'
 if((Get-Item -LiteralPath (Join-Path $app 'ShortcutManager.exe')).VersionInfo.ProductVersion.Split('+')[0] -ne $previous.Version){throw 'Official previous installed version mismatch.'}
 $source=Join-Path $temp 'old-config.json'
@@ -80,6 +97,15 @@ Uninstall $app 'retaining-uninstall';Assert-Protected
 Install $setup $app 'reinstall-after-uninstall';Assert-Current $app
 Uninstall $app 'retaining-uninstall-again';Assert-Protected
 Write-Host 'Official previous install/CLI Apply -> upgrade -> reinstall -> uninstall -> reinstall passed; config/state/backups and managed/unmanaged HotKeys preserved.'
+
+Install $rollbackSourceSetup $app 'official-rollback-source-install'
+Assert-PinnedInstallation $app $rollback.Source 'official-rollback-source'
+Install $rollbackTargetSetup $app 'official-rollback'
+Assert-PinnedInstallation $app $rollback.Target 'official-rollback'
+Install $rollbackSourceSetup $app 'official-upgrade-after-rollback'
+Assert-PinnedInstallation $app $rollback.Source 'official-upgrade-after-rollback'
+Uninstall $app 'official-post-rollback-uninstall';Assert-Protected
+Write-Host "Official v$($rollback.Source.Version) -> v$($rollback.Target.Version) -> v$($rollback.Source.Version) Setup rollback and re-upgrade passed; config/state/backups and managed/unmanaged HotKeys preserved."
 
 # Real old/new Setup payload composition differs, using test-only files in a disposable source copy.
 $lab=Join-Path $temp 'payload-app';$labPublish=Join-Path $temp 'previous-payload';New-Item -ItemType Directory -Path $labPublish|Out-Null
