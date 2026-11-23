@@ -2,6 +2,7 @@ using System.Diagnostics;
 
 namespace ShortcutManager.Windows.Tests;
 
+[Collection("Apply transactions")]
 public sealed class GuiWorkflowTests
 {
     [Fact]
