@@ -26,7 +26,8 @@ function Get-PinnedSetup($Release,[string]$Filename){
     return $path
 }
 $oldSetup=Get-PinnedSetup $previous 'previous-official.exe'
-$rollbackSetup=Get-PinnedSetup $rollback 'rollback-official.exe'
+$rollbackSourceSetup=Get-PinnedSetup $rollback.Source 'rollback-source-official.exe'
+$rollbackTargetSetup=Get-PinnedSetup $rollback.Target 'rollback-target-official.exe'
 if(-not ('ShortcutManager.Windows.ShellLinks.ShellLinkService' -as [type])){
     $linkSources = Join-Path $root 'src/ShortcutManager.Windows/ShellLinks'
     Add-Type -Path @((Join-Path $linkSources 'ShellLinkService.cs'), (Join-Path $linkSources 'ShortcutReferenceGuard.cs'))
@@ -68,6 +69,16 @@ function Assert-Current([string]$Destination){
     if(-not $validation.ok){throw 'Retained configuration cannot be validated by the installed application.'}
     Assert-Protected
 }
+function Assert-PinnedInstallation([string]$Destination,$Release,[string]$Phase){
+    $exe=Get-Item -LiteralPath (Join-Path $Destination 'ShortcutManager.exe')
+    if($exe.VersionInfo.ProductVersion -cne "$($Release.Version)+$($Release.TagCommit)"){throw "$Phase executable version or source identity mismatch."}
+    $key=Get-ItemProperty -LiteralPath $registration
+    if($key.DisplayVersion -ne $Release.Version -or -not $key.UninstallString.Contains($Destination,[StringComparison]::OrdinalIgnoreCase)){throw "$Phase registration mismatch."}
+    Assert-Protected
+    $validation=Command $Destination @('--validate-config',"`"$config`"") "$Phase-validate"
+    if(-not $validation.ok){throw "$Phase edition could not validate the retained configuration."}
+    Assert-Protected
+}
 Install $oldSetup $app 'legacy-install'
 if((Get-Item -LiteralPath (Join-Path $app 'ShortcutManager.exe')).VersionInfo.ProductVersion.Split('+')[0] -ne $previous.Version){throw 'Official previous installed version mismatch.'}
 $source=Join-Path $temp 'old-config.json'
@@ -84,19 +95,17 @@ Install $setup $app 'legacy-upgrade';Assert-Current $app
 Install $setup $app 'same-version-reinstall';Assert-Current $app
 Uninstall $app 'retaining-uninstall';Assert-Protected
 Install $setup $app 'reinstall-after-uninstall';Assert-Current $app
-Install $rollbackSetup $app 'rollback-to-official-0.4.0'
-$rollbackExe=Get-Item -LiteralPath (Join-Path $app 'ShortcutManager.exe')
-if($rollbackExe.VersionInfo.ProductVersion -cne "$($rollback.Version)+$($rollback.TagCommit)"){throw 'Rollback executable version or source identity mismatch.'}
-$rollbackRegistration=Get-ItemProperty -LiteralPath $registration
-if($rollbackRegistration.DisplayVersion -ne $rollback.Version -or -not $rollbackRegistration.UninstallString.Contains($app,[StringComparison]::OrdinalIgnoreCase)){throw 'Rollback registration mismatch.'}
-Assert-Protected
-$rollbackValidation=Command $app @('--validate-config',"`"$config`"") 'rollback-validate'
-if(-not $rollbackValidation.ok){throw 'The rollback edition could not validate the retained configuration.'}
-Assert-Protected
-Install $setup $app 'upgrade-after-rollback';Assert-Current $app
-Write-Host 'Official v0.4.0 Setup rollback and re-upgrade passed; config/state/backups and managed/unmanaged HotKeys preserved.'
 Uninstall $app 'retaining-uninstall-again';Assert-Protected
 Write-Host 'Official previous install/CLI Apply -> upgrade -> reinstall -> uninstall -> reinstall passed; config/state/backups and managed/unmanaged HotKeys preserved.'
+
+Install $rollbackSourceSetup $app 'official-rollback-source-install'
+Assert-PinnedInstallation $app $rollback.Source 'official-rollback-source'
+Install $rollbackTargetSetup $app 'official-rollback'
+Assert-PinnedInstallation $app $rollback.Target 'official-rollback'
+Install $rollbackSourceSetup $app 'official-upgrade-after-rollback'
+Assert-PinnedInstallation $app $rollback.Source 'official-upgrade-after-rollback'
+Uninstall $app 'official-post-rollback-uninstall';Assert-Protected
+Write-Host "Official v$($rollback.Source.Version) -> v$($rollback.Target.Version) -> v$($rollback.Source.Version) Setup rollback and re-upgrade passed; config/state/backups and managed/unmanaged HotKeys preserved."
 
 # Real old/new Setup payload composition differs, using test-only files in a disposable source copy.
 $lab=Join-Path $temp 'payload-app';$labPublish=Join-Path $temp 'previous-payload';New-Item -ItemType Directory -Path $labPublish|Out-Null
