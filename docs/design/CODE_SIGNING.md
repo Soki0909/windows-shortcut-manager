@@ -26,6 +26,8 @@
 
 2026-11-18の再照合結果。SignPath Foundationを第一候補とし、申請時に上記の公開情報、再現可能なActionsのビルド、既存リリース、MFAと担当者を提示する。Foundationは公開実行ファイルに審査可能な利用実績を求めるため、採択の見込みは未確定。採択前に対象のInno版で、ビルド途中の内部Uninstallイメージと完成Setupの両方を署名できるか確認する。SignPathのMSI用の内部署名例だけからInnoの対応を判断しない。[申請画面](https://signpath.org/apply.html) [利用条件](https://signpath.org/terms.html) [対応ファイル形式](https://docs.signpath.io/artifact-configuration/reference)
 
+SignPath Foundationの申請時に、製品名と製品版をPEメタデータで制約できるか確認する。Windows本体はソースコミット付きの表示版を保ち、SetupとUninstallの数値版は同じリリース版（`X.Y.Z.0`）に揃える。SignPathの通常の入れ子署名の対応一覧にはInnoがなく、SignToolと連携するWindows KSPはCode Signing Gateway向けと明記されている。Foundationでコンパイル途中のInno署名が利用できるかは申請時に確認する。[メタデータ制約](https://docs.signpath.io/artifact-configuration/reference#file-metadata-restrictions) [Crypto Providersの適用範囲](https://docs.signpath.io/crypto-providers/) [Windows KSP](https://docs.signpath.io/crypto-providers/windows)
+
 日本の個人名義ではMicrosoft Artifact Signing Public Trustの対象地域外。組織名義で条件を満たす場合は、公式クイックスタートで日本が対象に含まれることを確認して再評価する。CA方式へ進む場合は、申請者の名義での発行可否、AuthenticodeとRFC3161、SignToolの証明書ストアからの利用、Innoのコンパイラからの署名可否を契約前に確認する。所有者がサービスの登録・同意・必要な本人確認を行い、開発側は公開可能な証明書識別情報と結果だけを受け取る。[Microsoftの利用資格](https://learn.microsoft.com/en-us/azure/artifact-signing/quickstart)
 
 ## 実装済みの証明書ストア経路

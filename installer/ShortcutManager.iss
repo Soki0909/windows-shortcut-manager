@@ -12,6 +12,8 @@
 AppId={{B51D02E8-2292-464D-B2CD-1486E5315750}
 AppName=Shortcut Manager
 AppVersion={#AppVersion}
+VersionInfoVersion={#AppVersion}
+VersionInfoProductVersion={#AppVersion}
 AppPublisher=Shortcut Manager
 AppPublisherURL=https://github.com/Soki0909/windows-shortcut-manager
 AppSupportURL=https://github.com/Soki0909/windows-shortcut-manager/issues

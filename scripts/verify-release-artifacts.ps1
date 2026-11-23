@@ -100,6 +100,12 @@ if ($RunInstallerSmoke) {
     if ($RequireSigned) {
         if (-not (Test-Path -LiteralPath $uninstaller -PathType Leaf)) { throw 'Signed Setup did not install an uninstaller.' }
         Assert-ReleaseSignature (Get-AuthenticodeSignature -LiteralPath $uninstaller) $true $ExpectedSignerThumbprint
+        $uninstallInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo($uninstaller)
+        $uninstallProductVersion = "$($uninstallInfo.ProductMajorPart).$($uninstallInfo.ProductMinorPart).$($uninstallInfo.ProductBuildPart).$($uninstallInfo.ProductPrivatePart)"
+        if (($uninstallInfo.ProductName ?? '').Trim() -cne 'Shortcut Manager' -or $uninstallProductVersion -ne "$Version.0") {
+            throw "Signed Uninstall PE product metadata mismatch: $uninstallProductVersion (expected $Version.0)."
+        }
+        Write-Host "Signed Uninstall PE product version verified: $uninstallProductVersion"
     }
     try {
         $exe = Join-Path $install 'ShortcutManager.exe'
