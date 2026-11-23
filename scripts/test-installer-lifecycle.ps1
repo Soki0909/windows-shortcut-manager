@@ -47,7 +47,11 @@ function Uninstall([string]$Destination,[string]$Name){
 function Command([string]$Destination,[string[]]$Arguments,[string]$Name){
     $result=Join-Path $temp "$Name.json"
     $commandArgs=@($Arguments)+@('--result',"`"$result`"")
-    $process=Start-Process -FilePath (Join-Path $Destination 'ShortcutManager.exe') -ArgumentList $commandArgs -WindowStyle Hidden -Wait -PassThru
+    $process=Start-Process -FilePath (Join-Path $Destination 'ShortcutManager.exe') -ArgumentList $commandArgs -WindowStyle Hidden -PassThru
+    if(-not $process.WaitForExit(60000)){
+        if(-not $process.HasExited){$process.Kill();[void]$process.WaitForExit(5000)}
+        throw "Installed CLI $Name did not exit within 60 seconds."
+    }
     if($process.ExitCode -ne 0){if(Test-Path -LiteralPath $result){Write-Host ([IO.File]::ReadAllText($result))};throw "Installed CLI $Name failed."}
     Get-Content -LiteralPath $result -Raw|ConvertFrom-Json
 }
@@ -168,8 +172,8 @@ function Assert-BackupConfig([string]$Path,[string]$ExpectedHash){
         finally {$stream.Dispose()}
     }finally {$archive.Dispose()}
 }
-Install $rollbackTargetSetup $app 'pre-restore-older-install'
-Assert-PinnedInstallation $app $rollback.Target 'pre-restore-older'
+Install $oldSetup $app 'pre-restore-older-install'
+Assert-PinnedInstallation $app $previous 'pre-restore-older'
 $initialUrl=$settings.shortcuts[0].target.url
 $initialConfigHash=(Get-FileHash -LiteralPath $config).Hash
 $editedUrl='https://example.invalid/after-edit'
@@ -182,6 +186,10 @@ Assert-WebsiteFixture 'R' $editedUrl
 Assert-BackupConfig $legacyEdit.backupPath $initialConfigHash
 $editedConfigHash=(Get-FileHash -LiteralPath $config).Hash
 $legacyBackupHash=(Get-FileHash -LiteralPath $legacyEdit.backupPath).Hash
+# v0.4.0 can preserve backups during an update. Its legacy CLI Apply can deadlock on a WPF dispatcher.
+Install $rollbackTargetSetup $app 'pre-restore-intermediate-upgrade'
+Assert-WebsiteFixture 'R' $editedUrl
+if((Get-FileHash -LiteralPath $config).Hash -ne $editedConfigHash -or (Get-FileHash -LiteralPath $legacyEdit.backupPath).Hash -ne $legacyBackupHash){throw 'Intermediate upgrade changed the settings or legacy backup.'}
 Install $rollbackSourceSetup $app 'pre-restore-newer-upgrade'
 if((Get-Item -LiteralPath (Join-Path $app 'ShortcutManager.exe')).VersionInfo.ProductVersion -cne "$($rollback.Source.Version)+$($rollback.Source.TagCommit)"){throw 'Unexpected installed version before restore.'}
 Assert-WebsiteFixture 'R' $editedUrl
@@ -194,4 +202,4 @@ Uninstall $app 'post-restore-uninstall'
 Assert-WebsiteFixture 'Q' $initialUrl
 if((Get-FileHash -LiteralPath $legacyEdit.backupPath).Hash -ne $legacyBackupHash){throw 'Restore or uninstall changed the selected archive.'}
 Assert-BackupConfig $restored.backupPath $editedConfigHash
-Write-Host "Official v$($rollback.Target.Version) backup restored through installed v$($rollback.Source.Version); settings, state and website HotKey recovered, and the pre-restore backup and unmanaged shortcut were preserved."
+Write-Host "Official v$($previous.Version) backup retained through v$($rollback.Target.Version), then restored through installed v$($rollback.Source.Version); settings, state and website HotKey recovered, and the pre-restore backup and unmanaged shortcut were preserved."
