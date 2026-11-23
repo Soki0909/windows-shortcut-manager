@@ -73,6 +73,16 @@ public sealed class RemovalPreparationWindow : Window
         RebuildView();
     }
 
+    internal void ShowForStartup()
+    {
+        var application = Application.Current;
+        var previousMode = application.ShutdownMode;
+        // Before the main window exists, closing this dialog must not schedule shutdown.
+        application.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        try { ShowDialog(); }
+        finally { application.ShutdownMode = previousMode; }
+    }
+
     private void RebuildView(string? notice = null)
     {
         body.Children.Clear();

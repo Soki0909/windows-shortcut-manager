@@ -59,7 +59,7 @@ internal static class Program
                     {
                         case "edit": await scenario.EditAsync(); break;
                         case "audit": await scenario.AuditAsync(); break;
-                        case "removal": scenario.CloseWithPendingRemoval(); break;
+                        case "removal": await scenario.CloseWithPendingRemovalAsync(); break;
                     }
                     Log("completed " + args[0]);
                     app.Shutdown(0);
@@ -194,7 +194,7 @@ internal sealed class GuiScenario
         reopened.Close();
     }
 
-    internal void CloseWithPendingRemoval()
+    internal async Task CloseWithPendingRemovalAsync()
     {
         Directory.CreateDirectory(paths.DataDirectory);
         repository.SaveAtomic(new ShortcutConfig());
@@ -224,6 +224,16 @@ internal sealed class GuiScenario
         Check(closed, "Closing the pending-removal window must close its main window too");
         Check(!File.Exists(paths.ConfigPath) && staging.RecoverInterrupted() == RemovalRecoveryOutcome.AwaitingDecision,
             "Closing the UI must leave the staged state available for recovery on next start");
+
+        var startupDialog = new RemovalPreparationWindow(paths, other);
+        Hide(startupDialog);
+        startupDialog.Loaded += (_, _) => startupDialog.Dispatcher.BeginInvoke(new Action(() => Click(Button(startupDialog, "閉じて終了"))));
+        Application.Current.ShutdownMode = ShutdownMode.OnLastWindowClose;
+        startupDialog.ShowForStartup();
+        await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        Check(Application.Current.ShutdownMode == ShutdownMode.OnLastWindowClose && startupDialog.RequiresRecovery,
+            "The startup dialog must leave the caller in control of continuing or shutting down");
+
         Check(staging.Cancel() == RemovalRecoveryOutcome.Restored && File.ReadAllBytes(paths.ConfigPath).SequenceEqual(original)
             && File.ReadAllBytes(paths.StatePath).SequenceEqual(originalState),
             "Cancelling after the UI closed must restore the unchanged settings");

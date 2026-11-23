@@ -89,8 +89,8 @@ public partial class App : Application
                     Shutdown(1); return;
                 }
                 var pendingDialog = new RemovalPreparationWindow(paths, otherEdition);
-                pendingDialog.ShowDialog();
-                if (removalStaging.InspectPending() is not null)
+                pendingDialog.ShowForStartup();
+                if (pendingDialog.RequiresRecovery)
                 {
                     Shutdown(0); return;
                 }
