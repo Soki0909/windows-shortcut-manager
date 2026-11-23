@@ -4,6 +4,7 @@
 
 ## Progress
 
+- [x] 2026-11-23、所有者PCでのTab Bridge再読み込み、実行版と従来のID、物理キーでの対象起動と実グループの開閉を所有者が確認。更新後の監査差分2件を再照合し、旧形式・新形式が同じ元リンクを指していることを確認した。[公開後記録](../releases/post-release/v1.0.0.md)
 - [x] 2026-11-18再開。GitHubとローカルのmain `c28e1ba`、公開版v0.4.0、未解決40件（索引の#1を除く）を照合。#11/#161/#166はclose、#170までの変更とmain CI 44011854444を確認。
 - [x] #32 / PR #168: 起動時監査に元リンクの参照鎖検査を追加。ローカル47件成功・runner専用2件スキップ。[CI 44237902202](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/44237902202) 成功後、main `f9d5cdb` へ統合。後片付けの修正 #176 を含む統合後CIの成功を確認し、#32をclose。
 - [x] #55 / [PR #173](https://github.com/Soki0909/windows-shortcut-manager/pull/173): WPF画面の実イベントを隔離データで検証。ローカル対象1件とPR CIが成功し、main `35a5e0f` へ統合。Explorer再起動は模擬し、物理キーは実機確認に残る。
