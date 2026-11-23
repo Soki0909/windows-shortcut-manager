@@ -76,8 +76,15 @@ public partial class MainWindow : Window
     {
         if (viewModel.IsBusy) return;
         var otherEdition = ApplicationPaths.ForCurrentUser(!BuildIdentity.IsDevelopment);
-        var dialog = new RemovalPreparationWindow(viewModel.Paths, otherEdition, viewModel, () => OfferShellReloadAsync(this)) { Owner = this };
-        showDialog(dialog);
+        do
+        {
+            var dialog = new RemovalPreparationWindow(viewModel.Paths, otherEdition, viewModel, () => OfferShellReloadAsync(this)) { Owner = this };
+            showDialog(dialog);
+            if (!dialog.RequiresRecovery) return;
+
+            // Closing the modal cannot re-enable normal operations while files are stashed.
+            Close();
+        } while (IsVisible);
     }
     private void ExportDiagnostic_Click(object sender, RoutedEventArgs e)
     {

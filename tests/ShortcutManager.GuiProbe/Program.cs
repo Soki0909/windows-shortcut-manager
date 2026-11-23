@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -15,6 +17,7 @@ using ShortcutManager.Windows.Chrome;
 using ShortcutManager.Windows.Inventory;
 using ShortcutManager.Windows.Launching;
 using ShortcutManager.Windows.Logging;
+using ShortcutManager.Windows.Removal;
 using ShortcutManager.Windows.Shell;
 using ShortcutManager.Windows.ShellLinks;
 using ShortcutManager.Windows.Storage;
@@ -24,7 +27,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Length != 2 || args[0] is not ("edit" or "audit")) return 2;
+        if (args.Length != 2 || args[0] is not ("edit" or "audit" or "removal")) return 2;
         var root = Path.GetFullPath(args[1]);
         var temp = Path.GetFullPath(Path.GetTempPath());
         const string prefix = "shortcut-manager-gui-";
@@ -47,13 +50,17 @@ internal static class Program
             Log("load WPF resources");
             app.Resources = ReadAppResources();
             using var theme = new ThemeResources(app);
-            var scenario = new GuiScenario(root);
+            var scenario = new GuiScenario(root, separateDataDirectory: args[0] == "removal");
             app.Dispatcher.BeginInvoke(new Action(async () =>
             {
                 try
                 {
-                    if (args[0] == "edit") await scenario.EditAsync();
-                    else await scenario.AuditAsync();
+                    switch (args[0])
+                    {
+                        case "edit": await scenario.EditAsync(); break;
+                        case "audit": await scenario.AuditAsync(); break;
+                        case "removal": scenario.CloseWithPendingRemoval(); break;
+                    }
                     Log("completed " + args[0]);
                     app.Shutdown(0);
                 }
@@ -104,10 +111,12 @@ internal sealed class GuiScenario
     private int reloadPrompts;
     private Exception? dialogError;
 
-    internal GuiScenario(string root)
+    internal GuiScenario(string root, bool separateDataDirectory)
     {
-        paths = new(root, Path.Combine(root, "config.json"), Path.Combine(root, "state.json"),
-            Path.Combine(root, "log.txt"), Path.Combine(root, "backups"), Path.Combine(root, "stage"),
+        var data = separateDataDirectory ? Path.Combine(root, "data") : root;
+        var log = separateDataDirectory ? Path.Combine(data, "logs", "shortcut-manager.log") : Path.Combine(data, "log.txt");
+        paths = new(data, Path.Combine(data, "config.json"), Path.Combine(data, "state.json"),
+            log, Path.Combine(data, "backups"), Path.Combine(data, "stage"),
             Path.Combine(root, "managed"), IsDevelopment: true);
         scanRoot = Path.Combine(root, "inventory");
         sourcePath = Path.Combine(scanRoot, "source.url");
@@ -185,7 +194,42 @@ internal sealed class GuiScenario
         reopened.Close();
     }
 
-    private (MainWindow Window, MainViewModel Model) Open(bool auditOnly)
+    internal void CloseWithPendingRemoval()
+    {
+        Directory.CreateDirectory(paths.DataDirectory);
+        repository.SaveAtomic(new ShortcutConfig());
+        var original = File.ReadAllBytes(paths.ConfigPath);
+        File.WriteAllText(paths.StatePath, JsonSerializer.Serialize(new
+        {
+            lastSuccessfulApply = DateTimeOffset.Now,
+            configSha256 = Convert.ToHexString(SHA256.HashData(original)),
+            managedDirectory = paths.ManagedShortcutDirectory
+        }));
+        var originalState = File.ReadAllBytes(paths.StatePath);
+        var (main, _) = Open(auditOnly: true, attachStartup: false);
+        var closed = false;
+        main.Closed += (_, _) => closed = true;
+        var menu = Children<MenuItem>(main).Single(item => Equals(item.Header, "削除の準備・データ削除と復元…"));
+        menu.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Check(!closed, "Closing removal preparation without staging must keep the main window open");
+
+        var root = Path.GetDirectoryName(paths.DataDirectory)!;
+        var other = paths with { DataDirectory = Path.Combine(root, "other-data"), ManagedShortcutDirectory = Path.Combine(root, "other-managed"), IsDevelopment = false };
+        var plan = new LocalDataRemovalPreview(paths, other).Inspect(false);
+        Check(plan.CanReviewCandidates, string.Join("\n", plan.Blockers));
+        var archive = new LocalDataRemovalArchive(paths, other).Create(plan, [], Path.Combine(root, "before-removal.zip"), false);
+        var staging = new LocalDataRemovalStaging(paths, other);
+        Check(staging.Stage(plan, [], archive, false) == 2, "Expected only the saved settings and apply state to be stashed");
+        menu.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Check(closed, "Closing the pending-removal window must close its main window too");
+        Check(!File.Exists(paths.ConfigPath) && staging.RecoverInterrupted() == RemovalRecoveryOutcome.AwaitingDecision,
+            "Closing the UI must leave the staged state available for recovery on next start");
+        Check(staging.Cancel() == RemovalRecoveryOutcome.Restored && File.ReadAllBytes(paths.ConfigPath).SequenceEqual(original)
+            && File.ReadAllBytes(paths.StatePath).SequenceEqual(originalState),
+            "Cancelling after the UI closed must restore the unchanged settings");
+    }
+
+    private (MainWindow Window, MainViewModel Model) Open(bool auditOnly, bool attachStartup = true)
     {
         Program.Log("create workflow view model");
         var scanner = new ShortcutInventoryScanner(links, new());
@@ -197,7 +241,7 @@ internal sealed class GuiScenario
             ShowFixtureDialog, ConfirmFixtureRestart);
         Hide(main);
         main.Loaded += (_, _) => Program.Log("workflow main window loaded");
-        main.AttachStartupActions(auditOnly);
+        if (attachStartup) main.AttachStartupActions(auditOnly);
         Program.Log("show workflow main window");
         main.Show();
         Program.Log("workflow main window show returned");
@@ -226,6 +270,9 @@ internal sealed class GuiScenario
                             break;
                         case ShortcutEditorWindow editor:
                             FinishEditor(editor);
+                            break;
+                        case RemovalPreparationWindow removal:
+                            Click(Button(removal, removal.RequiresRecovery ? "閉じて終了" : "閉じる"));
                             break;
                         default:
                             throw new InvalidOperationException($"Unexpected dialog {name}");
