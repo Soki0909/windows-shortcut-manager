@@ -1,6 +1,13 @@
 param([string]$Version = '1.0.0')
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path "$PSScriptRoot\..").Path
+$setupPath = Join-Path $root "artifacts/ShortcutManager-Setup-win-x64-v$Version.exe"
+$setupInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo($setupPath)
+$setupProductVersion = "$($setupInfo.ProductMajorPart).$($setupInfo.ProductMinorPart).$($setupInfo.ProductBuildPart).$($setupInfo.ProductPrivatePart)"
+if (($setupInfo.ProductName ?? '').Trim() -cne 'Shortcut Manager' -or $setupProductVersion -ne "$Version.0") {
+    throw "Setup PE product metadata mismatch: $setupProductVersion (expected $Version.0)."
+}
+Write-Output "Setup PE product version verified: $setupProductVersion"
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
