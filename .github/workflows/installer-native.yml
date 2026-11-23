@@ -56,7 +56,7 @@ jobs:
               $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or -not $env:RUNNER_TEMP) {
             throw 'The test certificate may only be installed on a disposable GitHub Windows runner.'
           }
-          $version = ([xml](Get-Content -Raw -LiteralPath 'Directory.Build.props')).Project.PropertyGroup.Version
+          $version = ./scripts/verify-version.ps1 -PassThru
           Write-Host 'Preparing the pinned Inno Setup compiler.'
           ./scripts/prepare-installer-tools.ps1
           Write-Host 'Creating a one-day non-exportable test certificate.'

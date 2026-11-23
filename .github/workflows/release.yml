@@ -30,7 +30,7 @@ jobs:
           $version = if ($env:RELEASE_REF_TYPE -eq 'tag') {
             $env:RELEASE_TAG.TrimStart('v')
           } else {
-            ([xml](Get-Content -Raw -LiteralPath 'Directory.Build.props')).Project.PropertyGroup.Version
+            ./scripts/verify-version.ps1 -PassThru
           }
           dotnet restore ShortcutManager.sln
           dotnet test ShortcutManager.sln -c Release --no-restore
