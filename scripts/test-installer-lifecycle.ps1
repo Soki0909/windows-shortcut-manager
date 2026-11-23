@@ -141,3 +141,57 @@ try{
 Uninstall $lab 'changed-payload-uninstall';Assert-Protected
 if((Get-FileHash -LiteralPath $userFile).Hash -ne $userHash -or -not (Test-Path -LiteralPath $retired[0])){throw 'Uninstall removed unmanaged additions or retired backup.'}
 Write-Host 'Changed-payload Setup upgrade passed: owned obsolete file backed up/retired; edited obsolete and unmanaged files preserved during upgrade; backups/unmanaged files retained at uninstall.'
+
+# Exercise a real backup from the published older app after updating to the published newer app.
+function Assert-WebsiteFixture([string]$Key,[string]$Url){
+    $saved=Get-Content -LiteralPath $config -Raw|ConvertFrom-Json
+    $entry=@($saved.shortcuts)
+    if($entry.Count -ne 1 -or -not $entry[0].enabled -or $entry[0].id -ne $settings.shortcuts[0].id -or
+        $entry[0].hotkey.key -cne $Key -or $entry[0].target.url -cne $Url){throw 'Saved settings do not match the expected website fixture.'}
+    $state=Get-Content -LiteralPath (Join-Path $data 'state.json') -Raw|ConvertFrom-Json
+    if($state.configSha256 -ne (Get-FileHash -LiteralPath $config).Hash -or $state.managedDirectory -ne $managed){throw 'Saved apply state does not match the restored settings.'}
+    $managedLinks=@(Get-ChildItem -LiteralPath $managed -Filter '*.lnk')
+    if($managedLinks.Count -ne 1){throw 'There must be exactly one website link after Apply/Restore.'}
+    $link=$links.Read($managedLinks[0].FullName)
+    if($link.Hotkey -ne "CTRL+ALT+$Key" -or $link.Arguments.Trim([char]34) -cne $Url){throw 'Managed website link did not match the expected destination and HotKey.'}
+    if((Get-FileHash -LiteralPath $unmanaged).Hash -ne $protected[$unmanaged] -or $links.Read($unmanaged).Hotkey -ne 'CTRL+ALT+V'){
+        throw 'The unmanaged shortcut changed during Apply/Restore.'
+    }
+}
+function Assert-BackupConfig([string]$Path,[string]$ExpectedHash){
+    $archive=[IO.Compression.ZipFile]::OpenRead($Path)
+    try {
+        $archivedConfig=$archive.GetEntry('config.json');$manifest=$archive.GetEntry('backup.json')
+        if(-not $archivedConfig -or -not $manifest){throw 'Application-generated backup is missing settings or a manifest.'}
+        $stream=$archivedConfig.Open()
+        try {if([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)) -ne $ExpectedHash){throw 'Backup does not contain the expected pre-operation settings.'}}
+        finally {$stream.Dispose()}
+    }finally {$archive.Dispose()}
+}
+Install $rollbackTargetSetup $app 'pre-restore-older-install'
+Assert-PinnedInstallation $app $rollback.Target 'pre-restore-older'
+$initialUrl=$settings.shortcuts[0].target.url
+$initialConfigHash=(Get-FileHash -LiteralPath $config).Hash
+$editedUrl='https://example.invalid/after-edit'
+$settings.shortcuts[0].target.url=$editedUrl
+$settings.shortcuts[0].hotkey.key='R'
+[IO.File]::WriteAllText($source,($settings|ConvertTo-Json -Depth 10),[Text.UTF8Encoding]::new($false))
+$legacyEdit=Command $app @('--apply-config',"`"$source`"") 'pre-restore-older-edit'
+if(-not $legacyEdit.succeeded -or -not $legacyEdit.backupPath){throw 'Older version did not create a backup of the previous settings.'}
+Assert-WebsiteFixture 'R' $editedUrl
+Assert-BackupConfig $legacyEdit.backupPath $initialConfigHash
+$editedConfigHash=(Get-FileHash -LiteralPath $config).Hash
+$legacyBackupHash=(Get-FileHash -LiteralPath $legacyEdit.backupPath).Hash
+Install $rollbackSourceSetup $app 'pre-restore-newer-upgrade'
+if((Get-Item -LiteralPath (Join-Path $app 'ShortcutManager.exe')).VersionInfo.ProductVersion -cne "$($rollback.Source.Version)+$($rollback.Source.TagCommit)"){throw 'Unexpected installed version before restore.'}
+Assert-WebsiteFixture 'R' $editedUrl
+if((Get-FileHash -LiteralPath $config).Hash -ne $editedConfigHash -or (Get-FileHash -LiteralPath $legacyEdit.backupPath).Hash -ne $legacyBackupHash){throw 'Upgrade changed the current settings or the legacy backup.'}
+$restored=Command $app @('--restore-backup',"`"$($legacyEdit.backupPath)`"") 'post-upgrade-restore'
+if(-not $restored.succeeded -or -not $restored.backupPath){throw 'Newer version did not restore the old backup and preserve current settings.'}
+Assert-WebsiteFixture 'Q' $initialUrl
+Assert-BackupConfig $restored.backupPath $editedConfigHash
+Uninstall $app 'post-restore-uninstall'
+Assert-WebsiteFixture 'Q' $initialUrl
+if((Get-FileHash -LiteralPath $legacyEdit.backupPath).Hash -ne $legacyBackupHash){throw 'Restore or uninstall changed the selected archive.'}
+Assert-BackupConfig $restored.backupPath $editedConfigHash
+Write-Host "Official v$($rollback.Target.Version) backup restored through installed v$($rollback.Source.Version); settings, state and website HotKey recovered, and the pre-restore backup and unmanaged shortcut were preserved."
