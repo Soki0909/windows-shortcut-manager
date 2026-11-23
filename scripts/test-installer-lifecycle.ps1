@@ -108,8 +108,14 @@ Install $rollbackTargetSetup $app 'official-rollback'
 Assert-PinnedInstallation $app $rollback.Target 'official-rollback'
 Install $rollbackSourceSetup $app 'official-upgrade-after-rollback'
 Assert-PinnedInstallation $app $rollback.Source 'official-upgrade-after-rollback'
-Uninstall $app 'official-post-rollback-uninstall';Assert-Protected
 Write-Host "Official v$($rollback.Source.Version) -> v$($rollback.Target.Version) -> v$($rollback.Source.Version) Setup rollback and re-upgrade passed; config/state/backups and managed/unmanaged HotKeys preserved."
+
+Install $setup $app 'published-to-candidate-upgrade'
+Assert-Current $app
+Install $rollbackSourceSetup $app 'candidate-to-published-rollback'
+Assert-PinnedInstallation $app $rollback.Source 'candidate-to-published-rollback'
+Uninstall $app 'official-post-rollback-uninstall';Assert-Protected
+Write-Host "Published v$($rollback.Source.Version) -> candidate v$Version -> published v$($rollback.Source.Version) passed; exact versions, source, config/state/backups and managed/unmanaged HotKeys verified."
 
 # Real old/new Setup payload composition differs, using test-only files in a disposable source copy.
 $lab=Join-Path $temp 'payload-app';$labPublish=Join-Path $temp 'previous-payload';New-Item -ItemType Directory -Path $labPublish|Out-Null
