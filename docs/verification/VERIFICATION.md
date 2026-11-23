@@ -1,5 +1,10 @@
 # Shortcut Manager Verification
 
+## 公式Setupによるv1.0.0のロールバック検証（2026-11-23）
+
+- 公開済みv1.0.0とv0.4.0のSetupを、公開SHA-256とタグに固定。使い捨てWindows runnerで v1.0.0 → v0.4.0 → v1.0.0 を順に導入し、版・ソース・登録・設定の検証と、隔離した保存データ・リンク・キー属性の保持を確認した。[PR #188 CI](https://github.com/Soki0909/windows-shortcut-manager/actions/runs/45138068604/attempts/2)
+- 最初のCIは既存WPFプローブが45秒でタイムアウトし、Setup工程の手前で停止。同じコミットの再試行はCore39件・Windows292件が成功し、ロールバックまで実行した。WPFの停止原因は未特定。共有Applyミューテックスを使うテストと同じ直列コレクションにGUIワークフローを入れ、ウィンドウ・モーダル・反映の区切りが判別できるログを追加した。ローカルReleaseの関連1件が成功。[WPFの追跡Issue #189](https://github.com/Soki0909/windows-shortcut-manager/issues/189)
+
 ## v1.0.0 所有者PCの実行確認（2026-11-23）
 
 - 所有者が普段のChromeでTab Bridgeの再読み込み、実行版 `1.0.0` と従来のID、物理キーでの対象起動と実タブグループ開閉を確認。
