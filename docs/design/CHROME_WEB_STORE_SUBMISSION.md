@@ -42,12 +42,16 @@ host permissions、content scripts、Native Messaging、externally_connectable�
 
 ## 画像の残作業
 
+2026-11-23に公開ZIPのv1.0.0を使い、Chrome for Testing 158.0.8127.36の専用プロファイルで掲載画像を撮り直した。架空のグループ一覧とURL保存・履歴管理の2枚を1280×800の24ビットRGB PNGにし、文字と切り出し範囲を目視確認した。提出フォルダに128×128のアイコンと、ルートにmanifestがある公開ZIPを揃えた。ZIPのSHA-256は[公開後記録](../releases/post-release/v1.0.0.md)と一致し、MV3の4権限を確認した。[公式の掲載素材要件](https://developer.chrome.com/docs/webstore/cws-dashboard-listing)
+
 2026-11-18にChrome for Testing 148.0.7778.97の専用プロファイルで、v0.4.0拡張のツールバーからPopupを開いて掲載候補2枚を撮影した。架空のタブグループ一覧と、URL保存・履歴管理の画面。1280×800、24ビットRGB PNG。ブラウザー外周のみを切り出し、個人データや公開前のStore IDを含まないことを確認した。提出対象のバージョンや表示が変わったら同じ条件で撮り直す。
 
 - 掲載画像は1280×800、最低1枚・最大5枚。個人タブ・ユーザー名・本物の履歴を入れず、承認済みや推薦等の未取得の表示も加えない。提出時に実際のDashboardの画像要件を照合する。
 - 128pxアイコンはmanifestに既存。小プロモ画像とマーキー画像の要否を提出時に確認する。[掲載情報の仕様](https://developer.chrome.com/docs/webstore/cws-dashboard-listing)
 
 ## アカウント・提出・ID移行
+
+2026-11-23、所有者から開発者アカウントは未準備との確認を得た。登録後に提出・審査・公開とStore版のID移行を進める。
 
 1. 所有者が[開発者ダッシュボード](https://chrome.google.com/webstore/devconsole)で開発者アカウントの有無と公開者情報を確認する。新規の場合は、使用する開発者メールを選び、規約同意と初回登録料の支払いを行う。パスワードや秘密鍵はIssueやソースへ置かない。[登録手順](https://developer.chrome.com/docs/webstore/register)
 2. Actionsで生成した同版のroot manifest ZIPを、hash/source/権限確認後に提出する。初期のPrivate/Trusted testersまたはUnlistedと審査の条件をDashboardで確認する。アップロード時の割当IDと公開URLを記録する。公開・承認済みと先に記載しない。
